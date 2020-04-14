@@ -13,7 +13,8 @@ from setuptools import setup
 
 pkgs = {
     "required": [
-        "grid2op>=0.6.1"
+        "grid2op>=0.6.1",
+        "grid2op[challenge]>=0.6.1"
     ],
     "extras": {
         "test": [
