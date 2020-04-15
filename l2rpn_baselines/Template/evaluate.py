@@ -1,6 +1,9 @@
+#!/usr/bin/env python3
+
 """
 In this file, explain how to evaluate your agent.
 """
+
 import os
 from grid2op.Runner import Runner
 
@@ -60,7 +63,7 @@ def evaluate(env,
     runner_params["verbose"] = verbose
 
     # Create the agent (this piece of code can change)
-    agent = TemplateBaseline(env.action_space, env.observation_space)
+    agent = TemplateBaseline(env.action_space, env.observation_space, "Template")
 
     # Load weights from file (for example)
     agent.load(load_path)

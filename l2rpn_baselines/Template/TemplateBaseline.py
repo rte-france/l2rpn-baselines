@@ -111,7 +111,7 @@ class TemplateBaseline(DoNothingAgent):
         """
         pass
 
-    def train(self, env, num_training_steps, path_save, **kwargs):
+    def train(self, env, num_training_steps, save_path, **kwargs):
         """
         This function, if provided is used to train the baseline. Make sure to save it regularly with "baseline.save"
         for example.

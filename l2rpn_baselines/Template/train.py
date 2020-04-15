@@ -1,5 +1,6 @@
-from l2rpn_baselines.Template.TemplateBaseline import TemplateBaseline
+#!/usr/bin/env python3
 
+from l2rpn_baselines.Template.TemplateBaseline import TemplateBaseline
 
 def train(env,
           name="Template",
@@ -43,7 +44,7 @@ def train(env,
     if load_path is not None:
         baseline.load(load_path)
 
-    baseline.train(env, iterations, save_path=save_path)
+    baseline.train(env, iterations, save_path)
     # as in our example (and in our explanation) we recommend to save the mode regurlarly in the "train" function
     # it is not necessary to save it again here. But if you chose not to follow these advice, it is more than
     # recommended to save the "baseline" at the end of this function with:
