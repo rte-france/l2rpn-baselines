@@ -175,7 +175,7 @@ class DoubleDuelingDQNBaseline(AgentWithConverter):
               iterations,
               save_path,
               num_pre_training_steps = 0,
-              logdir = "logs"):
+              logdir = "logs-train"):
         # Make sure we can fill the experience buffer
         if num_pre_training_steps < self.batch_size * self.num_frames:
             num_pre_training_steps = self.batch_size * self.num_frames
@@ -194,7 +194,7 @@ class DoubleDuelingDQNBaseline(AgentWithConverter):
         os.makedirs(save_path, exist_ok=True)
         modelpath = os.path.join(save_path, self.name + ".h5")
         self.tf_writer = tf.summary.create_file_writer(logpath, name=self.name)
-        self._save_hyperparameters(logpath, env, num_steps)
+        self._save_hyperparameters(save_path, env, num_steps)
         
         # Training loop
         while step < num_steps:

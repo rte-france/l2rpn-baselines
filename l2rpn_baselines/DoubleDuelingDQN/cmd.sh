@@ -17,5 +17,5 @@ rm -rf ./logs-$DQN_NAME
 ./evaluate.py \
     --data_dir $DQN_DATA \
     --load_file ./models/$DQN_NAME.h5 \
-    --logs_dir ./logs-$DQN_NAME \
+    --logs_dir ./logs-eval/$DQN_NAME \
     --nb_episode 10
