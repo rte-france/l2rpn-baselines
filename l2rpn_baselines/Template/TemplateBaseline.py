@@ -111,7 +111,10 @@ class TemplateBaseline(DoNothingAgent):
         """
         pass
 
-    def train(self, env, num_training_steps, save_path, **kwargs):
+    def train(self, env,
+              iterations,
+              save_path,
+              **kwargs):
         """
         This function, if provided is used to train the baseline. Make sure to save it regularly with "baseline.save"
         for example.
@@ -123,10 +126,10 @@ class TemplateBaseline(DoNothingAgent):
         env: :class:`grid2op.Environment.Environment`
             The environment used to train your baseline.
 
-        num_training_steps: ``int``
-            Number of training step used to train the baseline.
+        iterations: ``int``
+            Number of training iterations used to train the baseline.
 
-        path_save: ``str``
+        save_path: ``str``
             Path were the final version of the baseline (**ie** after the "num_training_steps" training steps will
             be performed). It is more than recommended to save the results regurlarly during training, and to save
             the baseline at this location at the end.

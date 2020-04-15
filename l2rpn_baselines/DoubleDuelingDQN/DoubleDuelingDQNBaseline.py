@@ -172,13 +172,16 @@ class DoubleDuelingDQNBaseline(AgentWithConverter):
 
     ## Training Procedure
     def train(self, env,
-              num_pre_training_steps, num_training_steps,
-              modeldir, logdir = "logs"):
+              iterations,
+              save_path,
+              num_pre_training_steps = 0,
+              logdir = "logs"):
         # Make sure we can fill the experience buffer
         if num_pre_training_steps < self.batch_size * self.num_frames:
             num_pre_training_steps = self.batch_size * self.num_frames
 
         # Loop vars
+        num_training_steps = iterations
         num_steps = num_pre_training_steps + num_training_steps
         step = 0
         self.epsilon = INITIAL_EPSILON
@@ -188,8 +191,8 @@ class DoubleDuelingDQNBaseline(AgentWithConverter):
 
         # Create file system related vars
         logpath = os.path.join(logdir, self.name)
-        os.makedirs(modeldir, exist_ok=True)
-        modelpath = os.path.join(modeldir, self.name + ".h5")
+        os.makedirs(save_path, exist_ok=True)
+        modelpath = os.path.join(save_path, self.name + ".h5")
         self.tf_writer = tf.summary.create_file_writer(logpath, name=self.name)
         self._save_hyperparameters(logpath, env, num_steps)
         
