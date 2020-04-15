@@ -1,3 +1,5 @@
+import os
+import json
 import numpy as np
 import tensorflow as tf
 
@@ -18,9 +20,9 @@ UPDATE_FREQ = 64
 UPDATE_TARGET_HARD_FREQ = 5
 UPDATE_TARGET_SOFT_TAU = 0.01
 
-class DoubleDuelingRDQNAgent(AgentWithConverter):
+class DoubleDuelingRDQNBaseline(AgentWithConverter):
     def __init__(self,
-                 env,
+                 observation_space,
                  action_space,
                  name=__name__,
                  trace_length=1,
@@ -32,7 +34,7 @@ class DoubleDuelingRDQNAgent(AgentWithConverter):
                                     action_space_converter=IdToAct)
 
         # Store constructor params
-        self.env = env
+        self.observation_space = observation_space
         self.name = name
         self.trace_length = trace_length
         self.batch_size = batch_size
@@ -54,17 +56,13 @@ class DoubleDuelingRDQNAgent(AgentWithConverter):
         self.Qtarget = None
 
         # Compute dimensions from intial state
-        self.obs = self.env.reset()
-        self.state = self.convert_obs(self.obs)
-        self.observation_size = self.state.shape[0]
+        self.observation_size = self.observation_space.size_obs()
         self.action_size = self.action_space.size()
 
         # Load network graph
         self.Qmain = DoubleDuelingRDQN(self.action_size,
                                        self.observation_size,
                                        learning_rate = self.lr)
-        # Setup inital state
-        self._reset_state()
         # Setup training vars if needed
         if self.is_training:
             self._init_training()
@@ -79,9 +77,9 @@ class DoubleDuelingRDQNAgent(AgentWithConverter):
                                          self.observation_size,
                                          learning_rate = self.lr)
 
-    def _reset_state(self):
+    def _reset_state(self, current_obs):
         # Initial state
-        self.obs = self.env.current_obs
+        self.obs = current_obs
         self.state = self.convert_obs(self.obs)
         self.done = False
         self.mem_state = np.zeros(self.Qmain.h_size)
@@ -100,8 +98,8 @@ class DoubleDuelingRDQNAgent(AgentWithConverter):
         for exp in episode_exp:
             self.exp_buffer.add(exp[0], exp[1], exp[2], exp[3], exp[4], episode)
 
-    def _save_hyperparameters(self):
-        r_instance = self.env.reward_helper.template_reward
+    def _save_hyperparameters(self, logpath, env, steps):
+        r_instance = env.reward_helper.template_reward
         hp = {
             "lr": self.lr,
             "batch_size": self.batch_size,
@@ -117,7 +115,7 @@ class DoubleDuelingRDQNAgent(AgentWithConverter):
             "reward": dict(r_instance)
         }
         hp_filename = "{}-hypers.json".format(self.name)
-        hp_path = os.path.join("./logs", hp_filename)
+        hp_path = os.path.join(logpath, hp_filename)
         with open(hp_path, 'w') as fp:
             json.dump(hp, fp=fp, indent=2)
 
@@ -128,8 +126,8 @@ class DoubleDuelingRDQNAgent(AgentWithConverter):
     def convert_act(self, action):
         return super().convert_act(action)
 
-    def reset(self):
-        self._reset_state()
+    def reset(self, observation):
+        self._reset_state(observation)
 
     def my_act(self, state, reward, done=False):
         data_input = np.array(state)
@@ -142,17 +140,23 @@ class DoubleDuelingRDQNAgent(AgentWithConverter):
 
         return a
     
-    def load_network(self, path):
+    def load(self, path):
         self.Qmain.load_network(path)
         if self.is_training:
             self.Qmain.update_target_hard(self.Qtarget.model)
 
-    def save_network(self, path):
+    def save(self, path):
         self.Qmain.save_network(path)
 
     ## Training Procedure
-    def train(self, num_pre_training_steps, num_training_steps):
+    def train(self, env,
+              iterations,
+              save_path,
+              num_pre_training_steps = 0,
+              logdir = "logs"):
+
         # Loop vars
+        num_training_steps = iterations
         num_steps = num_pre_training_steps + num_training_steps
         step = 0
         epsilon = INITIAL_EPSILON
@@ -161,16 +165,20 @@ class DoubleDuelingRDQNAgent(AgentWithConverter):
         episode = 0
         episode_exp = []
 
-        self.tf_writer = tf.summary.create_file_writer("./logs/{}".format(self.name), name=self.name)
-        self._save_hyperparameters()
+        # Create file system related vars
+        logpath = os.path.join(logdir, self.name)
+        os.makedirs(save_path, exist_ok=True)
+        modelpath = os.path.join(save_path, self.name + ".h5")
+        self.tf_writer = tf.summary.create_file_writer(logpath, name=self.name)
+        self._save_hyperparameters(save_path, env, num_steps)
         
-        self._reset_state()
         # Training loop
+        self._reset_state(env.current_obs)
         while step < num_steps:
             # New episode
             if self.done:
-                self.env.reset() # This shouldn't raise
-                self._reset_state()
+                new_obs = env.reset() # This shouldn't raise
+                self._reset_state(new_obs)
                 # Push current episode experience to experience buffer
                 self._register_experience(episode_exp, episode)
                 # Reset current episode experience
@@ -193,7 +201,7 @@ class DoubleDuelingRDQNAgent(AgentWithConverter):
             # Convert it to a valid action
             act = self.convert_act(a)
             # Execute action
-            new_obs, reward, self.done, info = self.env.step(act)
+            new_obs, reward, self.done, info = env.step(act)
             new_state = self.convert_obs(new_obs)
             
             # Save to current episode experience
@@ -234,7 +242,7 @@ class DoubleDuelingRDQNAgent(AgentWithConverter):
             
             # Save the network every 1000 iterations
             if step > 0 and step % 1000 == 0:
-                self.Qmain.save_network(self.name + ".h5")
+                self.save(modelpath)
 
             # Iterate to next loop
             step += 1
@@ -242,7 +250,7 @@ class DoubleDuelingRDQNAgent(AgentWithConverter):
             self.state = new_state
 
         # Save model after all steps
-        self.Qmain.save_network(self.name + ".h5")
+        self.save(modelpath)
 
     def _batch_train(self, batch, step):
         """Trains network to fit given parameters"""

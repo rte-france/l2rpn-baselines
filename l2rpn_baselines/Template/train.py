@@ -1,11 +1,12 @@
+#!/usr/bin/env python3
+
 from l2rpn_baselines.Template.TemplateBaseline import TemplateBaseline
 
-
 def train(env,
-          num_training_steps,
-          path_save=None,
-          name="baseline",
-          path_loading=None,
+          name="Template",
+          iterations=1,
+          save_path=None,
+          load_path=None,
           **kwargs):
     """
     This an example function to train a baseline.
@@ -19,16 +20,16 @@ def train(env,
     env: :class:`grid2op.Environment.Environment`
         The environmnent on which the baseline will be trained
 
-    num_training_steps: ``int``
-        Number of training step to perform
-
-    path_save: ``str``
-        The path where the baseline will be saved at the end of the training procedure.
-
     name: ``str``
         Fancy name you give to this baseline.
 
-    path_loading: ``str``
+    iterations: ``int``
+        Number of training iterations to perform
+
+    save_path: ``str``
+        The path where the baseline will be saved at the end of the training procedure.
+
+    load_path: ``str``
         Path where to look for reloading the model. Use ``None`` if no model should be loaded.
 
     kwargs:
@@ -40,10 +41,10 @@ def train(env,
                                 env.observation_space,
                                 name=name)
 
-    if path_loading is not None:
-        baseline.load_network(path_loading)
+    if load_path is not None:
+        baseline.load(load_path)
 
-    baseline.train(env, num_training_steps, path_save=path_save)
+    baseline.train(env, iterations, save_path)
     # as in our example (and in our explanation) we recommend to save the mode regurlarly in the "train" function
     # it is not necessary to save it again here. But if you chose not to follow these advice, it is more than
     # recommended to save the "baseline" at the end of this function with:
@@ -52,14 +53,14 @@ def train(env,
 
 if __name__ == "__main__":
     """
-    This is a possible implementation of the eval script.
+    This is a possible implementation of the train script.
     """
     import grid2op
     from l2rpn_baselines.utils import cli_train
     args_cli = cli_train().parse_args()
     env = grid2op.make()
     train(env=env,
-          num_training_steps=args_cli.num_train_steps,
-          path_save=args_cli.path_save,
           name=args_cli.name,
-          path_loading=args_cli.path_loading)
+          iterations=args_cli.num_train_steps,
+          save_path=args_cli.save_path,
+          load_path=args_cli.load_path)
