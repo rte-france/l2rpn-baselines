@@ -2,7 +2,7 @@
 
 This document is a handbook to writing a new baseline.
 
-We provide a detailed guide and a [Template baseline](/l2rpn_baselines/Template) to help you getting started.
+We provide this guide and a [Template baseline](/l2rpn_baselines/Template) to help you getting started.
 
 # Handbook Menu
 *   [1. One baseline, one submodule](#one-baseline-one-submodule)
