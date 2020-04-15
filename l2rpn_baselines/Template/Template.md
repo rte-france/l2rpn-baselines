@@ -1,6 +1,6 @@
 # Authors
- - Benjamin Donnot <benjamin.donnot@rte-france.com>
- - Jean Grizet <jean.grizet@gmail.com>
+ - Benjamin Donnot \<benjamin.donnot@rte-france.com\>
+ - Jean Grizet \<jean.grizet@gmail.com\>
 
 # Publications
  - If applicable
@@ -19,11 +19,11 @@ Evaluation summary:
  - If applicable
 
 # Training hyperparameters
+ - If applicable
 ```json
 {
   "lr": 1e-05,
   "batch_size": 32,
-  "stack_frames": 4,
   "iter": 131328,
   "e_start": 0.9,
   "e_end": 0.0,
@@ -34,18 +34,6 @@ Evaluation summary:
   "update_hard": 5,
   "update_soft": 0.01,
   "reward": {
-    "bridge": {
-      "name": "BridgeReward",
-      "reward_min": 0.0,
-      "reward_max": 1.0,
-      "weight": 5.0
-    },
-    "overflow": {
-      "name": "CloseToOverflowReward",
-      "reward_min": 0.0,
-      "reward_max": 1.0,
-      "weight": 10.0
-    },
     "game": {
       "name": "GameplayReward",
       "reward_min": -1.0,
