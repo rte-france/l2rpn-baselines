@@ -62,5 +62,5 @@ if __name__ == "__main__":
     train(env=env,
           name=args_cli.name,
           iterations=args_cli.num_train_steps,
-          save_path=args_cli.path_save,
-          load_path=args_cli.path_loading)
+          save_path=args_cli.save_path,
+          load_path=args_cli.load_path)

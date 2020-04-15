@@ -5,12 +5,12 @@ from l2rpn_baselines.utils.str2bool import str2bool
 # TODO add possibilitiy to add new CLI when calling the function
 def cli_eval():
     parser = argparse.ArgumentParser(description="Train baseline DDQN")
-    parser.add_argument("--path_data", required=True,
+    parser.add_argument("--data_path", required=True,
                         help="Path to the dataset root directory")
-    parser.add_argument("--path_model", required=True,
+    parser.add_argument("--load_path", required=True,
                         help="The path to the model [.h5]")
-    parser.add_argument("--path_logs", required=False,
-                        default="./logs_eval", type=str,
+    parser.add_argument("--logs_path", required=False,
+                        default="./logs-eval", type=str,
                         help="Path to output logs directory")
     parser.add_argument("--nb_episode", required=False,
                         default=1, type=int,

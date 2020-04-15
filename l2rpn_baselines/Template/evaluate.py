@@ -20,7 +20,7 @@ def evaluate(env,
              save_gif=False,
              **kwargs):
     """
-    In order to submit a valid basline, it is mandatory to provide a "eval" function with the same signature as this one.
+    In order to submit a valid basline, it is mandatory to provide a "evaluate" function with the same signature as this one.
 
     Parameters
     ----------
@@ -91,7 +91,7 @@ def evaluate(env,
         print(msg_tmp)
 
     if save_gif:
-        save_log_gif(loag_path, res)
+        save_log_gif(load_path, res)
 
 
 if __name__ == "__main__":
@@ -103,8 +103,8 @@ if __name__ == "__main__":
     args_cli = cli_eval().parse_args()
     env = grid2op.make()
     evaluate(env,
-             load_path=args_cli.path_model,
-             logs_path=args_cli.path_logs,
+             load_path=args_cli.load_path,
+             logs_path=args_cli.logs_path,
              nb_episode=args_cli.nb_episode,
              nb_process=args_cli.nb_process,
              max_steps=args_cli.max_steps,
