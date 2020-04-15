@@ -88,9 +88,9 @@ def train(env,
         agent.load(load_path)
 
     agent.train(env,
-                num_pre_training_steps,
                 iterations,
                 save_path,
+                num_pre_training_steps,
                 logs_path)
     
 
