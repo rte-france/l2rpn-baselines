@@ -10,7 +10,7 @@ We provide this guide and a [Template baseline](/l2rpn_baselines/Template) to he
     *   [2.1. MyContrib\/\_\_init\_\_.py](#mycontrib__init__py)
     *   [2.2. MyContrib.MyContribBaseline_eval](#mycontribmycontribbaseline_eval)
     *   [2.3. MyContrib.MyContribBaseline_train (optional)](#mycontribmycontribbaseline_train-optional)
-    *   [2.4. MyContrib\/MyContrib.md](#mycontribmycontribmd)
+    *   [2.4. MyContrib\/MyContrib.md](#mycontribmycontribmd-optional)
 
 # One baseline, one submodule
 As shown by the [Template baseline](/l2rpn_baselines/Template), it is expected from baselines to take the form a python submodule
@@ -112,7 +112,7 @@ However, you CAN change the default values of the arguments.
  - load_path: ``str`` Path where to look for reloading the model. Use ``None`` if no model should be loaded.
  - kwargs: Other key-word arguments that you might use for training.
 
-## MyContrib\/MyContrib.md
+## MyContrib\/MyContrib.md (optional)
 
 It is encouraged to provide a markdown file at the root of your baseline submodule containing:
 
