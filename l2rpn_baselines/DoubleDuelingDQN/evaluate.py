@@ -18,7 +18,7 @@ from grid2op.Reward import *
 from grid2op.Action import *
 from grid2op.Agent import DoNothingAgent
 
-from DoubleDuelingDQNBaseline import DoubleDuelingDQNBaseline as DDDQNAgent
+from l2rpn_baselines.DoubleDuelingDQN.DoubleDuelingDQN import DoubleDuelingDQN as DDDQNAgent
 
 DEFAULT_LOGS_DIR = "./logs-evals"
 DEFAULT_NB_EPISODE = 1

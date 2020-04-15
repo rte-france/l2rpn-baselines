@@ -15,7 +15,7 @@ from grid2op.MakeEnv import make2
 from grid2op.Reward import *
 from grid2op.Action import *
 
-from DoubleDuelingDQNBaseline import DoubleDuelingDQNBaseline as DDDQNAgent
+from l2rpn_baselines.DoubleDuelingDQN.DoubleDuelingDQN import DoubleDuelingDQN as DDDQNAgent
 
 DEFAULT_NAME = "DoubleDuelingDQN"
 DEFAULT_SAVE_DIR = "./models"

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-from l2rpn_baselines.Template.TemplateBaseline import TemplateBaseline
+from l2rpn_baselines.Template.Template import Template
 
 def train(env,
           name="Template",
@@ -37,9 +37,9 @@ def train(env,
 
     """
 
-    baseline = TemplateBaseline(env.action_space,
-                                env.observation_space,
-                                name=name)
+    baseline = Template(env.action_space,
+                        env.observation_space,
+                        name=name)
 
     if load_path is not None:
         baseline.load(load_path)
