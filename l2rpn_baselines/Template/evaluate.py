@@ -9,7 +9,7 @@ from l2rpn_baselines.utils.save_log_gif import save_log_gif
 
 def evaluate(env,
              load_path=".",
-             log_path=None,
+             logs_path=None,
              nb_episode=1,
              nb_process=1,
              max_steps=-1,
@@ -27,7 +27,7 @@ def evaluate(env,
     load_path: ``str``
         The path where the model is stored. This is used by the agent when calling "agent.load)
 
-    log_path: ``str``
+    logs_path: ``str``
         The path where the agents results will be stored.
 
     nb_episode: ``int``
@@ -73,7 +73,7 @@ def evaluate(env,
     # you can do stuff with your model here
 
     # start the runner
-    res = runner.run(path_save=log_path,
+    res = runner.run(path_save=logs_path,
                      nb_episode=nb_episode,
                      nb_process=nb_process,
                      max_iter=max_steps,
@@ -101,7 +101,7 @@ if __name__ == "__main__":
     env = grid2op.make()
     evaluate(env,
              load_path=args_cli.path_model,
-             log_path=args_cli.path_logs,
+             logs_path=args_cli.path_logs,
              nb_episode=args_cli.nb_episode,
              nb_process=args_cli.nb_process,
              max_steps=args_cli.max_steps,

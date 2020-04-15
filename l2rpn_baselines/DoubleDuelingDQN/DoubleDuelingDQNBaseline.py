@@ -29,9 +29,9 @@ UPDATE_FREQ = 32
 UPDATE_TARGET_HARD_FREQ = 5
 UPDATE_TARGET_SOFT_TAU = 0.01
 
-class DoubleDuelingDQNAgent(AgentWithConverter):
+class DoubleDuelingDQNBaseline(AgentWithConverter):
     def __init__(self,
-                 env,
+                 observation_space,
                  action_space,
                  name=__name__,
                  num_frames=4,
@@ -41,9 +41,9 @@ class DoubleDuelingDQNAgent(AgentWithConverter):
         # Call parent constructor
         AgentWithConverter.__init__(self, action_space,
                                     action_space_converter=IdToAct)
-
+        self.obs_space = observation_space
+        
         # Store constructor params
-        self.env = env
         self.name = name
         self.num_frames = num_frames
         self.is_training = is_training
@@ -65,11 +65,8 @@ class DoubleDuelingDQNAgent(AgentWithConverter):
         self.Qtarget = None
         self.epsilon = 0.0
 
-        # Setup inital state
-        self._reset_state()
-        self._reset_frame_buffer()
-        # Compute dimensions from intial state
-        self.observation_size = self.state.shape[0]
+        # Compute dimensions from intial spaces
+        self.observation_size = self.obs_space.size_obs()
         self.action_size = self.action_space.size()
 
         # Load network graph
@@ -92,9 +89,9 @@ class DoubleDuelingDQNAgent(AgentWithConverter):
                                         num_frames = self.num_frames,
                                         learning_rate = self.lr)
 
-    def _reset_state(self):
+    def _reset_state(self, current_obs):
         # Initial state
-        self.obs = self.env.current_obs
+        self.obs = current_obs
         self.state = self.convert_obs(self.obs)
         self.done = False
 
@@ -114,8 +111,8 @@ class DoubleDuelingDQNAgent(AgentWithConverter):
         if len(self.frames2) > self.num_frames:
             self.frames2.pop(0)
 
-    def _save_hyperparameters(self, steps):
-        r_instance = self.env.reward_helper.template_reward
+    def _save_hyperparameters(self, logpath, env, steps):
+        r_instance = env.reward_helper.template_reward
         hp = {
             "lr": self.lr,
             "batch_size": self.batch_size,
@@ -132,7 +129,7 @@ class DoubleDuelingDQNAgent(AgentWithConverter):
             "reward": dict(r_instance)
         }
         hp_filename = "{}-hypers.json".format(self.name)
-        hp_path = os.path.join("./logs", hp_filename)
+        hp_path = os.path.join(logpath, hp_filename)
         with open(hp_path, 'w') as fp:
             json.dump(hp, fp=fp, indent=2)
 
@@ -155,8 +152,9 @@ class DoubleDuelingDQNAgent(AgentWithConverter):
     def convert_act(self, action):
         return super().convert_act(action)
 
-    def reset(self):
-        self._reset_state()
+    ## Baseline Interface
+    def reset(self, observation):
+        self._reset_state(observation)
         self._reset_frame_buffer()
 
     def my_act(self, state, reward, done=False):
@@ -164,16 +162,18 @@ class DoubleDuelingDQNAgent(AgentWithConverter):
         a, _ = self.Qmain.predict_move(np.array(self.frames))
         return a
     
-    def load_network(self, path):
+    def load(self, path):
         self.Qmain.load_network(path)
         if self.is_training:
             self.Qmain.update_target_hard(self.Qtarget.model)
 
-    def save_network(self, path):
+    def save(self, path):
         self.Qmain.save_network(path)
 
     ## Training Procedure
-    def train(self, num_pre_training_steps, num_training_steps):
+    def train(self, env,
+              num_pre_training_steps, num_training_steps,
+              modeldir, logdir = "logs"):
         # Make sure we can fill the experience buffer
         if num_pre_training_steps < self.batch_size * self.num_frames:
             num_pre_training_steps = self.batch_size * self.num_frames
@@ -186,16 +186,19 @@ class DoubleDuelingDQNAgent(AgentWithConverter):
         total_reward = 0
         self.done = True
 
-        self.tf_writer = tf.summary.create_file_writer("./logs/{}".format(self.name), name=self.name)
-        self._save_hyperparameters(num_steps)
+        # Create file system related vars
+        logpath = os.path.join(logdir, self.name)
+        os.makedirs(modeldir, exist_ok=True)
+        modelpath = os.path.join(modeldir, self.name + ".h5")
+        self.tf_writer = tf.summary.create_file_writer(logpath, name=self.name)
+        self._save_hyperparameters(logpath, env, num_steps)
         
         # Training loop
         while step < num_steps:
             # Init first time or new episode
             if self.done:
-                self.env.reset() # This shouldn't raise
-                self._reset_state()
-                self._reset_frame_buffer()
+                new_obs = env.reset() # This shouldn't raise
+                self.reset(new_obs)
             if step % 1000 == 0:
                 print("Step [{}] -- Random [{}]".format(step, self.epsilon))
 
@@ -212,7 +215,7 @@ class DoubleDuelingDQNAgent(AgentWithConverter):
             # Convert it to a valid action
             act = self.convert_act(a)
             # Execute action
-            new_obs, reward, self.done, info = self.env.step(act)
+            new_obs, reward, self.done, info = env.step(act)
             new_state = self.convert_obs(new_obs)
             if info["is_illegal"] or info["is_ambiguous"] or \
                info["is_dispatching_illegal"] or info["is_illegal_reco"]:
@@ -264,7 +267,7 @@ class DoubleDuelingDQNAgent(AgentWithConverter):
             
             # Save the network every 1000 iterations
             if step > 0 and step % 1000 == 0:
-                self.Qmain.save_network(self.name + ".h5")
+                self.save(modelpath)
 
             # Iterate to next loop
             step += 1
@@ -272,7 +275,7 @@ class DoubleDuelingDQNAgent(AgentWithConverter):
             self.state = new_state
 
         # Save model after all steps
-        self.Qmain.save_network(self.name + ".h5")
+        self.save(modelpath)
 
     def _batch_train(self, s_batch, a_batch, r_batch, d_batch, s2_batch, step):
         """Trains network to fit given parameters"""
