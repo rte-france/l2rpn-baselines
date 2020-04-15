@@ -20,4 +20,4 @@ rm -rf L2RPN_Baselines
 
 # Contribute
 
-We welcome contributions: see [contributions]() for details.
+We welcome contributions: see [contributions](/CONTRIBUTE.md) for details.
