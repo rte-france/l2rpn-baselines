@@ -1,8 +1,13 @@
-__all__ = ["TemplateBaseline", "TemplateBaseline_eval", "TemplateBaseline_train"]
+__all__ = [
+    "TemplateBaseline",
+    "TemplateBaseline_eval",
+    "TemplateBaseline_train"
+]
 
 from l2rpn_baselines.Template.TemplateBaseline import TemplateBaseline
 from l2rpn_baselines.Template.evaluate import evaluate as TemplateBaseline_eval
 from l2rpn_baselines.Template.train import train as TemplateBaseline_train
+
 """
 In the __init__ file, it is expected to export 3 classes with names that depends on the name you gave to your baseline.
 For example, say you chose to write a baseline with the awesome name "XXX" (what an imagination!) you should export

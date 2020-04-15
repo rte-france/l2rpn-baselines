@@ -7,45 +7,44 @@ from grid2op.Runner import Runner
 from l2rpn_baselines.Template.TemplateBaseline import TemplateBaseline
 from l2rpn_baselines.utils.save_log_gif import save_log_gif
 
-
 def evaluate(env,
-             verbose=False,
-             path_log=None,
+             load_path=".",
+             log_path=None,
              nb_episode=1,
              nb_process=1,
              max_steps=-1,
-             path_model=".",
+             verbose=False,
              save_gif=False,
              **kwargs):
     """
-    In order to submit a valid basline, it is mandatory to provide a "eval" function with the same signature as this
-    one.
+    In order to submit a valid basline, it is mandatory to provide a "eval" function with the same signature as this one.
 
     Parameters
     ----------
     env: :class:`grid2op.Environment.Environment`
         The environment on which the baseline will be evaluated.
 
-    verbose: ``bool``
-        verbosity of the output
+    load_path: ``str``
+        The path where the model is stored. This is used by the agent when calling "agent.load)
 
-    path_log: ``str``
+    log_path: ``str``
         The path where the agents results will be stored.
 
     nb_episode: ``int``
-        Number of episodes to run for the assessment of the performance. By default it's 1.
+        Number of episodes to run for the assessment of the performance.
+        By default it's 1.
 
     nb_process: ``int``
-        Number of process to be used for the assessment of the performance. Should be an integer greater than 1.
-        By defaults it's 1.
+        Number of process to be used for the assessment of the performance.
+        Should be an integer greater than 1. By defaults it's 1.
 
     max_steps: ``int``
-        Maximum number of timestep each episode can last. It should be a positive integer or -1. -1 means that
-        the entire episode is run (until the chronics is out of data or until a game over). By default it's
-        -1.
+        Maximum number of timestep each episode can last. It should be a positive integer or -1.
+        -1 means that the entire episode is run (until the chronics is out of data or until a game over).
+        By default it's -1.
 
-    path_model: ``str``
-        The path where the model is stored. This is used by the agent when calling "agent.load)
+    verbose: ``bool``
+        verbosity of the output
 
     save_gif: ``bool``
         Whether or not to save a gif into each episode folder corresponding to the representation of the said episode.
@@ -64,7 +63,7 @@ def evaluate(env,
     agent = TemplateBaseline(env.action_space, env.observation_space)
 
     # Load weights from file (for example)
-    agent.load(path_model)
+    agent.load(load_path)
 
     # Build runner
     runner = Runner(**runner_params,
@@ -74,7 +73,7 @@ def evaluate(env,
     # you can do stuff with your model here
 
     # start the runner
-    res = runner.run(path_save=path_log,
+    res = runner.run(path_save=log_path,
                      nb_episode=nb_episode,
                      nb_process=nb_process,
                      max_iter=max_steps,
@@ -89,7 +88,7 @@ def evaluate(env,
         print(msg_tmp)
 
     if save_gif:
-        save_log_gif(path_log, res)
+        save_log_gif(loag_path, res)
 
 
 if __name__ == "__main__":
@@ -101,10 +100,10 @@ if __name__ == "__main__":
     args_cli = cli_eval().parse_args()
     env = grid2op.make()
     evaluate(env,
-             verbose=args_cli.verbose,
+             load_path=args_cli.path_model,
+             log_path=args_cli.path_logs,
              nb_episode=args_cli.nb_episode,
              nb_process=args_cli.nb_process,
              max_steps=args_cli.max_steps,
-             save_gif=args_cli.save_gif,
-             path_model=args_cli.path_model,
-             path_log=args_cli.path_logs)
+             verbose=args_cli.verbose,
+             save_gif=args_cli.save_gif)
