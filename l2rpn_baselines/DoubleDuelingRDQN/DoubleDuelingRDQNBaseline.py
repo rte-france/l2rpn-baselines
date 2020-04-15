@@ -1,3 +1,5 @@
+import os
+import json
 import numpy as np
 import tensorflow as tf
 
@@ -54,7 +56,7 @@ class DoubleDuelingRDQNBaseline(AgentWithConverter):
         self.Qtarget = None
 
         # Compute dimensions from intial state
-        self.observation_size = self.observation_space.obs_size()
+        self.observation_size = self.observation_space.size_obs()
         self.action_size = self.action_space.size()
 
         # Load network graph
@@ -113,7 +115,7 @@ class DoubleDuelingRDQNBaseline(AgentWithConverter):
             "reward": dict(r_instance)
         }
         hp_filename = "{}-hypers.json".format(self.name)
-        hp_path = os.path.join("./logs", hp_filename)
+        hp_path = os.path.join(logpath, hp_filename)
         with open(hp_path, 'w') as fp:
             json.dump(hp, fp=fp, indent=2)
 
@@ -168,7 +170,7 @@ class DoubleDuelingRDQNBaseline(AgentWithConverter):
         os.makedirs(save_path, exist_ok=True)
         modelpath = os.path.join(save_path, self.name + ".h5")
         self.tf_writer = tf.summary.create_file_writer(logpath, name=self.name)
-        self._save_hyperparameters(logpath, env, num_steps)
+        self._save_hyperparameters(save_path, env, num_steps)
         
         # Training loop
         self._reset_state(env.current_obs)
@@ -240,7 +242,7 @@ class DoubleDuelingRDQNBaseline(AgentWithConverter):
             
             # Save the network every 1000 iterations
             if step > 0 and step % 1000 == 0:
-                self.Qmain.save_network(self.name + ".h5")
+                self.save(modelpath)
 
             # Iterate to next loop
             step += 1
@@ -248,7 +250,7 @@ class DoubleDuelingRDQNBaseline(AgentWithConverter):
             self.state = new_state
 
         # Save model after all steps
-        self.Qmain.save_network(self.name + ".h5")
+        self.save(modelpath)
 
     def _batch_train(self, batch, step):
         """Trains network to fit given parameters"""

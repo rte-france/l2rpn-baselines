@@ -70,7 +70,6 @@ def evaluate(env,
     runner_params = env.get_params_for_runner()
     runner_params["verbose"] = args.verbose
 
-    # Run
     # Create agent
     agent = DDDQNAgent(env.observation_space,
                        env.action_space,
@@ -91,6 +90,8 @@ def evaluate(env,
     short_model_summary = "\n".join(stringlist)
     print(short_model_summary)
 
+    # Run
+    os.makedirs(logs_path, exist_ok=True)
     res = runner.run(path_save=logs_path,
                      nb_episode=nb_episode,
                      nb_process=nb_process,

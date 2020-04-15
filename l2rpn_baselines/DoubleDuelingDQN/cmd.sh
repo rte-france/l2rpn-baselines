@@ -5,7 +5,7 @@ export DQN_DATA=~/data_grid2op/rte_case14_realistic
 
 ./inspect_action_space.py --path_data $DQN_DATA
 
-rm -rf ./logs/$DQN_NAME
+rm -rf ./logs-train/$DQN_NAME
 ./train.py \
     --name $DQN_NAME \
     --data_dir $DQN_DATA \
@@ -13,7 +13,7 @@ rm -rf ./logs/$DQN_NAME
     --num_train_steps 131072 \
     --num_frames 4
 
-rm -rf ./logs-$DQN_NAME
+rm -rf ./logs-eval/$DQN_NAME
 ./evaluate.py \
     --data_dir $DQN_DATA \
     --load_file ./models/$DQN_NAME.h5 \

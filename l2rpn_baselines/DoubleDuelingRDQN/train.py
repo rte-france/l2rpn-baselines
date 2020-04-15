@@ -19,7 +19,7 @@ from DoubleDuelingRDQNBaseline import DoubleDuelingRDQNBaseline as RDQNAgent
 
 DEFAULT_NAME = "DoubleDuelingRDQN"
 DEFAULT_SAVE_DIR = "./models"
-DEFAULT_LOG_DIR = "./logs"
+DEFAULT_LOG_DIR = "./logs-train"
 DEFAULT_PRE_STEPS = 256
 DEFAULT_TRAIN_STEPS = 1024
 DEFAULT_TRACE_LEN = 12
