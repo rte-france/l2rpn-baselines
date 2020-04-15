@@ -21,6 +21,9 @@ def cli_eval():
     parser.add_argument("--max_steps", required=False,
                         default=8000, type=int,
                         help="Maximum number of steps per scenario")
+    parser.add_argument("--verbose", type=str2bool, nargs='?',
+                        const=True, default=False,
+                        help="Enable verbose runner mode..")
     parser.add_argument("--save_gif", type=str2bool, nargs='?',
                         const=True, default=False,
                         help="Save the gif as \"epidose.gif\" in the episode path module.")
