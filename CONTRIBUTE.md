@@ -15,14 +15,14 @@ We provide this guide and a [Template baseline](/l2rpn_baselines/Template) to he
 # One baseline, one submodule
 As shown by the [Template baseline](/l2rpn_baselines/Template), it is expected from baselines to take the form a python submodule
 ```bash
-tree ./l2rpn_baselines/Template/
+tree ./l2rpn_baselines/MyContrib/
 
 
-./l2rpn_baselines/Template/
+./l2rpn_baselines/MyContrib/
 ├── evaluate.py
 ├── __init__.py
-├── TemplateBaseline.py
-├── Template.md
+├── MyContrib.py
+├── MyContrib.md
 └── train.py
 
 0 directories, 5 files
