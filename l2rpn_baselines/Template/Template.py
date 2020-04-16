@@ -1,7 +1,7 @@
 from grid2op.Agent import DoNothingAgent
 
 
-class TemplateBaseline(DoNothingAgent):
+class Template(DoNothingAgent):
     """
     Do nothing agent of grid2op, as a lowerbond baseline for l2rpn competition.
 
@@ -10,14 +10,14 @@ class TemplateBaseline(DoNothingAgent):
     It serves as a template agent to explain how a baseline can be built.
 
     As opposed to bare grid2op Agent, baselines have 3 more methods:
-    - :func:`TemplateBaseline.load`: to load the agent, if applicable
-    - :func:`TemplateBaseline.save`: to save the agent, if applicable
-    - :func:`TemplateBaseline.train`: to train the agent, if applicable
+    - :func:`Template.load`: to load the agent, if applicable
+    - :func:`Template.save`: to save the agent, if applicable
+    - :func:`Template.train`: to train the agent, if applicable
 
-    The method :func:`TemplateBaseline.reset` is already present in grid2op but is emphasized here. It is called
+    The method :func:`Template.reset` is already present in grid2op but is emphasized here. It is called
     by a runner at the beginning of each episode with the first observation.
 
-    The method :func:`TemplateBaseline.act` is also present in grid2op, of course. It the main method of the baseline,
+    The method :func:`Template.act` is also present in grid2op, of course. It the main method of the baseline,
     that receives an observation (and a reward and flag that says if an episode is over or not) an return a valid
     action.
 
@@ -39,7 +39,7 @@ class TemplateBaseline(DoNothingAgent):
 
     def act(self, observation, reward, done):
         """
-        This is the main method of an TemplateBaseline. Given the current observation and the current reward
+        This is the main method of an Template. Given the current observation and the current reward
         (ie the reward that the environment send to the agent after the previous action has been implemented).
 
         Parameters
@@ -76,9 +76,11 @@ class TemplateBaseline(DoNothingAgent):
     def load(self, path):
         """
         This function is used to build a baseline from a folder for example. It is recommended that this load
-        function give different resulting depending on the :attr:`TemplateBaseline.name` of the baseline.
+        function give different resulting depending on the :attr:`Template.name` of the baseline.
         For example, weights of a neural network can be saved under different names that ... depends on the
         name of the instance.
+
+        If path is ``None`` is should be undertood as "don't load anything".
 
         Parameters
         ----------
@@ -102,7 +104,7 @@ class TemplateBaseline(DoNothingAgent):
 
                 path = "."  # or any other
                 baseline.load(path)
-                loaded_baseline = TemplateBaseline(...)  # built with the same parameters as "baseline"
+                loaded_baseline = Template(...)  # built with the same parameters as "baseline"
                 loaded_baseline.load(path)
 
             is a perfectly valid script (**eg** it will work perfectly) and that after loading, any call to
