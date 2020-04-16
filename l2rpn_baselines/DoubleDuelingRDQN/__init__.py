@@ -1,10 +1,10 @@
 __all__ = [
-    "DoubleDuelingRDQNBaseline",
-    "DoubleDuelingRDQNBaseline_eval",
-    "DoubleDuelingRDQNBaseline_train"
+    "DoubleDuelingRDQN",
+    "evaluate",
+    "train"
 ]
 
-from DoubleDuelingRDQNBaseline import DoubleDuelingRDQNBaseline
-from evaluate import evaluate as DoubleDuelingRDQNBaseline_eval
-from train import train as DoubleDuelingRDQNBaseline_train
+from l2rpn_baselines.DoubleDuelingRDQN.DoubleDuelingRDQN import DoubleDuelingRDQN
+from l2rpn_baselines.DoubleDuelingRDQN.evaluate import evaluate
+from l2rpn_baselines.DoubleDuelingRDQN.train import train
 

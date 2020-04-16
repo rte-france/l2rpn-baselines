@@ -15,7 +15,7 @@ from grid2op.MakeEnv import make2
 from grid2op.Reward import *
 from grid2op.Action import *
 
-from DoubleDuelingRDQNBaseline import DoubleDuelingRDQNBaseline as RDQNAgent
+from l2rpn_baselines.DoubleDuelingRDQN.DoubleDuelingRDQN import DoubleDuelingRDQN as RDQNAgent
 
 DEFAULT_NAME = "DoubleDuelingRDQN"
 DEFAULT_SAVE_DIR = "./models"
@@ -104,8 +104,8 @@ if __name__ == "__main__":
     # Register custom reward for training
     cr = env.reward_helper.template_reward
     cr.addReward("bridge", BridgeReward(), 5.0)
+    cr.addReward("distance", DistanceReward(), 5.0)
     cr.addReward("overflow", CloseToOverflowReward(), 10.0)
-    #cr.addReward("distance", DistanceReward(), 1.0)
     cr.addReward("game", GameplayReward(), 10.0)
     #cr.addReward("redisp", RedispReward(), 1e-3)
     # Initialize custom rewards
