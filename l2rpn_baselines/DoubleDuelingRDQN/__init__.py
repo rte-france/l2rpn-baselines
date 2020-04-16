@@ -4,7 +4,7 @@ __all__ = [
     "train"
 ]
 
-from DoubleDuelingRDQN import DoubleDuelingRDQN
-from evaluate import evaluate
-from train import train
+from l2rpn_baselines.DoubleDuelingRDQN.DoubleDuelingRDQN import DoubleDuelingRDQN
+from l2rpn_baselines.DoubleDuelingRDQN.evaluate import evaluate
+from l2rpn_baselines.DoubleDuelingRDQN.train import train
 
