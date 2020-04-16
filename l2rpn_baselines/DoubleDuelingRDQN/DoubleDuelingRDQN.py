@@ -1,153 +1,323 @@
+import os
+import json
+import copy
 import numpy as np
-import random
 import tensorflow as tf
-import tensorflow.keras as tfk
-import tensorflow.keras.backend as K
-import tensorflow.keras.models as tfkm
-import tensorflow.keras.optimizers as tfko
-import tensorflow.keras.layers as tfkl
-import tensorflow.keras.activations as tfka
 
-class DoubleDuelingRDQN(object):
+from grid2op.Parameters import Parameters
+from grid2op.Agent import AgentWithConverter
+from grid2op.Converter import IdToAct
+
+from ExperienceBuffer import ExperienceBuffer
+from DoubleDuelingRDQN_NN import DoubleDuelingRDQN_NN
+
+INITIAL_EPSILON = 0.99
+FINAL_EPSILON = 0.0
+DECAY_EPSILON = 1024*32
+STEP_EPSILON = (INITIAL_EPSILON-FINAL_EPSILON)/DECAY_EPSILON
+DISCOUNT_FACTOR = 0.9999
+REPLAY_BUFFER_SIZE = 1024*4
+UPDATE_FREQ = 64
+UPDATE_TARGET_HARD_FREQ = 5
+UPDATE_TARGET_SOFT_TAU = 0.01
+
+class DoubleDuelingRDQN(AgentWithConverter):
     def __init__(self,
-                 action_size,
-                 observation_size,
-                 learning_rate = 1e-5):
-        self.action_size = action_size
-        self.observation_size = observation_size
-        self.h_size = 512
+                 observation_space,
+                 action_space,
+                 name=__name__,
+                 trace_length=1,
+                 batch_size=1,
+                 is_training=False,
+                 lr=1e-5):
+        # Call parent constructor
+        AgentWithConverter.__init__(self, action_space,
+                                    action_space_converter=IdToAct)
 
-        self.lr = learning_rate
+        # Store constructor params
+        self.observation_space = observation_space
+        self.name = name
+        self.trace_length = trace_length
+        self.batch_size = batch_size
+        self.is_training = is_training
+        self.lr = lr
         
-        self.model = None
-        self.construct_q_network()
+        # Declare required vars
+        self.Qmain = None
+        self.obs = None
+        self.state = []
+        self.mem_state = None
+        self.carry_state = None
 
-    def construct_q_network(self):
-        # Defines input tensors and scalars
-        self.trace_length = tf.Variable(1, dtype=tf.int32, name="trace_length")
-        self.dropout_rate = tf.Variable(0.0, dtype=tf.float32, trainable=False, name="dropout_rate")
-        input_mem_state = tfk.Input(dtype=tf.float32, shape=(self.h_size), name='input_mem_state')
-        input_carry_state = tfk.Input(dtype=tf.float32, shape=(self.h_size), name='input_carry_state')
-        input_layer = tfk.Input(dtype=tf.float32, shape=(None, self.observation_size), name='input_obs')
+        # Declare training vars
+        self.exp_buffer = None
+        self.done = False
+        self.epoch_rewards = None
+        self.epoch_alive = None
+        self.Qtarget = None
 
-        # Forward pass
-        lay1 = tfkl.Dense(512, name="fc_1")(input_layer)
-        # Bayesian NN simulate
-        lay1 = tfkl.Dropout(self.dropout_rate, name="bnn_dropout")(lay1)
+        # Compute dimensions from intial state
+        self.observation_size = self.observation_space.size_obs()
+        self.action_size = self.action_space.size()
 
-        lay2 = tfkl.Dense(256, name="fc_2")(lay1)
-        lay2 = tfka.relu(lay2, alpha=0.01) #leaky_relu
+        # Load network graph
+        self.Qmain = DoubleDuelingRDQN_NN(self.action_size,
+                                          self.observation_size,
+                                          learning_rate = self.lr)
+        # Setup training vars if needed
+        if self.is_training:
+            self._init_training()
+
+
+    def _init_training(self):
+        self.exp_buffer = ExperienceBuffer(REPLAY_BUFFER_SIZE, self.batch_size, self.trace_length)
+        self.done = True
+        self.epoch_rewards = []
+        self.epoch_alive = []
+        self.Qtarget = DoubleDuelingRDQN_NN(self.action_size,
+                                            self.observation_size,
+                                            learning_rate = self.lr)
+
+    def _reset_state(self, current_obs):
+        # Initial state
+        self.obs = current_obs
+        self.state = self.convert_obs(self.obs)
+        self.done = False
+        self.mem_state = np.zeros(self.Qmain.h_size)
+        self.carry_state = np.zeros(self.Qmain.h_size)
+
+    def _register_experience(self, episode_exp, episode):
+        missing_obs = self.trace_length - len(episode_exp)
+
+        if missing_obs > 0: # We are missing exp to make a trace
+            exp = episode_exp[0] # Use inital state to fill out
+            for missing in range(missing_obs):
+                # Use do_nothing action at index 0
+                self.exp_buffer.add(exp[0], 0, exp[2], exp[3], exp[4], episode)
+
+        # Register the actual experience
+        for exp in episode_exp:
+            self.exp_buffer.add(exp[0], exp[1], exp[2], exp[3], exp[4], episode)
+
+    def _save_hyperparameters(self, logpath, env, steps):
+        r_instance = env.reward_helper.template_reward
+        hp = {
+            "lr": self.lr,
+            "batch_size": self.batch_size,
+            "trace_len": self.trace_length,
+            "e_start": INITIAL_EPSILON,
+            "e_end": FINAL_EPSILON,
+            "e_decay": DECAY_EPSILON,
+            "discount": DISCOUNT_FACTOR,
+            "buffer_size": REPLAY_BUFFER_SIZE,
+            "update_freq": UPDATE_FREQ,
+            "update_hard": UPDATE_TARGET_HARD_FREQ,
+            "update_soft": UPDATE_TARGET_SOFT_TAU,
+            "reward": dict(r_instance)
+        }
+        hp_filename = "{}-hypers.json".format(self.name)
+        hp_path = os.path.join(logpath, hp_filename)
+        with open(hp_path, 'w') as fp:
+            json.dump(hp, fp=fp, indent=2)
+
+    ## Agent Interface
+    def convert_obs(self, observation):
+        # Made a custom version to normalize per attribute
+        #return observation.to_vect()
+        li_vect=  []
+        for el in observation.attr_list_vect:
+            v = observation._get_array_from_attr_name(el).astype(np.float)
+            v_fix = np.nan_to_num(v)
+            v_norm = np.linalg.norm(v_fix)
+            if v_norm > 1e4:
+                v_res = (v_fix / v_norm) * 10.0
+            else:
+                v_res = v_fix
+            li_vect.append(v_res)
+        return np.concatenate(li_vect)
+
+    def convert_act(self, action):
+        return super().convert_act(action)
+
+    def reset(self, observation):
+        self._reset_state(observation)
+
+    def my_act(self, state, reward, done=False):
+        data_input = np.array(state)
+        data_input.reshape(1, 1, self.observation_size)
+        a, _, m, c = self.Qmain.predict_move(data_input, self.mem_state, self.carry_state)
+        self.mem_state = m
+        self.carry_state = c
+
+        return a
+    
+    def load(self, path):
+        self.Qmain.load_network(path)
+        if self.is_training:
+            self.Qmain.update_target_hard(self.Qtarget.model)
+
+    def save(self, path):
+        self.Qmain.save_network(path)
+
+    ## Training Procedure
+    def train(self, env,
+              iterations,
+              save_path,
+              num_pre_training_steps = 0,
+              logdir = "logs"):
+
+        # Loop vars
+        num_training_steps = iterations
+        num_steps = num_pre_training_steps + num_training_steps
+        step = 0
+        epsilon = INITIAL_EPSILON
+        alive_steps = 0
+        total_reward = 0
+        episode = 0
+        episode_exp = []
+
+        # Create file system related vars
+        logpath = os.path.join(logdir, self.name)
+        os.makedirs(save_path, exist_ok=True)
+        modelpath = os.path.join(save_path, self.name + ".h5")
+        self.tf_writer = tf.summary.create_file_writer(logpath, name=self.name)
+        self._save_hyperparameters(save_path, env, num_steps)
         
-        lay3 = tfkl.Dense(128, name="fc_3")(lay2)
-        lay3 = tfka.relu(lay3, alpha=0.01) #leaky_relu
-        
-        lay4 = tfkl.Dense(self.h_size, name="fc_4")(lay3)
-        
-        # Recurring part
-        lstm_layer = tfkl.LSTM(self.h_size, return_state=True, name="lstm")
-        lstm_input = lay4
-        lstm_state = [input_mem_state, input_carry_state]
-        lay5, mem_s, carry_s = lstm_layer(lstm_input, initial_state=lstm_state)
-        lstm_output = lay5
-        
-        # Advantage and Value streams
-        advantage = tfkl.Dense(64, name="fc_adv")(lstm_output)
-        advantage = tfka.relu(advantage, alpha=0.01) #leaky_relu
-        advantage = tfkl.Dense(self.action_size, name="adv")(advantage)
+        # Training loop
+        self._reset_state(env.current_obs)
+        while step < num_steps:
+            # New episode
+            if self.done:
+                new_obs = env.reset() # This shouldn't raise
+                self._reset_state(new_obs)
+                # Push current episode experience to experience buffer
+                self._register_experience(episode_exp, episode)
+                # Reset current episode experience
+                episode += 1
+                episode_exp = []
 
-        value = tfkl.Dense(64, name="fc_val")(lstm_output)
-        value = tfka.relu(value, alpha=0.01) #leaky_relu
-        value = tfkl.Dense(1, name="val")(value)
+            if step % 1000 == 0:
+                print("Step [{}] -- Dropout [{}]".format(step, epsilon))
 
-        advantage_mean = tf.math.reduce_mean(advantage, axis=1, keepdims=True, name="advantage_mean")
-        advantage = tfkl.subtract([advantage, advantage_mean], name="advantage_subtract")
-        Q = tf.math.add(value, advantage, name="Qout")
+            # Choose an action
+            if step <= num_pre_training_steps:
+                a, m, c = self.Qmain.random_move(self.state, self.mem_state, self.carry_state)
+            else:
+                a, _, m, c = self.Qmain.bayesian_move(self.state, self.mem_state, self.carry_state, epsilon)
 
-        # Backwards pass
-        self.model = tfk.Model(inputs=[input_mem_state, input_carry_state, input_layer],
-                               outputs=[Q, mem_s, carry_s])
-        losses = [
-            self._clipped_mse_loss,
-            self._no_loss,
-            self._no_loss
-        ]
-        self.model.compile(loss=losses, optimizer=tfko.Adam(lr=self.lr))
+            # Update LSTM state
+            self.mem_state = m
+            self.carry_state = c
 
-    def _no_loss(self, y_true, y_pred):
-        return 0.0
+            # Convert it to a valid action
+            act = self.convert_act(a)
+            # Execute action
+            new_obs, reward, self.done, info = env.step(act)
+            new_state = self.convert_obs(new_obs)
+            
+            # Save to current episode experience
+            episode_exp.append((self.state, a, reward, self.done, new_state))
 
-    def _clipped_mse_loss(self, Qnext, Q):
-        loss = tf.math.reduce_mean(tf.math.square(Qnext - Q), name="loss_mse")
-        clipped_loss = tf.clip_by_value(loss, 0.0, 1000.0, name="loss_clip")
-        return clipped_loss
+            # Train when pre-training is over
+            if step > num_pre_training_steps:
+                # Slowly decay dropout rate
+                if epsilon > FINAL_EPSILON:
+                    epsilon -= STEP_EPSILON
+                if epsilon < FINAL_EPSILON:
+                    epsilon = FINAL_EPSILON
 
-    def bayesian_move(self, data, mem, carry, rate = 0.0):
-        self.dropout_rate.assign(float(rate))
-        self.trace_length.assign(1)
-        
-        data_input = data.reshape(1, 1, -1)
-        mem_input = mem.reshape(1, -1)
-        carry_input = carry.reshape(1, -1)
-        model_input = [mem_input, carry_input, data_input]
-        
-        Q, mem, carry = self.model.predict(model_input, batch_size = 1)
-        move = np.argmax(Q)
+                # Perform training at given frequency
+                if step % UPDATE_FREQ == 0 and self.exp_buffer.can_sample():
+                    # Sample from experience buffer
+                    batch = self.exp_buffer.sample()
+                    # Perform training
+                    training_step = step - num_pre_training_steps
+                    self._batch_train(batch, training_step)
+                    # Update target network towards primary network
+                    self.Qmain.update_target_soft(self.Qtarget.model, tau=UPDATE_TARGET_SOFT_TAU)
 
-        return move, Q, mem, carry
-        
-    def random_move(self, data, mem, carry):
-        self.trace_length.assign(1)
-        self.dropout_rate.assign(0.0)
+                # Every UPDATE_TARGET_HARD_FREQ trainings, update target completely
+                if step % (UPDATE_FREQ * UPDATE_TARGET_HARD_FREQ) == 0:
+                    self.Qmain.update_target_hard(self.Qtarget.model)
 
-        data_input = data.reshape(1, 1, -1)
-        mem_input = mem.reshape(1, -1)
-        carry_input = carry.reshape(1, -1)
-        model_input = [mem_input, carry_input, data_input]
+            total_reward += reward
+            if self.done:
+                self.epoch_rewards.append(total_reward)
+                self.epoch_alive.append(alive_steps)
+                print("Survived [{}] steps".format(alive_steps))
+                print("Total reward [{}]".format(total_reward))
+                alive_steps = 0
+                total_reward = 0
+            else:
+                alive_steps += 1
+            
+            # Save the network every 1000 iterations
+            if step > 0 and step % 1000 == 0:
+                self.save(modelpath)
 
-        Q, mem, carry = self.model.predict(model_input, batch_size = 1) 
-        move = np.random.randint(0, self.action_size)
+            # Iterate to next loop
+            step += 1
+            self.obs = new_obs
+            self.state = new_state
 
-        return move, mem, carry
-        
-    def predict_move(self, data, mem, carry):
-        self.trace_length.assign(1)
-        self.dropout_rate.assign(0.0)
+        # Save model after all steps
+        self.save(modelpath)
 
-        data_input = data.reshape(1, 1, -1)
-        mem_input = mem.reshape(1, -1)
-        carry_input = carry.reshape(1, -1)
-        model_input = [mem_input, carry_input, data_input]
-        
-        Q, mem, carry = self.model.predict(model_input, batch_size = 1)
-        move = np.argmax(Q)
+    def _batch_train(self, batch, step):
+        """Trains network to fit given parameters"""
+        Q = np.zeros((self.batch_size, self.action_size))
+        batch_mem = np.zeros((self.batch_size, self.Qmain.h_size))
+        batch_carry = np.zeros((self.batch_size, self.Qmain.h_size))
 
-        return move, Q, mem, carry
+        input_size = self.observation_size
+        m_data = np.vstack(batch[:, 0])
+        m_data = m_data.reshape(self.batch_size, self.trace_length, input_size)
+        t_data = np.vstack(batch[:, 4])
+        t_data = t_data.reshape(self.batch_size, self.trace_length, input_size)
+        q_input = [copy.deepcopy(batch_mem), copy.deepcopy(batch_carry), copy.deepcopy(m_data)]
+        q1_input = [copy.deepcopy(batch_mem), copy.deepcopy(batch_carry), copy.deepcopy(t_data)]
+        q2_input = [copy.deepcopy(batch_mem), copy.deepcopy(batch_carry), copy.deepcopy(t_data)]
 
-    def update_target_hard(self, target_model):
-        this_weights = self.model.get_weights()
-        target_model.set_weights(this_weights)
+        # Batch predict
+        self.Qmain.trace_length.assign(self.trace_length)
+        self.Qmain.dropout_rate.assign(0.0)
+        self.Qtarget.trace_length.assign(self.trace_length)
+        self.Qtarget.dropout_rate.assign(0.0)
 
-    def update_target_soft(self, target_model, tau=1e-2):
-        tau_inv = 1.0 - tau
-        # Get parameters to update
-        target_params = target_model.trainable_variables
-        main_params = self.model.trainable_variables
+        Q, _, _ = self.Qmain.model.predict(q_input, batch_size = self.batch_size)
+        Q1, _, _ = self.Qmain.model.predict(q1_input, batch_size = self.batch_size)
+        Q2, _, _ = self.Qtarget.model.predict(q2_input, batch_size = self.batch_size)
 
-        # Update each param
-        for i, var in enumerate(target_params):
-            var_persist = var.value() * tau_inv
-            var_update = main_params[i].value() * tau
-            # Poliak averaging
-            var.assign(var_update + var_persist)
+        # Compute batch Double Q update to Qtarget
+        for i in range(self.batch_size):
+            idx = i * (self.trace_length - 1)
+            doubleQ = Q2[i, np.argmax(Q1[i])]
+            a = batch[idx][1]
+            r = batch[idx][2]
+            d = batch[idx][3]
+            Q[i, a] = r
+            if d == False:
+                Q[i, a] += DISCOUNT_FACTOR * doubleQ
 
-    def save_network(self, path):
-        # Saves model at specified path as h5 file
-        # nothing has changed
-        self.model.save_weights(path)
-        print("Successfully saved model at: {}".format(path))
+        # Batch train
+        batch_x = [batch_mem, batch_carry, m_data]
+        batch_y = [Q, batch_mem, batch_carry]
+        loss = self.Qmain.model.train_on_batch(batch_x, batch_y)
+        loss = loss[0]
 
-    def load_network(self, path):
-        # nothing has changed
-        self.model.load_weights(path)
-        print("Succesfully loaded network from: {}".format(path))
-
+        # Log some useful metrics
+        print("loss =", loss)
+        with self.tf_writer.as_default():
+            mean_reward = np.mean(self.epoch_rewards)
+            mean_alive = np.mean(self.epoch_alive)
+            if len(self.epoch_rewards) >= 100:
+                mean_reward_100 = np.mean(self.epoch_rewards[-100:])
+                mean_alive_100 = np.mean(self.epoch_alive[-100:])
+            else:
+                mean_reward_100 = mean_reward
+                mean_alive_100 = mean_alive
+            tf.summary.scalar("mean_reward", mean_reward, step)
+            tf.summary.scalar("mean_alive", mean_alive, step)
+            tf.summary.scalar("mean_reward_100", mean_reward_100, step)
+            tf.summary.scalar("mean_alive_100", mean_alive_100, step)
+            tf.summary.scalar("loss", loss, step)
