@@ -8,8 +8,8 @@ from grid2op.Parameters import Parameters
 from grid2op.Agent import AgentWithConverter
 from grid2op.Converter import IdToAct
 
-from ExperienceBuffer import ExperienceBuffer
-from DoubleDuelingRDQN_NN import DoubleDuelingRDQN_NN
+from l2rpn_baselines.DoubleDuelingRDQN.ExperienceBuffer import ExperienceBuffer
+from l2rpn_baselines.DoubleDuelingRDQN.DoubleDuelingRDQN_NN import DoubleDuelingRDQN_NN
 
 INITIAL_EPSILON = 0.99
 FINAL_EPSILON = 0.0
