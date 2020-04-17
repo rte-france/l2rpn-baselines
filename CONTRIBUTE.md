@@ -8,21 +8,21 @@ We provide this guide and a [Template baseline](/l2rpn_baselines/Template) to he
 *   [1. One baseline, one submodule](#one-baseline-one-submodule)
 *   [2. Submodule requirements](#submodule-requirements)
     *   [2.1. MyContrib\/\_\_init\_\_.py](#mycontrib__init__py)
-    *   [2.2. MyContrib.MyContribBaseline_eval](#mycontribmycontribbaseline_eval)
-    *   [2.3. MyContrib.MyContribBaseline_train (optional)](#mycontribmycontribbaseline_train-optional)
+    *   [2.2. MyContrib.evaluate](#mycontribevaluate)
+    *   [2.3. MyContrib.train (optional)](#mycontribtrain-optional)
     *   [2.4. MyContrib\/MyContrib.md (optional)](#mycontribmycontribmd-optional)
 
 # One baseline, one submodule
 As shown by the [Template baseline](/l2rpn_baselines/Template), it is expected from baselines to take the form a python submodule
 ```bash
-tree ./l2rpn_baselines/Template/
+tree ./l2rpn_baselines/MyContrib/
 
 
-./l2rpn_baselines/Template/
+./l2rpn_baselines/MyContrib/
 ├── evaluate.py
 ├── __init__.py
-├── TemplateBaseline.py
-├── Template.md
+├── MyContrib.py
+├── MyContrib.md
 └── train.py
 
 0 directories, 5 files
@@ -35,26 +35,26 @@ In the `__init__.py` file, is used to export the entry points of your baseline.
 
 You MUST export the following entry points in the \_\_init\_\_.py file:
 
-- `MyContribBaseline` [**required**] :
+- `MyContrib` [**required**] :
    The class of your baseline, implementing `grid2op.Agent.BaseAgent` or `grid2op.Agent.AgentWithConverter`
-- `MyContribBaseline_eval` [**required**] :
+- `MyContrib.evaluate` [**required**] :
    the `evaluate` function as described in the next section
-- `MyContribBaseline_train` [**optional**]:
+- `MyContrib.train` [**optional**]:
    the `train` function as described in the second-next section
 
 ```python
 __all__ = [
-    "MyContribBaseline",
-    "MyContribBaseline_eval",
-    "MyContribBaseline_train"
+    "MyContrib",
+    "evaluate",
+    "train"
 ]
 
-from l2rpn_baselines.MyContrib.MyContribBaseline import MyContribBaseline
-from l2rpn_baselines.MyContrib.evaluate import evaluate as MyContribBaseline_eval
-from l2rpn_baselines.MyContrib.train import train as MyContribBaseline_train
+from l2rpn_baselines.MyContrib.MyContrib import MyContrib
+from l2rpn_baselines.MyContrib.evaluate import evaluate
+from l2rpn_baselines.MyContrib.train import train
 ```
 
-## MyContrib.MyContribBaseline_eval
+## MyContrib.evaluate
 
 This is the exported name of a function used to evaluate the performances of your baseline.
 
@@ -87,7 +87,7 @@ However, you CAN change the default values of the arguments.
  - save_gif: `bool` Whether or not to save a gif into each episode folder corresponding to the representation of the said episode.
  - kwargs: Other key words arguments that you are free to use.
 
-## MyContrib.MyContribBaseline_train (optional)
+## MyContrib.train (optional)
   
 This is the exported name of a function used to train your baseline.
 
