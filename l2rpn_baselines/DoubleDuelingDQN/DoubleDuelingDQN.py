@@ -98,7 +98,7 @@ class DoubleDuelingDQN(AgentWithConverter):
 
     def _reset_frame_buffer(self):
         # Reset frame buffers
-        self.frames = [self.state.copy()]
+        self.frames = []
         if self.is_training:
             self.frames2 = []
 
