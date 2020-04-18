@@ -98,9 +98,9 @@ class DoubleDuelingDQN(AgentWithConverter):
 
     def _reset_frame_buffer(self):
         # Reset frame buffers
-        self.frames = [self.state.copy() for i in range(self.num_frames)]
+        self.frames = [self.state.copy()]
         if self.is_training:
-            self.frames2 = [self.state.copy() for i in range(self.num_frames)]
+            self.frames2 = []
 
     def _save_current_frame(self, state):
         self.frames.append(state.copy())
@@ -222,7 +222,7 @@ class DoubleDuelingDQN(AgentWithConverter):
             if step <= num_pre_training_steps:
                 a = self.Qmain.random_move()
             elif len(self.frames) < self.num_frames:
-                a = self.Qmain.random_move()
+                a = 0 # Do nothing
             elif np.random.rand(1) < self.epsilon:
                 a = self.Qmain.random_move()
             else:
@@ -241,7 +241,7 @@ class DoubleDuelingDQN(AgentWithConverter):
             self._save_next_frame(new_state)
 
             # Save to experience buffer
-            if len(self.frames) == self.num_frames:
+            if len(self.frames2) == self.num_frames:
                 self.per_buffer.add(np.array(self.frames),
                                     a, reward,
                                     np.array(self.frames2),
