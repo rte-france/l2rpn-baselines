@@ -55,12 +55,39 @@ class DoubleDuelingDQN_NN(object):
         Q = tf.math.add(value, advantage, name="Qout")
 
         self.model = tfk.Model(inputs=[input_layer], outputs=[Q])
-        self.model.compile(loss=self._clipped_mse_loss, optimizer=tfko.Adam(lr=self.lr))
 
-    def _clipped_mse_loss(self, Qnext, Q):
-        loss = tf.math.reduce_mean(tf.math.square(Qnext - Q), name="loss_mse")
+        # Backwards pass
+        self.optimizer = tfko.Adam(lr=self.lr)
+
+    def train_on_batch(self, x, y_true, sample_weight):
+        with tf.GradientTape() as tape:
+            # Get y_pred for batch
+            y_pred = self.model.predict_on_batch(x)
+
+            # Compute loss for each sample in the batch
+            batch_loss = self._clipped_batch_loss(y_true, y_pred)
+        
+            # Apply samples weights
+            tf_sample_weight = tf.convert_to_tensor(sample_weight, dtype=tf.float32)
+            batch_loss = tf.math.multiply(batch_loss, tf_sample_weight)
+            
+            # Compute scalar loss 
+            loss = tf.math.reduce_sum(batch_loss)
+
+            # Compute gradients
+            grads = tape.gradient(loss, self.model.trainable_variables)
+            # Apply gradients
+            self.optimizer.apply_gradients(zip(grads, self.model.trainable_variables))
+
+        return loss.numpy()
+        
+    def _clipped_batch_loss(self, Qnext, Q):
+        sq_error = tf.math.square(Qnext - Q, name="sq_error")        
+        self.batch_sq_error = tf.math.reduce_sum(sq_error, axis=1).numpy()
+        loss = tf.math.reduce_mean(sq_error, name="loss_mse")
         clipped_loss = tf.clip_by_value(loss, 0.0, 1e4, name="loss_clip")
-        return clipped_loss
+        
+        return tf.broadcast_to(clipped_loss, [tf.shape(Q)[0]])
 
     def random_move(self):
         opt_policy = np.random.randint(0, self.action_size)

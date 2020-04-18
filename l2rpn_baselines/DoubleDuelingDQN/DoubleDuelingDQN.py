@@ -16,19 +16,19 @@ from grid2op.Parameters import Parameters
 from grid2op.Agent import AgentWithConverter
 from grid2op.Converter import IdToAct
 
-from l2rpn_baselines.DoubleDuelingDQN.ReplayBuffer import ReplayBuffer
 from l2rpn_baselines.DoubleDuelingDQN.DoubleDuelingDQN_NN import DoubleDuelingDQN_NN
+from l2rpn_baselines.DoubleDuelingDQN.prioritized_replay_buffer import PrioritizedReplayBuffer
 
 INITIAL_EPSILON = 0.9
 FINAL_EPSILON = 0.0
-DECAY_EPSILON = 1024*32
-STEP_EPSILON = (INITIAL_EPSILON-FINAL_EPSILON)/DECAY_EPSILON
+DECAY_EPSILON = 1024*16
 DISCOUNT_FACTOR = 0.99
-REPLAY_BUFFER_SIZE = 1024*64
+PER_CAPACITY = 1024*32
+PER_ALPHA = 0.7
+PER_BETA = 0.5
 UPDATE_FREQ = 32
 UPDATE_TARGET_HARD_FREQ = 5
 UPDATE_TARGET_SOFT_TAU = 0.01
-
 
 class DoubleDuelingDQN(AgentWithConverter):
     def __init__(self,
@@ -58,7 +58,7 @@ class DoubleDuelingDQN(AgentWithConverter):
         self.frames = []
 
         # Declare training vars
-        self.replay_buffer = None
+        self.per_buffer = None
         self.done = False
         self.frames2 = None
         self.epoch_rewards = None
@@ -84,7 +84,7 @@ class DoubleDuelingDQN(AgentWithConverter):
         self.frames2 = []
         self.epoch_rewards = []
         self.epoch_alive = []
-        self.replay_buffer = ReplayBuffer(REPLAY_BUFFER_SIZE)
+        self.per_buffer = PrioritizedReplayBuffer(PER_CAPACITY, PER_ALPHA)
         self.Qtarget = DoubleDuelingDQN_NN(self.action_size,
                                            self.observation_size,
                                            num_frames = self.num_frames,
@@ -112,6 +112,13 @@ class DoubleDuelingDQN(AgentWithConverter):
         if len(self.frames2) > self.num_frames:
             self.frames2.pop(0)
 
+    def _adaptive_epsilon_decay(self, step):
+        ada_div = DECAY_EPSILON / 10.0
+        ada_eps = 1.0 - math.log10((step + 1) / ada_div)
+        ada_eps_up_clip = min(INITIAL_EPSILON, ada_eps)
+        ada_eps_low_clip = max(FINAL_EPSILON, ada_eps_up_clip)
+        return ada_eps_low_clip
+            
     def _save_hyperparameters(self, logpath, env, steps):
         r_instance = env.reward_helper.template_reward
         hp = {
@@ -123,7 +130,9 @@ class DoubleDuelingDQN(AgentWithConverter):
             "e_end": FINAL_EPSILON,
             "e_decay": DECAY_EPSILON,
             "discount": DISCOUNT_FACTOR,
-            "buffer_size": REPLAY_BUFFER_SIZE,
+            "per_alpha": PER_ALPHA,
+            "per_beta": PER_BETA,
+            "per_capacity": PER_CAPACITY,
             "update_freq": UPDATE_FREQ,
             "update_hard": UPDATE_TARGET_HARD_FREQ,
             "update_soft": UPDATE_TARGET_SOFT_TAU,
@@ -231,26 +240,21 @@ class DoubleDuelingDQN(AgentWithConverter):
 
             # Save to experience buffer
             if len(self.frames) == self.num_frames:
-                self.replay_buffer.add(np.array(self.frames),
-                                       a, reward, self.done,
-                                       np.array(self.frames2))
+                self.per_buffer.add(np.array(self.frames),
+                                    a, reward,
+                                    np.array(self.frames2),
+                                    self.done)
 
             # Perform training when we have enough experience in buffer
             if step > num_pre_training_steps:
                 training_step = step - num_pre_training_steps
-                # Slowly decay chance of random action
-                if self.epsilon > FINAL_EPSILON:
-                    self.epsilon -= STEP_EPSILON
-                # Make sure we dont go below final epsilon
-                if self.epsilon < FINAL_EPSILON:
-                    self.epsilon = FINAL_EPSILON
+                # Decay chance of random action
+                self.epsilon = self._adaptive_epsilon_decay(training_step)
 
                 # Perform training at given frequency
-                if step % UPDATE_FREQ == 0 and self.replay_buffer.size() >= self.batch_size:
-                    # Sample from experience buffer
-                    s_batch, a_batch, r_batch, d_batch, s1_batch = self.replay_buffer.sample(self.batch_size)
+                if step % UPDATE_FREQ == 0 and len(self.per_buffer) >= self.batch_size:
                     # Perform training
-                    self._batch_train(s_batch, a_batch, r_batch, d_batch, s1_batch, step)
+                    self._batch_train(step)
                     # Update target network towards primary network
                     self.Qmain.update_target_soft(self.Qtarget.model, tau=UPDATE_TARGET_SOFT_TAU)
 
@@ -281,8 +285,19 @@ class DoubleDuelingDQN(AgentWithConverter):
         # Save model after all steps
         self.save(modelpath)
 
-    def _batch_train(self, s_batch, a_batch, r_batch, d_batch, s2_batch, step):
+    def _batch_train(self, step):
         """Trains network to fit given parameters"""
+
+        # Sample from experience buffer
+        sample_batch = self.per_buffer.sample(self.batch_size, PER_BETA)
+        s_batch = sample_batch[0]
+        a_batch = sample_batch[1]
+        r_batch = sample_batch[2]
+        s2_batch = sample_batch[3]
+        d_batch = sample_batch[4]
+        w_batch = sample_batch[5]
+        idx_batch = sample_batch[6]
+
         Q = np.zeros((self.batch_size, self.action_size))
 
         # Reshape frames to 1D
@@ -303,7 +318,11 @@ class DoubleDuelingDQN(AgentWithConverter):
                 Q[i, a_batch[i]] += DISCOUNT_FACTOR * doubleQ
 
         # Batch train
-        loss = self.Qmain.model.train_on_batch(input_t, Q)
+        loss = self.Qmain.train_on_batch(input_t, Q, w_batch)
+
+        # Update PER buffer
+        priorities = self.Qmain.batch_sq_error
+        self.per_buffer.update_priorities(idx_batch, priorities)
 
         # Log some useful metrics every even updates
         if step % (2 * UPDATE_FREQ) == 0:
