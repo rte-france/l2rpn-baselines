@@ -79,17 +79,19 @@ class DoubleDuelingDQN_NN(object):
 
         return loss.numpy()
         
-    def _clipped_batch_loss(self, Qnext, Q):
-        sq_error = tf.math.square(Qnext - Q, name="sq_error")
+    def _clipped_batch_loss(self, y_true, y_pred):
+        sq_error = tf.math.square(y_true - y_pred, name="sq_error")
+
         # That should be reduce_mean, but it is a vector of zeros except for Q[a]
         # so sum is faster and gives the same result in our case
+        # We store it because that's the priorities vector for importance update
         self.batch_sq_error = tf.math.reduce_sum(sq_error, axis=1).numpy()
 
         loss = tf.math.reduce_mean(sq_error, name="loss_mse")
-        clipped_loss = tf.clip_by_value(loss, 0.0, 1e4, name="loss_clip")
+        clipped_loss = tf.clip_by_value(loss, 0.0, 1e3, name="loss_clip")
 
         # Return broadcasted mse loss so we can apply weights later on
-        return tf.broadcast_to(clipped_loss, [tf.shape(Q)[0]])
+        return tf.broadcast_to(clipped_loss, [tf.shape(y_pred)[0]])
 
     def random_move(self):
         opt_policy = np.random.randint(0, self.action_size)
