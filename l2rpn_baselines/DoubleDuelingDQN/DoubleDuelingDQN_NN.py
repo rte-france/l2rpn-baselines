@@ -36,18 +36,16 @@ class DoubleDuelingDQN_NN(object):
         lay1 = tfkl.Dense(self.observation_size * 2, name="fc_1")(input_layer)
         lay1 = tfka.relu(lay1, alpha=0.01) #leaky_relu
 
-        lay2 = tfkl.Dense(256, name="fc_2")(lay1)
+        lay2 = tfkl.Dense(self.observation_size, name="fc_2")(lay1)
         lay2 = tfka.relu(lay2, alpha=0.01) #leaky_relu
 
-        #lay3 = tfkl.Dense(self.action_size * 4, name="fc_3")(lay2)
-        #lay3 = tfka.relu(lay3, alpha=0.01) #leaky_relu
+        lay3 = tfkl.Dense(self.action_size * 3, name="fc_3")(lay2)
+        lay3 = tfka.relu(lay3, alpha=0.01) #leaky_relu
 
-        advantage = tfkl.Dense(128, name="fc_adv")(lay2)
-        #advantage = tfka.relu(advantage, alpha=0.01) #leaky_relu
+        advantage = tfkl.Dense(self.action_size * 2, name="fc_adv")(lay3)
         advantage = tfkl.Dense(self.action_size, name="adv")(advantage)
 
-        value = tfkl.Dense(128, name="fc_val")(lay2)
-        #value = tfka.relu(value, alpha=0.01) #leaky_relu
+        value = tfkl.Dense(self.action_size * 2, name="fc_val")(lay3)
         value = tfkl.Dense(1, name="val")(value)
 
         advantage_mean = tf.math.reduce_mean(advantage, axis=1, keepdims=True, name="adv_mean")
@@ -82,11 +80,15 @@ class DoubleDuelingDQN_NN(object):
         return loss.numpy()
         
     def _clipped_batch_loss(self, Qnext, Q):
-        sq_error = tf.math.square(Qnext - Q, name="sq_error")        
+        sq_error = tf.math.square(Qnext - Q, name="sq_error")
+        # That should be reduce_mean, but it is a vector of zeros except for Q[a]
+        # so sum is faster and gives the same result in our case
         self.batch_sq_error = tf.math.reduce_sum(sq_error, axis=1).numpy()
+
         loss = tf.math.reduce_mean(sq_error, name="loss_mse")
         clipped_loss = tf.clip_by_value(loss, 0.0, 1e4, name="loss_clip")
-        
+
+        # Return broadcasted mse loss so we can apply weights later on
         return tf.broadcast_to(clipped_loss, [tf.shape(Q)[0]])
 
     def random_move(self):
@@ -120,12 +122,11 @@ class DoubleDuelingDQN_NN(object):
 
     def save_network(self, path):
         # Saves model at specified path as h5 file
-        # nothing has changed
         self.model.save(path)
         print("Successfully saved model at: {}".format(path))
 
     def load_network(self, path):
-        # nothing has changed
+        # Load from a model.h5 file
         self.model.load_weights(path)
         print("Succesfully loaded network from: {}".format(path))
 
