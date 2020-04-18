@@ -168,7 +168,12 @@ class DoubleDuelingDQN(AgentWithConverter):
         self._reset_frame_buffer()
 
     def my_act(self, state, reward, done=False):
+        # Register current state to stacking buffer
         self._save_current_frame(state)
+        # We need at least num frames to predict
+        if len(self.frames) < self.num_frames:
+            return 0 # Do nothing
+        # Infer with the last num_frames states
         a, _ = self.Qmain.predict_move(np.array(self.frames))
         return a
     
