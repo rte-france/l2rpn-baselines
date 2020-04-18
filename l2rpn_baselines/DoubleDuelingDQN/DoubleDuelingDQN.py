@@ -221,10 +221,10 @@ class DoubleDuelingDQN(AgentWithConverter):
             # Choose an action
             if step <= num_pre_training_steps:
                 a = self.Qmain.random_move()
-            elif len(self.frames) < self.num_frames:
-                a = 0 # Do nothing
             elif np.random.rand(1) < self.epsilon:
                 a = self.Qmain.random_move()
+            elif len(self.frames) < self.num_frames:
+                a = 0 # Do nothing
             else:
                 a, _ = self.Qmain.predict_move(np.array(self.frames))
 
