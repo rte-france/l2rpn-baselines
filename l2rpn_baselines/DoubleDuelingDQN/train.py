@@ -79,7 +79,7 @@ def train(env,
 
     agent = DDDQNAgent(env.observation_space,
                        env.action_space,
-                       name=name, 
+                       name=name,
                        is_training=True,
                        batch_size=batch_size,
                        num_frames=num_frames,
@@ -99,16 +99,16 @@ if __name__ == "__main__":
     args = cli()
     # Create grid2op game environement
     env = make2(args.data_dir,
-                action_class=TopologyChangeAction,
+                action_class=TopologyChangeAndDispatchAction,
                 reward_class=CombinedReward)
 
     # Register custom reward for training
     cr = env.reward_helper.template_reward
-    cr.addReward("bridge", BridgeReward(), 5.0)
-    cr.addReward("overflow", CloseToOverflowReward(), 10.0)
-    #cr.addReward("distance", DistanceReward(), 1.0)
-    cr.addReward("game", GameplayReward(), 10.0)
-    #cr.addReward("redisp", RedispReward(), 1e-3)
+    cr.addReward("bridge", BridgeReward(), 50.0)
+    cr.addReward("overflow", CloseToOverflowReward(), 100.0)
+    #cr.addReward("distance", DistanceReward(), 50.0)
+    cr.addReward("game", GameplayReward(), 100.0)
+    cr.addReward("redisp", RedispReward(), 1e-3)
     # Initialize custom rewards
     cr.initialize(env)
 

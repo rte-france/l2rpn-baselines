@@ -20,13 +20,13 @@ from l2rpn_baselines.DoubleDuelingDQN.DoubleDuelingDQN_NN import DoubleDuelingDQ
 from l2rpn_baselines.DoubleDuelingDQN.prioritized_replay_buffer import PrioritizedReplayBuffer
 
 INITIAL_EPSILON = 0.9
-FINAL_EPSILON = 0.0
+FINAL_EPSILON = 0.001
 DECAY_EPSILON = 1024*16
 DISCOUNT_FACTOR = 0.99
-PER_CAPACITY = 1024*32
+PER_CAPACITY = 1024*64
 PER_ALPHA = 0.7
 PER_BETA = 0.5
-UPDATE_FREQ = 32
+UPDATE_FREQ = 64
 UPDATE_TARGET_HARD_FREQ = 5
 UPDATE_TARGET_SOFT_TAU = 0.01
 
@@ -215,6 +215,9 @@ class DoubleDuelingDQN(AgentWithConverter):
             if step % 1000 == 0:
                 print("Step [{}] -- Random [{}]".format(step, self.epsilon))
 
+            # Save current observation to stacking buffer
+            self._save_current_frame(self.state)
+
             # Choose an action
             if step <= num_pre_training_steps:
                 a = self.Qmain.random_move()
@@ -234,8 +237,7 @@ class DoubleDuelingDQN(AgentWithConverter):
                info["is_dispatching_illegal"] or info["is_illegal_reco"]:
                 print (a, info)
 
-            # Save current observation to stacking buffer
-            self._save_current_frame(self.state)
+            # Save new observation to stacking buffer
             self._save_next_frame(new_state)
 
             # Save to experience buffer
@@ -252,14 +254,14 @@ class DoubleDuelingDQN(AgentWithConverter):
                 self.epsilon = self._adaptive_epsilon_decay(training_step)
 
                 # Perform training at given frequency
-                if step % UPDATE_FREQ == 0 and len(self.per_buffer) >= self.batch_size:
+                if training_step % UPDATE_FREQ == 0 and len(self.per_buffer) >= self.batch_size:
                     # Perform training
                     self._batch_train(step)
                     # Update target network towards primary network
                     self.Qmain.update_target_soft(self.Qtarget.model, tau=UPDATE_TARGET_SOFT_TAU)
 
                 # Every UPDATE_TARGET_HARD_FREQ trainings, update target completely
-                if step % (UPDATE_FREQ * UPDATE_TARGET_HARD_FREQ) == 0:
+                if training_step % (UPDATE_FREQ * UPDATE_TARGET_HARD_FREQ) == 0:
                     self.Qmain.update_target_hard(self.Qtarget.model)
 
             total_reward += reward
@@ -279,6 +281,7 @@ class DoubleDuelingDQN(AgentWithConverter):
 
             # Iterate to next loop
             step += 1
+            # Make new obs the current obs
             self.obs = new_obs
             self.state = new_state
 

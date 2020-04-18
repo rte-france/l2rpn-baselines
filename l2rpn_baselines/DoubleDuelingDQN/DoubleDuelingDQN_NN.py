@@ -69,8 +69,8 @@ class DoubleDuelingDQN_NN(object):
             tf_sample_weight = tf.convert_to_tensor(sample_weight, dtype=tf.float32)
             batch_loss = tf.math.multiply(batch_loss, tf_sample_weight)
             
-            # Compute scalar loss 
-            loss = tf.math.reduce_sum(batch_loss)
+            # Compute mean scalar loss
+            loss = tf.math.reduce_mean(batch_loss)
 
             # Compute gradients
             grads = tape.gradient(loss, self.model.trainable_variables)
@@ -82,16 +82,12 @@ class DoubleDuelingDQN_NN(object):
     def _clipped_batch_loss(self, y_true, y_pred):
         sq_error = tf.math.square(y_true - y_pred, name="sq_error")
 
-        # That should be reduce_mean, but it is a vector of zeros except for Q[a]
-        # so sum is faster and gives the same result in our case
         # We store it because that's the priorities vector for importance update
-        self.batch_sq_error = tf.math.reduce_sum(sq_error, axis=1).numpy()
+        batch_sq_error = tf.math.reduce_sum(sq_error, axis=1, name="batch_sq_error")
+        # Stored as numpy array since we are in eager mode
+        self.batch_sq_error = batch_sq_error.numpy()
 
-        loss = tf.math.reduce_mean(sq_error, name="loss_mse")
-        clipped_loss = tf.clip_by_value(loss, 0.0, 1e3, name="loss_clip")
-
-        # Return broadcasted mse loss so we can apply weights later on
-        return tf.broadcast_to(clipped_loss, [tf.shape(y_pred)[0]])
+        return tf.clip_by_value(batch_sq_error, 0.0, 1e3, name="batch_sq_error_clip")
 
     def random_move(self):
         opt_policy = np.random.randint(0, self.action_size)
