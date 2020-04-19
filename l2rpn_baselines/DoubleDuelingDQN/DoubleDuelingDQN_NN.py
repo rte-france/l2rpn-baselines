@@ -72,11 +72,14 @@ class DoubleDuelingDQN_NN(object):
             # Compute mean scalar loss
             loss = tf.math.reduce_mean(batch_loss)
 
-            # Compute gradients
-            grads = tape.gradient(loss, self.model.trainable_variables)
-            # Apply gradients
-            self.optimizer.apply_gradients(zip(grads, self.model.trainable_variables))
+        # Compute gradients
+        grads = tape.gradient(loss, self.model.trainable_variables)
+        # Apply gradients
+        self.optimizer.apply_gradients(zip(grads, self.model.trainable_variables))
 
+        # Store LR
+        self.train_lr = self.optimizer.lr.numpy()
+        # Return loss scalar
         return loss.numpy()
         
     def _clipped_batch_loss(self, y_true, y_pred):

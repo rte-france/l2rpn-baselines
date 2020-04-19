@@ -330,6 +330,8 @@ class DoubleDuelingDQN(AgentWithConverter):
 
         # Update PER buffer
         priorities = self.Qmain.batch_sq_error
+        # Can't be zero, no upper limit
+        priorities = np.clip(priorities, a_min=1e-8, a_max=None)
         self.per_buffer.update_priorities(idx_batch, priorities)
 
         # Log some useful metrics every even updates
@@ -348,4 +350,5 @@ class DoubleDuelingDQN(AgentWithConverter):
                 tf.summary.scalar("mean_reward_100", mean_reward_100, step)
                 tf.summary.scalar("mean_alive_100", mean_alive_100, step)
                 tf.summary.scalar("loss", loss, step)
+                tf.summary.scalar("lr", self.Qmain.train_lr, step)
             print("loss =", loss)
