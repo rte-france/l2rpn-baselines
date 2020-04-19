@@ -52,7 +52,8 @@ class DoubleDuelingDQN_NN(object):
         advantage = tfkl.subtract([advantage, advantage_mean], name="adv_subtract")
         Q = tf.math.add(value, advantage, name="Qout")
 
-        self.model = tfk.Model(inputs=[input_layer], outputs=[Q])
+        self.model = tfk.Model(inputs=[input_layer], outputs=[Q],
+                               name=self.__class__.__name__)
 
         # Backwards pass
         self.optimizer = tfko.Adam(lr=self.lr)
@@ -81,7 +82,7 @@ class DoubleDuelingDQN_NN(object):
         self.train_lr = self.optimizer.lr.numpy()
         # Return loss scalar
         return loss.numpy()
-        
+
     def _clipped_batch_loss(self, y_true, y_pred):
         sq_error = tf.math.square(y_true - y_pred, name="sq_error")
 

@@ -253,20 +253,20 @@ class DoubleDuelingDQN(AgentWithConverter):
                                     self.done)
 
             # Perform training when we have enough experience in buffer
-            if step > num_pre_training_steps:
+            if step >= num_pre_training_steps:
                 training_step = step - num_pre_training_steps
                 # Decay chance of random action
                 self.epsilon = self._adaptive_epsilon_decay(training_step)
 
                 # Perform training at given frequency
-                if training_step % UPDATE_FREQ == 0 and len(self.per_buffer) >= self.batch_size:
+                if step % UPDATE_FREQ == 0 and len(self.per_buffer) >= self.batch_size:
                     # Perform training
-                    self._batch_train(step)
+                    self._batch_train(training_step, step)
                     # Update target network towards primary network
                     self.Qmain.update_target_soft(self.Qtarget.model, tau=UPDATE_TARGET_SOFT_TAU)
 
                 # Every UPDATE_TARGET_HARD_FREQ trainings, update target completely
-                if training_step % (UPDATE_FREQ * UPDATE_TARGET_HARD_FREQ) == 0:
+                if step % (UPDATE_FREQ * UPDATE_TARGET_HARD_FREQ) == 0:
                     self.Qmain.update_target_hard(self.Qtarget.model)
 
             total_reward += reward
@@ -293,7 +293,7 @@ class DoubleDuelingDQN(AgentWithConverter):
         # Save model after all steps
         self.save(modelpath)
 
-    def _batch_train(self, step):
+    def _batch_train(self, training_step, step):
         """Trains network to fit given parameters"""
 
         # Sample from experience buffer
@@ -313,8 +313,19 @@ class DoubleDuelingDQN(AgentWithConverter):
         input_t = np.reshape(s_batch, (self.batch_size, input_size))
         input_t_1 = np.reshape(s2_batch, (self.batch_size, input_size))
 
-        # Batch predict
+        # Save the graph just the first time
+        if training_step == 0:
+            tf.summary.trace_on()
+
+        # T Batch predict
         Q = self.Qmain.model.predict(input_t, batch_size = self.batch_size)
+
+        ## Log graph once and disable graph logging
+        if training_step == 0:
+            with self.tf_writer.as_default():
+                tf.summary.trace_export(self.name + "-graph", step)
+
+        # T+1 batch predict
         Q1 = self.Qmain.model.predict(input_t_1, batch_size = self.batch_size)
         Q2 = self.Qtarget.model.predict(input_t_1, batch_size = self.batch_size)
 
@@ -351,4 +362,5 @@ class DoubleDuelingDQN(AgentWithConverter):
                 tf.summary.scalar("mean_alive_100", mean_alive_100, step)
                 tf.summary.scalar("loss", loss, step)
                 tf.summary.scalar("lr", self.Qmain.train_lr, step)
+
             print("loss =", loss)
