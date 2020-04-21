@@ -19,6 +19,8 @@ from grid2op.Converter import IdToAct
 from l2rpn_baselines.DoubleDuelingDQN.DoubleDuelingDQN_NN import DoubleDuelingDQN_NN
 from l2rpn_baselines.DoubleDuelingDQN.prioritized_replay_buffer import PrioritizedReplayBuffer
 
+LR_DECAY_STEPS = 1024*16
+LR_DECAY_RATE = 0.95
 INITIAL_EPSILON = 0.9
 FINAL_EPSILON = 0.001
 DECAY_EPSILON = 1024*16
@@ -26,9 +28,9 @@ DISCOUNT_FACTOR = 0.99
 PER_CAPACITY = 1024*64
 PER_ALPHA = 0.7
 PER_BETA = 0.5
-UPDATE_FREQ = 64
-UPDATE_TARGET_HARD_FREQ = 5
-UPDATE_TARGET_SOFT_TAU = 0.01
+UPDATE_FREQ = 128
+UPDATE_TARGET_HARD_FREQ = 16
+UPDATE_TARGET_SOFT_TAU = -1
 
 class DoubleDuelingDQN(AgentWithConverter):
     def __init__(self,
@@ -74,7 +76,9 @@ class DoubleDuelingDQN(AgentWithConverter):
         self.Qmain = DoubleDuelingDQN_NN(self.action_size,
                                          self.observation_size,
                                          num_frames = self.num_frames,
-                                         learning_rate = self.lr)
+                                         learning_rate = self.lr,
+                                         learning_rate_decay_steps = LR_DECAY_STEPS,
+                                         learning_rate_decay_rate = LR_DECAY_RATE)
         # Setup training vars if needed
         if self.is_training:
             self._init_training()
@@ -87,8 +91,7 @@ class DoubleDuelingDQN(AgentWithConverter):
         self.per_buffer = PrioritizedReplayBuffer(PER_CAPACITY, PER_ALPHA)
         self.Qtarget = DoubleDuelingDQN_NN(self.action_size,
                                            self.observation_size,
-                                           num_frames = self.num_frames,
-                                           learning_rate = self.lr)
+                                           num_frames = self.num_frames)
 
     def _reset_state(self, current_obs):
         # Initial state
@@ -123,6 +126,8 @@ class DoubleDuelingDQN(AgentWithConverter):
         r_instance = env.reward_helper.template_reward
         hp = {
             "lr": self.lr,
+            "lr_decay_steps": LR_DECAY_STEPS,
+            "lr_decay_rate": LR_DECAY_RATE,
             "batch_size": self.batch_size,
             "stack_frames": self.num_frames,
             "iter": steps,
@@ -152,7 +157,7 @@ class DoubleDuelingDQN(AgentWithConverter):
             v = observation._get_array_from_attr_name(el).astype(np.float)
             v_fix = np.nan_to_num(v)
             v_norm = np.linalg.norm(v_fix)
-            if v_norm > 1e4:
+            if v_norm > 1e8:
                 v_res = (v_fix / v_norm) * 10.0
             else:
                 v_res = v_fix
@@ -262,11 +267,13 @@ class DoubleDuelingDQN(AgentWithConverter):
                 if step % UPDATE_FREQ == 0 and len(self.per_buffer) >= self.batch_size:
                     # Perform training
                     self._batch_train(training_step, step)
-                    # Update target network towards primary network
-                    self.Qmain.update_target_soft(self.Qtarget.model, tau=UPDATE_TARGET_SOFT_TAU)
+
+                    if UPDATE_TARGET_SOFT_TAU > 0.0:
+                        # Update target network towards primary network
+                        self.Qmain.update_target_soft(self.Qtarget.model, tau=UPDATE_TARGET_SOFT_TAU)
 
                 # Every UPDATE_TARGET_HARD_FREQ trainings, update target completely
-                if step % (UPDATE_FREQ * UPDATE_TARGET_HARD_FREQ) == 0:
+                if UPDATE_TARGET_HARD_FREQ > 0 and step % (UPDATE_FREQ * UPDATE_TARGET_HARD_FREQ) == 0:
                     self.Qmain.update_target_hard(self.Qtarget.model)
 
             total_reward += reward

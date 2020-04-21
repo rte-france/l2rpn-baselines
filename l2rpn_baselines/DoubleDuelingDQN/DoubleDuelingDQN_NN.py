@@ -23,10 +23,14 @@ class DoubleDuelingDQN_NN(object):
                  action_size,
                  observation_size,                 
                  num_frames = 4,
-                 learning_rate = 1e-5):
+                 learning_rate = 1e-5,
+                 learning_rate_decay_steps = 1000,
+                 learning_rate_decay_rate = 0.95):
         self.action_size = action_size
         self.observation_size = observation_size
         self.lr = learning_rate
+        self.lr_decay_steps = learning_rate_decay_steps
+        self.lr_decay_rate = learning_rate_decay_rate
         self.num_frames = num_frames
         self.model = None
         self.construct_q_network()
@@ -56,7 +60,8 @@ class DoubleDuelingDQN_NN(object):
                                name=self.__class__.__name__)
 
         # Backwards pass
-        self.optimizer = tfko.Adam(lr=self.lr)
+        self.schedule = tfko.schedules.InverseTimeDecay(self.lr, self.lr_decay_steps, self.lr_decay_rate)
+        self.optimizer = tfko.Adam(learning_rate=self.schedule)
 
     def train_on_batch(self, x, y_true, sample_weight):
         with tf.GradientTape() as tape:
@@ -79,7 +84,7 @@ class DoubleDuelingDQN_NN(object):
         self.optimizer.apply_gradients(zip(grads, self.model.trainable_variables))
 
         # Store LR
-        self.train_lr = self.optimizer.lr.numpy()
+        self.train_lr = self.optimizer._decayed_lr('float32').numpy()
         # Return loss scalar
         return loss.numpy()
 
