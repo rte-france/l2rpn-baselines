@@ -129,16 +129,15 @@ It is encouraged to provide a markdown file at the root of your baseline submodu
  - Values of hyperparameters (if applicable)
 
 
-# Submit a github issue
-Once all of the above have been performed, the best way to submit a new baseline is to post an issue on the official
-github repository of this package [l2rpn-baselines](https://github.com/rte-france/l2rpn-baselines) saying
-that you would like your code to be included in the l2rpn_baselines package.
+# Submit you baseline
+Once all of the above have been performed, the best way to submit a new baseline is to open a pull request on the 
+github repository of this package [l2rpn-baselines](https://github.com/rte-france/l2rpn-baselines) showing your code included in the l2rpn_baselines package.
 
 Note that before acceptance, your baselines will be checked by RTE teams. In order to ease the review process, it is
 recommended that all of the above steps have been carefully respected, in particular the input / outputs and names
 of each function mentionned in this document.
 
-A studyo of the open source licenses you used will also be carried out. To ease this process, we recommand you to
+A study of the open source licenses you used will also be carried out. To ease this process, we recommand you to
 post your baseline under one of the following license:
 - Apache
 - MIT
