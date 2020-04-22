@@ -13,35 +13,18 @@ from setuptools import setup
 
 pkgs = {
     "required": [
-        "grid2op[challenge]>=0.7.0"
+        "grid2op[challenge,optional]>=0.7.1"
     ],
     "extras": {
-        "optional": [
-            "numba>=0.48.0",
-            "matplotlib>=3.2.1",
-            "plotly>=4.5.4",
-            "seaborn>=0.10.0",
-            "pygame>=1.9.6",
-            "imageio",
-            "imageio_ffmpeg"
-        ],
         "docs": [
-            "numpydoc>=0.9.2",
-            "sphinx>=2.4.4",
-            "sphinx-rtd-theme>=0.4.3",
-            "sphinxcontrib-trio>=1.1.0",
-            "autodocsumm",
+            "grid2op[docs]"
         ]
     }
 }
 
-
 setup(name='l2rpn_baselines',
       version='0.0.1',
-      description='An environment that allows to perform powergrid optimization.',
-      long_description='Built with modularity in mind, this package allows to perform the same operations '
-                       'independently of the software used to compute powerflow or method to generate grid '
-                       'states or forecasts.',
+      description='L2RPN baselines repository',
       classifiers=[
           'Development Status :: 4 - Beta',
           'Programming Language :: Python :: 3.6',

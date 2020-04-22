@@ -16,7 +16,6 @@ from grid2op.Reward import *
 from grid2op.Action import *
 
 from l2rpn_baselines.DoubleDuelingDQN.DoubleDuelingDQN import DoubleDuelingDQN as DDDQNAgent
-from l2rpn_baselines.DoubleDuelingDQN.LinesReconnectedReward import LinesReconnectedReward
 
 DEFAULT_NAME = "DoubleDuelingDQN"
 DEFAULT_SAVE_DIR = "./models"
