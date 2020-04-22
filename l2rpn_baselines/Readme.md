@@ -8,7 +8,23 @@ We thank kindly all contributors.
 # How to?
 
 ## Use a baseline
-TODO
+There are multiple way to use a baseline. 
+
+### Load it
+If you want to have access to the baseline named "Template" you
+can just do the following from a python shell or in a python script:
+```python3
+import l2rpn_baseline
+from l2rpn_baseline.Template import Template
+```
+And you can use it with a gri2op environment, and perform anything you want with it. **NB** using a baseline
+this way requires that you know how to use it, how to build the class you imported, how to train etc.
+
+### Eval the performance of a given baseline
+Say you want to 
+```python
+
+```
 
 ## Submit a code that could serve as a baseline
 You can share with everyone the work you have been doing on these environments. To

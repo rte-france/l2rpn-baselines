@@ -1,4 +1,4 @@
-__all__ = ["TemplateBaseline", "TemplateBaseline_eval", "TemplateBaseline_train"]
+__all__ = ["TemplateBaseline", "eval", "train"]
 
 from l2rpn_baselines.Template.TemplateBaseline import TemplateBaseline
 from l2rpn_baselines.Template.evaluate import evaluate as TemplateBaseline_eval

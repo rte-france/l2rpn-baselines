@@ -42,6 +42,7 @@ def cli():
                         help="Path to model.h5 to resume training with")
     return parser.parse_args()
 
+
 if __name__ == "__main__":
     args = cli()
     # Create grid2op game environement
