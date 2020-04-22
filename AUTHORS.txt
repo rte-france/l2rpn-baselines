@@ -12,7 +12,5 @@ Main Contributers:
     - Jean Grizet
   
 Further Contributions by:
-    - Mario Jothy
     - Jan-Hendrik Menke
-    - Vincent Renault
     - Florian Schäfer
