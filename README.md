@@ -11,13 +11,13 @@ pip3 install l2rpn_baselines
 ```
 ## Install from source
 ```sh
-git clone https://github.com/BDonnot/L2RPN_Baselines.git
-cd L2RPN_Baselines
+git clone https://github.com/rte-france/l2rpn-baselines.git
+cd l2rpn-baselines
 pip3 install -U .
 cd ..
-rm -rf L2RPN_Baselines
+rm -rf l2rpn-baselines
 ```
 
 # Contribute
 
-We welcome contributions: see [contributions](/CONTRIBUTE.md) for details.
+We welcome contributions: see the [contribute guide](/CONTRIBUTE.md) for details.
