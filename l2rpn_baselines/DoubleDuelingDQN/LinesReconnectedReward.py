@@ -9,8 +9,8 @@ class LinesReconnectedReward(BaseReward):
     """
     def __init__(self):
         BaseReward.__init__(self)
-        self.reward_min = -1.0
-        self.reward_max = 0.0
+        self.reward_min = 0.0
+        self.reward_max = 1.0
         self.penalty_max_at_n_lines = 2.0
 
     def __call__(self, action, env, has_error,
@@ -23,8 +23,8 @@ class LinesReconnectedReward(BaseReward):
         # Only off cooldown lines
         lines_off_cooldown = lines_id[
             np.logical_and(
-                (obs.time_before_cooldown_line == 0), # Can be acted on
-                (obs.time_before_line_reconnectable == 0) # Can be reconnected
+                (obs.time_before_cooldown_line <= 0), # Can be acted on
+                (obs.time_before_line_reconnectable <= 0) # Can be reconnected
             )
         ]
 
@@ -37,5 +37,5 @@ class LinesReconnectedReward(BaseReward):
         max_p = self.penalty_max_at_n_lines
         n_penalties = max(max_p, n_penalties)
         r = np.interp(n_penalties, [0.0, max_p],
-                      [self.reward_min, self.reward_max])
+                      [self.reward_max, self.reward_min])
         return r
