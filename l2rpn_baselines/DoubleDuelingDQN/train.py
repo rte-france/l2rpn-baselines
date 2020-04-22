@@ -25,7 +25,7 @@ DEFAULT_PRE_STEPS = 256
 DEFAULT_TRAIN_STEPS = 1024
 DEFAULT_N_FRAMES = 4
 DEFAULT_BATCH_SIZE = 32
-DEFAULT_LR = 2e-5
+DEFAULT_LR = 1e-4
 
 def cli():
     parser = argparse.ArgumentParser(description="Train baseline DDQN")
