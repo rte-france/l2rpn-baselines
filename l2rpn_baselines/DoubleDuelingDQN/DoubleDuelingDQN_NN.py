@@ -23,10 +23,14 @@ class DoubleDuelingDQN_NN(object):
                  action_size,
                  observation_size,                 
                  num_frames = 4,
-                 learning_rate = 1e-5):
+                 learning_rate = 1e-5,
+                 learning_rate_decay_steps = 1000,
+                 learning_rate_decay_rate = 0.95):
         self.action_size = action_size
         self.observation_size = observation_size
         self.lr = learning_rate
+        self.lr_decay_steps = learning_rate_decay_steps
+        self.lr_decay_rate = learning_rate_decay_rate
         self.num_frames = num_frames
         self.model = None
         self.construct_q_network()
@@ -36,31 +40,63 @@ class DoubleDuelingDQN_NN(object):
         lay1 = tfkl.Dense(self.observation_size * 2, name="fc_1")(input_layer)
         lay1 = tfka.relu(lay1, alpha=0.01) #leaky_relu
 
-        lay2 = tfkl.Dense(256, name="fc_2")(lay1)
+        lay2 = tfkl.Dense(self.observation_size, name="fc_2")(lay1)
         lay2 = tfka.relu(lay2, alpha=0.01) #leaky_relu
 
-        #lay3 = tfkl.Dense(self.action_size * 4, name="fc_3")(lay2)
-        #lay3 = tfka.relu(lay3, alpha=0.01) #leaky_relu
+        lay3 = tfkl.Dense(self.action_size * 3, name="fc_3")(lay2)
+        lay3 = tfka.relu(lay3, alpha=0.01) #leaky_relu
 
-        advantage = tfkl.Dense(128, name="fc_adv")(lay2)
-        #advantage = tfka.relu(advantage, alpha=0.01) #leaky_relu
+        advantage = tfkl.Dense(self.action_size * 2, name="fc_adv")(lay3)
         advantage = tfkl.Dense(self.action_size, name="adv")(advantage)
 
-        value = tfkl.Dense(128, name="fc_val")(lay2)
-        #value = tfka.relu(value, alpha=0.01) #leaky_relu
+        value = tfkl.Dense(self.action_size * 2, name="fc_val")(lay3)
         value = tfkl.Dense(1, name="val")(value)
 
         advantage_mean = tf.math.reduce_mean(advantage, axis=1, keepdims=True, name="adv_mean")
         advantage = tfkl.subtract([advantage, advantage_mean], name="adv_subtract")
         Q = tf.math.add(value, advantage, name="Qout")
 
-        self.model = tfk.Model(inputs=[input_layer], outputs=[Q])
-        self.model.compile(loss=self._clipped_mse_loss, optimizer=tfko.Adam(lr=self.lr))
+        self.model = tfk.Model(inputs=[input_layer], outputs=[Q],
+                               name=self.__class__.__name__)
 
-    def _clipped_mse_loss(self, Qnext, Q):
-        loss = tf.math.reduce_mean(tf.math.square(Qnext - Q), name="loss_mse")
-        clipped_loss = tf.clip_by_value(loss, 0.0, 1e4, name="loss_clip")
-        return clipped_loss
+        # Backwards pass
+        self.schedule = tfko.schedules.InverseTimeDecay(self.lr, self.lr_decay_steps, self.lr_decay_rate)
+        self.optimizer = tfko.Adam(learning_rate=self.schedule)
+
+    def train_on_batch(self, x, y_true, sample_weight):
+        with tf.GradientTape() as tape:
+            # Get y_pred for batch
+            y_pred = self.model.predict_on_batch(x)
+
+            # Compute loss for each sample in the batch
+            batch_loss = self._clipped_batch_loss(y_true, y_pred)
+        
+            # Apply samples weights
+            tf_sample_weight = tf.convert_to_tensor(sample_weight, dtype=tf.float32)
+            batch_loss = tf.math.multiply(batch_loss, tf_sample_weight)
+            
+            # Compute mean scalar loss
+            loss = tf.math.reduce_mean(batch_loss)
+
+        # Compute gradients
+        grads = tape.gradient(loss, self.model.trainable_variables)
+        # Apply gradients
+        self.optimizer.apply_gradients(zip(grads, self.model.trainable_variables))
+
+        # Store LR
+        self.train_lr = self.optimizer._decayed_lr('float32').numpy()
+        # Return loss scalar
+        return loss.numpy()
+
+    def _clipped_batch_loss(self, y_true, y_pred):
+        sq_error = tf.math.square(y_true - y_pred, name="sq_error")
+
+        # We store it because that's the priorities vector for importance update
+        batch_sq_error = tf.math.reduce_sum(sq_error, axis=1, name="batch_sq_error")
+        # Stored as numpy array since we are in eager mode
+        self.batch_sq_error = batch_sq_error.numpy()
+
+        return tf.clip_by_value(batch_sq_error, 0.0, 1e3, name="batch_sq_error_clip")
 
     def random_move(self):
         opt_policy = np.random.randint(0, self.action_size)
@@ -93,12 +129,11 @@ class DoubleDuelingDQN_NN(object):
 
     def save_network(self, path):
         # Saves model at specified path as h5 file
-        # nothing has changed
         self.model.save(path)
         print("Successfully saved model at: {}".format(path))
 
     def load_network(self, path):
-        # nothing has changed
+        # Load from a model.h5 file
         self.model.load_weights(path)
         print("Succesfully loaded network from: {}".format(path))
 

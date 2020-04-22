@@ -16,6 +16,7 @@ from grid2op.Reward import *
 from grid2op.Action import *
 
 from l2rpn_baselines.DoubleDuelingDQN.DoubleDuelingDQN import DoubleDuelingDQN as DDDQNAgent
+from l2rpn_baselines.DoubleDuelingDQN.LinesReconnectedReward import LinesReconnectedReward
 
 DEFAULT_NAME = "DoubleDuelingDQN"
 DEFAULT_SAVE_DIR = "./models"
@@ -24,7 +25,7 @@ DEFAULT_PRE_STEPS = 256
 DEFAULT_TRAIN_STEPS = 1024
 DEFAULT_N_FRAMES = 4
 DEFAULT_BATCH_SIZE = 32
-DEFAULT_LR = 1e-5
+DEFAULT_LR = 2e-5
 
 def cli():
     parser = argparse.ArgumentParser(description="Train baseline DDQN")
@@ -79,7 +80,7 @@ def train(env,
 
     agent = DDDQNAgent(env.observation_space,
                        env.action_space,
-                       name=name, 
+                       name=name,
                        is_training=True,
                        batch_size=batch_size,
                        num_frames=num_frames,
@@ -99,15 +100,16 @@ if __name__ == "__main__":
     args = cli()
     # Create grid2op game environement
     env = make2(args.data_dir,
-                action_class=TopologyChangeAction,
+                action_class=TopologyChangeAndDispatchAction,
                 reward_class=CombinedReward)
 
     # Register custom reward for training
     cr = env.reward_helper.template_reward
-    cr.addReward("bridge", BridgeReward(), 5.0)
-    cr.addReward("overflow", CloseToOverflowReward(), 10.0)
-    #cr.addReward("distance", DistanceReward(), 1.0)
-    cr.addReward("game", GameplayReward(), 10.0)
+    #cr.addReward("bridge", BridgeReward(), 25.0)
+    cr.addReward("overflow", CloseToOverflowReward(), 50.0)
+    #cr.addReward("distance", DistanceReward(), 50.0)
+    cr.addReward("game", GameplayReward(), 100.0)
+    cr.addReward("recolines", LinesReconnectedReward(), 50.0)
     #cr.addReward("redisp", RedispReward(), 1e-3)
     # Initialize custom rewards
     cr.initialize(env)
