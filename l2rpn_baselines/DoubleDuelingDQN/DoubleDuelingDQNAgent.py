@@ -8,11 +8,9 @@
 
 import os
 import json
-import math
 import numpy as np
 import tensorflow as tf
 
-from grid2op.Parameters import Parameters
 from grid2op.Agent import AgentWithConverter
 from grid2op.Converter import IdToAct
 

@@ -13,15 +13,9 @@ from setuptools import setup
 
 pkgs = {
     "required": [
-        "grid2op>=0.6.1",
-        "grid2op[challenge]>=0.6.1"
+        "grid2op[challenge]>=0.7.0"
     ],
     "extras": {
-        "test": [
-            "nbformat>=5.0.4",
-            "jupyter-client>=6.1.0",
-            "jyquickhelper>=0.3.128"
-        ],
         "optional": [
             "numba>=0.48.0",
             "matplotlib>=3.2.1",
@@ -30,20 +24,6 @@ pkgs = {
             "pygame>=1.9.6",
             "imageio",
             "imageio_ffmpeg"
-        ],
-        "challenge": [
-            "tensorflow==2.1.0",
-            "Keras==2.3.1",
-            "torch==1.4.0",
-            "statsmodels==0.11.1",
-            "scikit-learn==0.22.2.post1",
-            "numpy==1.18.2",
-            "scipy==1.4.1",
-            "pandas==1.0.3",
-            "pandapower==2.2.2",
-            "tqdm==4.43.0",
-            "pathlib==1.0.1",
-            "networkx==2.4"
         ],
         "docs": [
             "numpydoc>=0.9.2",

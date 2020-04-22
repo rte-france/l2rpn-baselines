@@ -109,6 +109,8 @@ venv/
 ENV/
 env.bak/
 venv.bak/
+venv_baselines/
+venv_l2rpn_baslines/
 
 # Spyder project settings
 .spyderproject
