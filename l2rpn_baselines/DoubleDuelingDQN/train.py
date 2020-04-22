@@ -14,6 +14,7 @@ import tensorflow as tf
 from grid2op.MakeEnv import make2
 from grid2op.Reward import *
 from grid2op.Action import *
+from grid2op.Parameters import Parameters
 
 from l2rpn_baselines.DoubleDuelingDQN.DoubleDuelingDQN import DoubleDuelingDQN as DDDQNAgent
 
@@ -97,21 +98,26 @@ def train(env,
 
 if __name__ == "__main__":
     args = cli()
+
+    # Use custom params
+    params = Parameters()
+    params.MAX_SUB_CHANGED = 2
+
     # Create grid2op game environement
     env = make2(args.data_dir,
-                action_class=TopologyChangeAndDispatchAction,
-                reward_class=CombinedReward)
+                param=params,
+                action_class=PowerlineSetAndDispatchAction,
+                reward_class=CombinedScaledReward)
 
     # Register custom reward for training
     cr = env.reward_helper.template_reward
-    #cr.addReward("bridge", BridgeReward(), 25.0)
     cr.addReward("overflow", CloseToOverflowReward(), 50.0)
-    #cr.addReward("distance", DistanceReward(), 50.0)
-    cr.addReward("game", GameplayReward(), 100.0)
+    cr.addReward("game", GameplayReward(), 400.0)
     cr.addReward("recolines", LinesReconnectedReward(), 50.0)
-    #cr.addReward("redisp", RedispReward(), 1e-3)
     # Initialize custom rewards
     cr.initialize(env)
+    # Set reward range to something small
+    cr.set_range(-1.0, 1.0)
 
     train(env,
           name = args.name,

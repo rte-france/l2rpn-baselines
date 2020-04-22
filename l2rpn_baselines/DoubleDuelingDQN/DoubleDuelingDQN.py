@@ -220,7 +220,12 @@ class DoubleDuelingDQN(AgentWithConverter):
         while step < num_steps:
             # Init first time or new episode
             if self.done:
-                new_obs = env.reset() # This shouldn't raise
+                env.reset() # This shouldn't raise
+                # Random fast forward somewhere in the day
+                ff_rand = np.random.randint(0, 12*24) 
+                env.fast_forward_chronics(ff_rand)
+                # Reset internal state
+                new_obs = env.current_obs
                 self.reset(new_obs)
             if step % 1000 == 0:
                 print("Step [{}] -- Random [{}]".format(step, self.epsilon))
