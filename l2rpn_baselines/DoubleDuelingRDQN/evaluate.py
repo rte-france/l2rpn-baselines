@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 
-# Copyright (c) 2019-2020, RTE (https://www.rte-france.com)
+# Copyright (c) 2020, RTE (https://www.rte-france.com)
 # See AUTHORS.txt
 # This Source Code Form is subject to the terms of the Mozilla Public License, version 2.0.
 # If a copy of the Mozilla Public License, version 2.0 was not distributed with this file,
 # you can obtain one at http://mozilla.org/MPL/2.0/.
 # SPDX-License-Identifier: MPL-2.0
-# This file is part of Grid2Op, Grid2Op a testbed platform to model sequential decision making in power systems.
+# This file is part of L2RPN Baselines, L2RPN Baselines a repository to host baselines for l2rpn competitions.
 
 import os
 import argparse
@@ -16,7 +16,6 @@ from grid2op.MakeEnv import make2
 from grid2op.Runner import Runner
 from grid2op.Reward import *
 from grid2op.Action import *
-from grid2op.Agent import DoNothingAgent
 
 from l2rpn_baselines.DoubleDuelingRDQN.DoubleDuelingRDQN import DoubleDuelingRDQN as RDQNAgent
 
@@ -48,6 +47,7 @@ def cli():
     parser.add_argument("--verbose", action='store_true',
                         help="Verbose runner output")
     return parser.parse_args()
+
 
 def evaluate(env,
              load_path=None,

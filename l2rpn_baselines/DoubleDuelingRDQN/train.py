@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 
-# Copyright (c) 2019-2020, RTE (https://www.rte-france.com)
+# Copyright (c) 2020, RTE (https://www.rte-france.com)
 # See AUTHORS.txt
 # This Source Code Form is subject to the terms of the Mozilla Public License, version 2.0.
 # If a copy of the Mozilla Public License, version 2.0 was not distributed with this file,
 # you can obtain one at http://mozilla.org/MPL/2.0/.
 # SPDX-License-Identifier: MPL-2.0
-# This file is part of Grid2Op, Grid2Op a testbed platform to model sequential decision making in power systems.
+# This file is part of L2RPN Baselines, L2RPN Baselines a repository to host baselines for l2rpn competitions.
 
 import argparse
 import tensorflow as tf
@@ -25,6 +25,7 @@ DEFAULT_TRAIN_STEPS = 1024
 DEFAULT_TRACE_LEN = 12
 DEFAULT_BATCH_SIZE = 32
 DEFAULT_LR = 1e-5
+
 
 def cli():
     parser = argparse.ArgumentParser(description="Train baseline DDQN")
@@ -61,16 +62,17 @@ def cli():
 
     return parser.parse_args()
 
+
 def train(env,
-          name = DEFAULT_NAME,
-          iterations = DEFAULT_TRAIN_STEPS,
-          save_path = DEFAULT_SAVE_DIR,
-          load_path = None,
-          logs_path = DEFAULT_LOG_DIR,
-          num_pre_training_steps = DEFAULT_PRE_STEPS,
-          trace_length = DEFAULT_TRACE_LEN,
-          batch_size= DEFAULT_BATCH_SIZE,
-          learning_rate= DEFAULT_LR):
+          name=DEFAULT_NAME,
+          iterations=DEFAULT_TRAIN_STEPS,
+          save_path=DEFAULT_SAVE_DIR,
+          load_path=None,
+          logs_path=DEFAULT_LOG_DIR,
+          num_pre_training_steps=DEFAULT_PRE_STEPS,
+          trace_length=DEFAULT_TRACE_LEN,
+          batch_size=DEFAULT_BATCH_SIZE,
+          learning_rate=DEFAULT_LR):
 
     # Limit gpu usage
     physical_devices = tf.config.list_physical_devices('GPU')

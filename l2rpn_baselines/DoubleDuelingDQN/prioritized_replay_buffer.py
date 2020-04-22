@@ -4,7 +4,7 @@
 import numpy as np
 import random
 
-from segment_tree import SumSegmentTree, MinSegmentTree
+from l2rpn_baselines.DoubleDuelingDQN.segment_tree import SumSegmentTree, MinSegmentTree
 
 
 class BaseReplayBuffer(object):
