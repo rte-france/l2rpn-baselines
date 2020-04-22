@@ -220,8 +220,8 @@ class DoubleDuelingDQN(AgentWithConverter):
             if self.done:
                 env.reset() # This shouldn't raise
                 # Random fast forward somewhere in the day
-                ff_rand = np.random.randint(0, 12*24) 
-                env.fast_forward_chronics(ff_rand)
+                #ff_rand = np.random.randint(0, 12*24) 
+                #env.fast_forward_chronics(ff_rand)
                 # Reset internal state
                 new_obs = env.current_obs
                 self.reset(new_obs)
