@@ -55,7 +55,7 @@ from l2rpn_baselines.MyContrib.evaluate import evaluate
 from l2rpn_baselines.MyContrib.train import train
 ```
 
-As it is [pythonic](https://docs.python.org/3/tutorial/modules.html#intra-package-references) and less error prone, the exports MUST absolute. That is, as part of this package all imports from within this package MUST import from the root of `l2rpn_baselines` as showcased above. 
+As it is [pythonic](https://docs.python.org/3/tutorial/modules.html#intra-package-references) and less error prone, the exports MUST be absolute. That is, as part of this package all imports from within this package MUST import from the root of `l2rpn_baselines` as showcased above. 
 
 ## MyContrib.evaluate
 
@@ -127,6 +127,7 @@ It is encouraged to provide a markdown file at the root of your baseline submodu
  - Training enviroment (if applicable)
  - Number of training iterations (if applicable)
  - Values of hyperparameters (if applicable)
+ - Any other information worth mentionning
 
 
 # Submit your baseline
