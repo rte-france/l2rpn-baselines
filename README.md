@@ -26,14 +26,14 @@ We welcome contributions: see the [contribute guide](/CONTRIBUTE.md) for details
 # Get started with a baseline
 
 Say you want to know how you compared with the "DoubleDuelingDQN" baseline implementation in this repository (for the
-sak of the example).
+sake of this example).
 
 ## Train it (optional)
 As no weights are provided for this baselines by default (yet), you will first need to train such a baseline:
 
 ```python
 import grid2op
-from l2rpn_baselines.Template import train
+from l2rpn_baselines.DoubleDuelingDQN import train
 env = grid2op.make()
 res = train(env, save_path="THE/PATH/TO/SAVE/IT", iterations=100)
 ```
@@ -46,9 +46,9 @@ Once trained, you can reload it and evaluate its performance with the provided "
 
 ```python
 import grid2op
-from l2rpn_baselines.Template import evaluate
+from l2rpn_baselines.DoubleDuelingDQN import evaluate
 env = grid2op.make()
-res = evaluate(env, load_path="THE/PATH/TO/SAVE/IT", nb_episode=10)
+res = evaluate(env, load_path="THE/PATH/TO/LOAD/IT.h5", nb_episode=10)
 ```
 
 You can have more information about extra argument of the "evaluate" function in the 

@@ -11,7 +11,7 @@ We provide this guide and a [Template baseline](/l2rpn_baselines/Template) to he
     *   [2.2. MyContrib.evaluate](#mycontribevaluate)
     *   [2.3. MyContrib.train (optional)](#mycontribtrain-optional)
     *   [2.4. MyContrib\/MyContrib.md (optional)](#mycontribmycontribmd-optional)
-*   [3. Check the licenses and open a github issue]()
+*   [3. Submit your baseline](#submityourbaseline)
 
 # One baseline, one submodule
 As shown by the [Template baseline](/l2rpn_baselines/Template), it is expected from baselines to take the form a python submodule
@@ -129,7 +129,7 @@ It is encouraged to provide a markdown file at the root of your baseline submodu
  - Values of hyperparameters (if applicable)
 
 
-# Submit you baseline
+# Submit your baseline
 Once all of the above have been performed, the best way to submit a new baseline is to open a pull request on the 
 github repository of this package [l2rpn-baselines](https://github.com/rte-france/l2rpn-baselines) showing your code included in the l2rpn_baselines package.
 
