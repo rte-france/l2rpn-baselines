@@ -10,6 +10,7 @@ import sys
 import zipfile
 import tempfile
 import datetime
+import warnings
 
 import grid2op
 
@@ -43,7 +44,9 @@ def zip_for_codalab(path_agent, dest="."):
               "information about other rewards when your agent is evaluated, make sure to export  \"other_rewards\" "
               "dictionnary in your module (you can do it in the __init__.py file)")
 
-    env_test = grid2op.make_new("rte_case5_example", test=True)
+    with warnings.catch_warnings():
+        warnings.filterwarnings("ignore")
+        env_test = grid2op.make_new("rte_case5_example", test=True)
     try:
         toto = make_agent(env_test, folder)
     except TypeError:
@@ -76,3 +79,4 @@ def zip_for_codalab(path_agent, dest="."):
                 zipf.write(os.path.join(root, file_),
                            arcname=arc_path)
     print(f"The zip file \"{zip_file_name}\" has been created with your submission in it.")
+    return zip_file_name

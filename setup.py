@@ -23,8 +23,15 @@ pkgs = {
 }
 
 setup(name='l2rpn_baselines',
-      version='0.1.0',
-      description='L2RPN baselines repository',
+      version='0.1.1',
+      description='L2RPN Baselines a repository to host ' \
+      'baselines for l2rpn competitions.',
+      long_description='This repository aims at facilitating ' \
+      'the use of state of the art algorithm in coming from the ' \
+      'reinforcement learning community or the power system ' \
+      'community in the l2rpn competitions. It  also provides ' \
+      'some usefull function to make life or participants to the ' \
+      'l2rpn competitions easier.',
       classifiers=[
           'Development Status :: 4 - Beta',
           'Programming Language :: Python :: 3.6',

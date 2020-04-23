@@ -27,6 +27,7 @@ DEFAULT_N_FRAMES = 4
 DEFAULT_BATCH_SIZE = 32
 DEFAULT_LR = 2e-5
 
+
 def cli():
     parser = argparse.ArgumentParser(description="Train baseline DDQN")
 
