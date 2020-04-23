@@ -17,7 +17,7 @@ from grid2op.Converter import IdToAct
 from l2rpn_baselines.DoubleDuelingDQN.DoubleDuelingDQN_NN import DoubleDuelingDQN_NN
 from l2rpn_baselines.DoubleDuelingDQN.prioritized_replay_buffer import PrioritizedReplayBuffer
 
-LR_DECAY_STEPS = 1024*16
+LR_DECAY_STEPS = 1024*32
 LR_DECAY_RATE = 0.95
 INITIAL_EPSILON = 0.9
 FINAL_EPSILON = 0.001
@@ -27,7 +27,7 @@ PER_CAPACITY = 1024*64
 PER_ALPHA = 0.7
 PER_BETA = 0.5
 UPDATE_FREQ = 64
-UPDATE_TARGET_HARD_FREQ = 16
+UPDATE_TARGET_HARD_FREQ = 32
 UPDATE_TARGET_SOFT_TAU = -1
 
 class DoubleDuelingDQN(AgentWithConverter):
@@ -218,12 +218,12 @@ class DoubleDuelingDQN(AgentWithConverter):
         while step < num_steps:
             # Init first time or new episode
             if self.done:
-                env.reset() # This shouldn't raise
+                new_obs = env.reset() # This shouldn't raise
                 # Random fast forward somewhere in the day
                 #ff_rand = np.random.randint(0, 12*24) 
                 #env.fast_forward_chronics(ff_rand)
                 # Reset internal state
-                new_obs = env.current_obs
+                #new_obs = env.current_obs
                 self.reset(new_obs)
             if step % 1000 == 0:
                 print("Step [{}] -- Random [{}]".format(step, self.epsilon))

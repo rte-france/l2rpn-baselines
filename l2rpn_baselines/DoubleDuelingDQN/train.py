@@ -25,7 +25,7 @@ DEFAULT_PRE_STEPS = 256
 DEFAULT_TRAIN_STEPS = 1024
 DEFAULT_N_FRAMES = 4
 DEFAULT_BATCH_SIZE = 32
-DEFAULT_LR = 1e-4
+DEFAULT_LR = 2e-5
 
 def cli():
     parser = argparse.ArgumentParser(description="Train baseline DDQN")
@@ -105,18 +105,18 @@ if __name__ == "__main__":
     # Create grid2op game environement
     env = make2(args.data_dir,
                 param=params,
-                action_class=PowerlineSetAndDispatchAction,
+                action_class=TopologyChangeAndDispatchAction,
                 reward_class=CombinedScaledReward)
 
     # Register custom reward for training
     cr = env.reward_helper.template_reward
     cr.addReward("overflow", CloseToOverflowReward(), 50.0)
-    cr.addReward("game", GameplayReward(), 400.0)
+    cr.addReward("game", GameplayReward(), 200.0)
     cr.addReward("recolines", LinesReconnectedReward(), 50.0)
     # Initialize custom rewards
     cr.initialize(env)
     # Set reward range to something small
-    cr.set_range(-1.0, 1.0)
+    cr.set_range(-10.0, 10.0)
 
     train(env,
           name = args.name,
