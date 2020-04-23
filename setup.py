@@ -23,7 +23,7 @@ pkgs = {
 }
 
 setup(name='l2rpn_baselines',
-      version='0.0.1',
+      version='0.1.0',
       description='L2RPN baselines repository',
       classifiers=[
           'Development Status :: 4 - Beta',

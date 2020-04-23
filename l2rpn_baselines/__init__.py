@@ -4,3 +4,5 @@ __all__ = [
     "DoubleDuelingRDQN",
     "DoNothing"
 ]
+
+__version__ = "0.1.0"
