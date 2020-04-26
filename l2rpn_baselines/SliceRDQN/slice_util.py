@@ -44,7 +44,7 @@ def to_pad_vect(inputv, pad_w, pad_v = 0.0):
     vpad = np.pad(vsafe, padder, constant_values=pad_v)
     return vpad.astype(np.float32)
 
-def convert_obs_pad(obs):
+def convert_obs_pad(obs, bias=0.0):
     # Store some shortcuts
     topo = obs.topo_vect
     g_pos = obs.gen_pos_topo_vect
@@ -125,4 +125,4 @@ def convert_obs_pad(obs):
         # [20;24] Extremities
         ex_p, ex_q, ex_v, ex_bus, ex_rho
     ])
-    return res
+    return res + bias

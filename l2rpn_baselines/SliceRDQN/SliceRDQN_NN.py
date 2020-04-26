@@ -161,7 +161,7 @@ class SliceRDQN_NN(object):
             self._no_loss,
             self._no_loss
         ]
-        self.optimizer = tfko.Adam(lr=self.lr, clipnorm=1.0)
+        self.optimizer = tfko.Adam(lr=self.lr, clipnorm=0.8)
         self.model.compile(loss=losses, optimizer=self.optimizer)
 
     def _no_loss(self, y_true, y_pred):
