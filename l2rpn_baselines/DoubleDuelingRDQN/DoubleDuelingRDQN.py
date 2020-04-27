@@ -20,7 +20,7 @@ from l2rpn_baselines.DoubleDuelingRDQN.ExperienceBuffer import ExperienceBuffer
 from l2rpn_baselines.DoubleDuelingRDQN.DoubleDuelingRDQN_NN import DoubleDuelingRDQN_NN
 
 INITIAL_EPSILON = 0.99
-FINAL_EPSILON = 0.0
+FINAL_EPSILON = 0.01
 DECAY_EPSILON = 1024*32
 STEP_EPSILON = (INITIAL_EPSILON-FINAL_EPSILON)/DECAY_EPSILON
 DISCOUNT_FACTOR = 0.99
@@ -137,7 +137,7 @@ class DoubleDuelingRDQN(AgentWithConverter):
             v = observation._get_array_from_attr_name(el).astype(np.float)
             v_fix = np.nan_to_num(v)
             v_norm = np.linalg.norm(v_fix)
-            if v_norm > 1e4:
+            if v_norm > 1e6:
                 v_res = (v_fix / v_norm) * 10.0
             else:
                 v_res = v_fix
@@ -211,7 +211,7 @@ class DoubleDuelingRDQN(AgentWithConverter):
             if step <= num_pre_training_steps:
                 a, m, c = self.Qmain.random_move(self.state, self.mem_state, self.carry_state)
             elif len(episode_exp) < self.trace_length:
-                a, _, m, c = self.Qmain.bayesian_move(self.state, self.mem_state, self.carry_state, epsilon)
+                a, m, c = self.Qmain.random_move(self.state, self.mem_state, self.carry_state)
                 a = 0 # Do Nothing
             else:
                 a, _, m, c = self.Qmain.bayesian_move(self.state, self.mem_state, self.carry_state, epsilon)
