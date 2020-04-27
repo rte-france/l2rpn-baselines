@@ -23,11 +23,11 @@ INITIAL_EPSILON = 0.99
 FINAL_EPSILON = 0.0
 DECAY_EPSILON = 1024*32
 STEP_EPSILON = (INITIAL_EPSILON-FINAL_EPSILON)/DECAY_EPSILON
-DISCOUNT_FACTOR = 0.9999
+DISCOUNT_FACTOR = 0.99
 REPLAY_BUFFER_SIZE = 1024*4
 UPDATE_FREQ = 64
-UPDATE_TARGET_HARD_FREQ = 5
-UPDATE_TARGET_SOFT_TAU = 0.01
+UPDATE_TARGET_HARD_FREQ = -1
+UPDATE_TARGET_SOFT_TAU = 0.001
 
 class DoubleDuelingRDQN(AgentWithConverter):
     def __init__(self,
@@ -187,7 +187,7 @@ class DoubleDuelingRDQN(AgentWithConverter):
         # Create file system related vars
         logpath = os.path.join(logdir, self.name)
         os.makedirs(save_path, exist_ok=True)
-        modelpath = os.path.join(save_path, self.name + ".h5")
+        modelpath = os.path.join(save_path, self.name + ".tf")
         self.tf_writer = tf.summary.create_file_writer(logpath, name=self.name)
         self._save_hyperparameters(save_path, env, num_steps)
         
@@ -210,6 +210,9 @@ class DoubleDuelingRDQN(AgentWithConverter):
             # Choose an action
             if step <= num_pre_training_steps:
                 a, m, c = self.Qmain.random_move(self.state, self.mem_state, self.carry_state)
+            elif len(episode_exp) < self.trace_length:
+                a, _, m, c = self.Qmain.bayesian_move(self.state, self.mem_state, self.carry_state, epsilon)
+                a = 0 # Do Nothing
             else:
                 a, _, m, c = self.Qmain.bayesian_move(self.state, self.mem_state, self.carry_state, epsilon)
 
@@ -240,7 +243,7 @@ class DoubleDuelingRDQN(AgentWithConverter):
                     batch = self.exp_buffer.sample()
                     # Perform training
                     training_step = step - num_pre_training_steps
-                    self._batch_train(batch, training_step)
+                    self._batch_train(batch, step, training_step)
                     # Update target network towards primary network
                     self.Qmain.update_target_soft(self.Qtarget.model, tau=UPDATE_TARGET_SOFT_TAU)
 
@@ -271,7 +274,7 @@ class DoubleDuelingRDQN(AgentWithConverter):
         # Save model after all steps
         self.save(modelpath)
 
-    def _batch_train(self, batch, step):
+    def _batch_train(self, batch, step, training_step):
         """Trains network to fit given parameters"""
         Q = np.zeros((self.batch_size, self.action_size))
         batch_mem = np.zeros((self.batch_size, self.Qmain.h_size))
@@ -292,7 +295,19 @@ class DoubleDuelingRDQN(AgentWithConverter):
         self.Qtarget.trace_length.assign(self.trace_length)
         self.Qtarget.dropout_rate.assign(0.0)
 
+        # Save the graph just the first time
+        if training_step == 0:
+            tf.summary.trace_on()
+
+        # T Batch predict
         Q, _, _ = self.Qmain.model.predict(q_input, batch_size = self.batch_size)
+
+        ## Log graph once and disable graph logging
+        if training_step == 0:
+            with self.tf_writer.as_default():
+                tf.summary.trace_export(self.name + "-graph", step)
+
+        # T+1 batch predict
         Q1, _, _ = self.Qmain.model.predict(q1_input, batch_size = self.batch_size)
         Q2, _, _ = self.Qtarget.model.predict(q2_input, batch_size = self.batch_size)
 
@@ -314,18 +329,19 @@ class DoubleDuelingRDQN(AgentWithConverter):
         loss = loss[0]
 
         # Log some useful metrics
-        print("loss =", loss)
-        with self.tf_writer.as_default():
-            mean_reward = np.mean(self.epoch_rewards)
-            mean_alive = np.mean(self.epoch_alive)
-            if len(self.epoch_rewards) >= 100:
-                mean_reward_100 = np.mean(self.epoch_rewards[-100:])
-                mean_alive_100 = np.mean(self.epoch_alive[-100:])
-            else:
-                mean_reward_100 = mean_reward
-                mean_alive_100 = mean_alive
-            tf.summary.scalar("mean_reward", mean_reward, step)
-            tf.summary.scalar("mean_alive", mean_alive, step)
-            tf.summary.scalar("mean_reward_100", mean_reward_100, step)
-            tf.summary.scalar("mean_alive_100", mean_alive_100, step)
-            tf.summary.scalar("loss", loss, step)
+        if step % (UPDATE_FREQ * 2) == 2:
+            print("loss =", loss)
+            with self.tf_writer.as_default():
+                mean_reward = np.mean(self.epoch_rewards)
+                mean_alive = np.mean(self.epoch_alive)
+                if len(self.epoch_rewards) >= 100:
+                    mean_reward_100 = np.mean(self.epoch_rewards[-100:])
+                    mean_alive_100 = np.mean(self.epoch_alive[-100:])
+                else:
+                    mean_reward_100 = mean_reward
+                    mean_alive_100 = mean_alive
+                tf.summary.scalar("mean_reward", mean_reward, step)
+                tf.summary.scalar("mean_alive", mean_alive, step)
+                tf.summary.scalar("mean_reward_100", mean_reward_100, step)
+                tf.summary.scalar("mean_alive_100", mean_alive_100, step)
+                tf.summary.scalar("loss", loss, step)
