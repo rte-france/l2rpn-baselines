@@ -155,7 +155,8 @@ class SliceRDQN_NN(object):
             output_carry_states
         ]
         self.model = tfk.Model(inputs=model_inputs,
-                               outputs=model_outputs)
+                               outputs=model_outputs,
+                               name=self.__class__.__name__)
         losses = [
             self._clipped_mse_loss,
             self._no_loss,
