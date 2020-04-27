@@ -3,7 +3,7 @@
 import os
 import argparse
 
-from grid2op.MakeEnv import make2
+from grid2op.MakeEnv import make
 from grid2op.Runner import Runner
 from grid2op.Reward import *
 from grid2op.Action import *
@@ -77,14 +77,14 @@ if __name__ == "__main__":
     # Parse command line
     args = cli()
     # Create dataset env
-    env = make2(args.data_dir,
-                reward_class=RedispReward,
-                action_class=TopologyChangeAction,
-                other_rewards={
-                    "bridge": BridgeReward,
-                    "overflow": CloseToOverflowReward,
-                    "distance": DistanceReward
-                })
+    env = make(args.data_dir,
+               reward_class=RedispReward,
+               action_class=TopologyChangeAction,
+               other_rewards={
+                   "bridge": BridgeReward,
+                   "overflow": CloseToOverflowReward,
+                   "distance": DistanceReward
+               })
     # Call evaluation interface
     evaluate(env,
              logs_path=args.logs_dir,

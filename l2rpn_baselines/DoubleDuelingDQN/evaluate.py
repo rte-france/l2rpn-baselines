@@ -12,7 +12,7 @@ import os
 import argparse
 import tensorflow as tf
 
-from grid2op.MakeEnv import make2
+from grid2op.MakeEnv import make
 from grid2op.Runner import Runner
 from grid2op.Reward import *
 from grid2op.Action import *
@@ -115,14 +115,14 @@ if __name__ == "__main__":
     # Parse command line
     args = cli()
     # Create dataset env
-    env = make2(args.data_dir,
-                reward_class=RedispReward,
-                action_class=TopologyChangeAndDispatchAction,
-                other_rewards={
-                    "bridge": BridgeReward,
-                    "overflow": CloseToOverflowReward,
-                    "distance": DistanceReward
-                })
+    env = make(args.data_dir,
+               reward_class=RedispReward,
+               action_class=TopologyChangeAndDispatchAction,
+               other_rewards={
+                   "bridge": BridgeReward,
+                   "overflow": CloseToOverflowReward,
+                   "distance": DistanceReward
+               })
     # Call evaluation interface
     evaluate(env,
              load_path=args.load_file,

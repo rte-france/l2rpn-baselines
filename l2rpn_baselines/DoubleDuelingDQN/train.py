@@ -11,7 +11,7 @@
 import argparse
 import tensorflow as tf
 
-from grid2op.MakeEnv import make2
+from grid2op.MakeEnv import make
 from grid2op.Reward import *
 from grid2op.Action import *
 from grid2op.Parameters import Parameters
@@ -25,8 +25,7 @@ DEFAULT_PRE_STEPS = 256
 DEFAULT_TRAIN_STEPS = 1024
 DEFAULT_N_FRAMES = 4
 DEFAULT_BATCH_SIZE = 32
-DEFAULT_LR = 2e-5
-
+DEFAULT_LR = 1e-5
 
 def cli():
     parser = argparse.ArgumentParser(description="Train baseline DDQN")
@@ -104,10 +103,13 @@ if __name__ == "__main__":
     params.MAX_SUB_CHANGED = 2
 
     # Create grid2op game environement
-    env = make2(args.data_dir,
-                param=params,
-                action_class=TopologyChangeAndDispatchAction,
-                reward_class=CombinedScaledReward)
+    env = make(args.data_dir,
+               param=params,
+               action_class=TopologyChangeAndDispatchAction,
+               reward_class=CombinedScaledReward)
+
+    # Only load 128 steps in ram
+    env.chronics_handler.set_chunk_size(128)
 
     # Register custom reward for training
     cr = env.reward_helper.template_reward
@@ -116,7 +118,7 @@ if __name__ == "__main__":
     cr.addReward("recolines", LinesReconnectedReward(), 50.0)
     # Initialize custom rewards
     cr.initialize(env)
-    # Set reward range to something small
+    # Set reward range to something managable
     cr.set_range(-10.0, 10.0)
 
     train(env,
