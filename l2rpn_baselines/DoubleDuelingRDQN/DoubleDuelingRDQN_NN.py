@@ -80,7 +80,8 @@ class DoubleDuelingRDQN_NN(object):
 
         # Backwards pass
         self.model = tfk.Model(inputs=[input_mem_state, input_carry_state, input_layer],
-                               outputs=[Q, mem_s, carry_s])
+                               outputs=[Q, mem_s, carry_s],
+                               name=self.__class__.__name__)
         losses = [
             self._clipped_mse_loss,
             self._no_loss,
