@@ -36,54 +36,54 @@ class SliceRDQN_NN(object):
     def forward_slice_encode(self, input_layer, slice_indexes, name):
         batch_size = tf.shape(input_layer)[0]
         trace_size = tf.shape(input_layer)[1]
-        sliced = tf.gather(input_layer, slice_indexes, axis=2, name=name+"/slice")
+        sliced = tf.gather(input_layer, slice_indexes, axis=2, name=name+"_slice")
         # Reshape to (batch_size * trace_len, data_size)
         # So that Dense process each data vect separately
-        sliced = tf.reshape(sliced, (-1, sliced.shape[2] * sliced.shape[3]), name=name+"/enc_reshape")
+        sliced = tf.reshape(sliced, (-1, sliced.shape[2] * sliced.shape[3]), name=name+"_enc_reshape")
         data_size = sliced.shape[1]
                 
         # Bayesian NN simulate using dropout
-        lay1 = tfkl.Dropout(self.dropout_rate, name=name+"/bnn")(sliced)
+        lay1 = tfkl.Dropout(self.dropout_rate, name=name+"_bnn")(sliced)
 
         # Three layers encoder
-        lay1 = tfkl.Dense(128, name=name+"/fc1")(lay1)
-        lay1 = tf.nn.leaky_relu(lay1, alpha=0.01, name=name+"/leak_fc1")
-        lay2 = tfkl.Dense(256, name=name+"/fc2")(lay1)
-        lay2 = tf.nn.leaky_relu(lay2, alpha=0.01, name=name+"/leak_fc1")
-        lay3 = tfkl.Dense(self.encoded_size, name=name+"/fc3")(lay2)
-        lay3 = tf.nn.leaky_relu(lay3, alpha=0.01, name=name+"/leak_fc1")
+        lay1 = tfkl.Dense(128, name=name+"_fc1")(lay1)
+        lay1 = tf.nn.leaky_relu(lay1, alpha=0.01, name=name+"_leak_fc1")
+        lay2 = tfkl.Dense(256, name=name+"_fc2")(lay1)
+        lay2 = tf.nn.leaky_relu(lay2, alpha=0.01, name=name+"_leak_fc2")
+        lay3 = tfkl.Dense(self.encoded_size, name=name+"_fc3")(lay2)
+        lay3 = tf.nn.leaky_relu(lay3, alpha=0.01, name=name+"_leak_fc3")
 
         # Reshape encoded results to (batch_size, trace_len, encoded_size)
         encoded_shape = (batch_size, trace_size, self.encoded_size)
-        encoded = tf.reshape(lay3, encoded_shape, name=name+"/encoded")
+        encoded = tf.reshape(lay3, encoded_shape, name=name+"_encoded")
         return encoded
 
     def forward_slice_recur(self, input_rnn, mem_state, carry_state, name):
         # Single LSTM cell over trace_length
         lstm_layer = tfkl.LSTM(self.h_size, return_state=True,
-                               name=name+"/lstm")
+                               name=name+"_lstm")
         states = [mem_state, carry_state]
         lstm_out, mem, carry = lstm_layer(input_rnn, initial_state=states)
         return lstm_out, mem, carry
 
     def forward_streams(self, hidden, q_len, name):
         # Advantage stream
-        advantage = tfkl.Dense(64, name=name+"/fcadv")(hidden)
-        advantage = tf.nn.leaky_relu(advantage, alpha=0.01, name=name+"/leakyadv")
-        advantage = tfkl.Dense(q_len, name=name+"/adv")(advantage)
+        advantage = tfkl.Dense(64, name=name+"_fcadv")(hidden)
+        advantage = tf.nn.leaky_relu(advantage, alpha=0.01, name=name+"_leakyadv")
+        advantage = tfkl.Dense(q_len, name=name+"_adv")(advantage)
         advantage_mean = tf.math.reduce_mean(advantage, axis=1,
                                              keepdims=True,
-                                             name=name+"/adv_mean")
+                                             name=name+"_adv_mean")
         advantage = tfkl.subtract([advantage, advantage_mean],
-                                  name= name+"/adv_sub")
+                                  name= name+"_adv_sub")
 
         # Value stream
-        value = tfkl.Dense(64, name=name+"/fcval")(hidden)
-        value = tf.nn.leaky_relu(value, alpha=0.01, name=name+"/leakyval")
-        value = tfkl.Dense(1, name=name+"/val")(value)
+        value = tfkl.Dense(64, name=name+"_fcval")(hidden)
+        value = tf.nn.leaky_relu(value, alpha=0.01, name=name+"_leakyval")
+        value = tfkl.Dense(1, name=name+"_val")(value)
 
         # Q values = val + adv
-        slice_q = tf.math.add(value, advantage, name=name+"/sliceq")
+        slice_q = tf.math.add(value, advantage, name=name+"_sliceq")
         return slice_q
 
     def construct_q_network(self):
@@ -94,9 +94,9 @@ class SliceRDQN_NN(object):
                                         dtype=tf.float32, name="drop_rate")
         states_shape = (self.n_slices, self.h_size)
         input_mem_states = tfk.Input(dtype=tf.float32, shape=states_shape,
-                                     name='mem_states')
+                                     name='input_mem_states')
         input_carry_states = tfk.Input(dtype=tf.float32, shape=states_shape,
-                                       name='carry_states')
+                                       name='input_carry_states')
         input_shape = (None,) + self.observation_shape
         input_layer = tfk.Input(dtype=tf.float32, shape=input_shape,
                                 name='input_obs')

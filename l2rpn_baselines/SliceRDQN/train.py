@@ -24,7 +24,7 @@ DEFAULT_PRE_STEPS = 256
 DEFAULT_TRAIN_STEPS = 1024
 DEFAULT_TRACE_LEN = 12
 DEFAULT_BATCH_SIZE = 32
-DEFAULT_LR = 1e-5
+DEFAULT_LR = 1e-6
 
 
 def cli():
@@ -109,8 +109,8 @@ if __name__ == "__main__":
     #cr.addReward("distance", DistanceReward(), 5.0)
     cr.addReward("overflow", CloseToOverflowReward(), 50.0)
     cr.addReward("game", GameplayReward(), 100.0)
-    cr.addReward("reco", LinesReconnectedReward(), 50)
-    cr.set_range(20.0, 21.0)
+    cr.addReward("reco", LinesReconnectedReward(), 50.0)
+    cr.set_range(-10.0, 10.0)
     # Initialize custom rewards
     cr.initialize(env)
 

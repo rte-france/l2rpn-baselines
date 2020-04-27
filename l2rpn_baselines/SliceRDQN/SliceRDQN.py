@@ -29,6 +29,7 @@ REPLAY_BUFFER_SIZE = 1024*8
 UPDATE_FREQ = 64
 UPDATE_TARGET_HARD_FREQ = -1
 UPDATE_TARGET_SOFT_TAU = 0.001
+INPUT_BIAS = 5.0
 
 class SliceRDQN(AgentWithConverter):
     def __init__(self,
@@ -72,15 +73,15 @@ class SliceRDQN(AgentWithConverter):
         # Slices dict
         self.slices = {
             "lines": {
-                "indexes": (0,1,3,4,15,16,17,18,19,20,21,22,13,24),
+                "indexes": (0,1,3,14,15,16,17,18,19,20,21,22,23),
                 "q_len": lines_q_len(self.action_space)
             },
             "sub": {
-                "indexes": (0,1,2,3,5,6,7,10,11,12,13,14,18,19,23,24),
+                "indexes": (0,1,2,4,5,6,9,10,11,12,13,17,18,22,23),
                 "q_len": topo_q_len(self.action_space)
             },
             "disp": {
-                "indexes": (0,1,3,4,5,6,7,8,9,10,11,12,13,14,18,19,23,24),
+                "indexes": (0,1,3,4,5,6,7,8,9,10,11,12,13,17,18,22,23),
                 "q_len": disp_q_len(self.action_space)
             }
         }
@@ -141,6 +142,7 @@ class SliceRDQN(AgentWithConverter):
             "update_freq": UPDATE_FREQ,
             "update_hard": UPDATE_TARGET_HARD_FREQ,
             "update_soft": UPDATE_TARGET_SOFT_TAU,
+            "input_bias": INPUT_BIAS,
             "reward": dict(r_instance)
         }
         hp_filename = "{}-hypers.json".format(self.name)
@@ -150,7 +152,7 @@ class SliceRDQN(AgentWithConverter):
 
     ## Agent Interface
     def convert_obs(self, observation):
-        return convert_obs_pad(observation)
+        return convert_obs_pad(observation, bias=INPUT_BIAS)
 
     def convert_act(self, action):
         return super().convert_act(action)
@@ -246,7 +248,8 @@ class SliceRDQN(AgentWithConverter):
             episode_exp.append((self.state, a, reward, self.done, new_state))
 
             # Train when pre-training is over
-            if step > num_pre_training_steps:
+            if step >= num_pre_training_steps:
+                training_step = step - num_pre_training_steps
                 # Slowly decay dropout rate
                 if epsilon > FINAL_EPSILON:
                     epsilon -= STEP_EPSILON
@@ -258,7 +261,6 @@ class SliceRDQN(AgentWithConverter):
                     # Sample from experience buffer
                     batch = self.exp_buffer.sample()
                     # Perform training
-                    training_step = step - num_pre_training_steps
                     self._batch_train(batch, training_step, step)
                     # Update target network towards primary network
                     if UPDATE_TARGET_SOFT_TAU > 0:
@@ -315,7 +317,19 @@ class SliceRDQN(AgentWithConverter):
         self.Qtarget.trace_length.assign(self.trace_length)
         self.Qtarget.dropout_rate.assign(0.0)
 
+        # Save the graph just the first time
+        if training_step == 0:
+            tf.summary.trace_on()
+        
+        # T batch predict
         Q, _, _ = self.Qmain.model.predict(q_input, batch_size = self.batch_size)
+
+        ## Log graph once and disable graph logging
+        if training_step == 0:
+            with self.tf_writer.as_default():
+                tf.summary.trace_export(self.name + "-graph", step)
+
+        # T+1 batch predict
         Q1, _, _ = self.Qmain.model.predict(q1_input, batch_size = self.batch_size)
         Q2, _, _ = self.Qtarget.model.predict(q2_input, batch_size = self.batch_size)
         
