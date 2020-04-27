@@ -110,7 +110,8 @@ if __name__ == "__main__":
     cr.addReward("overflow", CloseToOverflowReward(), 50.0)
     cr.addReward("game", GameplayReward(), 100.0)
     cr.addReward("reco", LinesReconnectedReward(), 50.0)
-    cr.set_range(-10.0, 10.0)
+    cr.addReward("redisp", RedispReward(), 50.0)
+    cr.set_range(20.0, 21.0)
     # Initialize custom rewards
     cr.initialize(env)
 
