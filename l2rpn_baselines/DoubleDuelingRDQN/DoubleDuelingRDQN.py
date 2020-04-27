@@ -230,7 +230,8 @@ class DoubleDuelingRDQN(AgentWithConverter):
             episode_exp.append((self.state, a, reward, self.done, new_state))
 
             # Train when pre-training is over
-            if step > num_pre_training_steps:
+            if step >= num_pre_training_steps:
+                training_step = step - num_pre_training_steps
                 # Slowly decay dropout rate
                 if epsilon > FINAL_EPSILON:
                     epsilon -= STEP_EPSILON
@@ -242,13 +243,13 @@ class DoubleDuelingRDQN(AgentWithConverter):
                     # Sample from experience buffer
                     batch = self.exp_buffer.sample()
                     # Perform training
-                    training_step = step - num_pre_training_steps
                     self._batch_train(batch, step, training_step)
                     # Update target network towards primary network
-                    self.Qmain.update_target_soft(self.Qtarget.model, tau=UPDATE_TARGET_SOFT_TAU)
+                    if UPDATE_TARGET_SOFT_TAU > 0:
+                        self.Qmain.update_target_soft(self.Qtarget.model, tau=UPDATE_TARGET_SOFT_TAU)
 
                 # Every UPDATE_TARGET_HARD_FREQ trainings, update target completely
-                if step % (UPDATE_FREQ * UPDATE_TARGET_HARD_FREQ) == 0:
+                if UPDATE_TARGET_HARD_FREQ > 0 and step % (UPDATE_FREQ * UPDATE_TARGET_HARD_FREQ) == 0:
                     self.Qmain.update_target_hard(self.Qtarget.model)
 
             total_reward += reward
@@ -329,7 +330,7 @@ class DoubleDuelingRDQN(AgentWithConverter):
         loss = loss[0]
 
         # Log some useful metrics
-        if step % (UPDATE_FREQ * 2) == 2:
+        if step % (UPDATE_FREQ * 2) == 0:
             print("loss =", loss)
             with self.tf_writer.as_default():
                 mean_reward = np.mean(self.epoch_rewards)
