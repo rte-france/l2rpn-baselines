@@ -314,9 +314,9 @@ class SliceRDQN(AgentWithConverter):
 
         # Batch predict
         self.Qmain.trace_length.assign(self.trace_length)
-        self.Qmain.dropout_rate.assign(self.epsilon)
+        self.Qmain.dropout_rate.assign(0.0)
         self.Qtarget.trace_length.assign(self.trace_length)
-        self.Qtarget.dropout_rate.assign(self.epsilon)
+        self.Qtarget.dropout_rate.assign(0.0)
 
         # Save the graph just the first time
         if training_step == 0:
