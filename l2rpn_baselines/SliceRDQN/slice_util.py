@@ -35,7 +35,7 @@ def shape_obs(observation_space):
         observation_space.n_sub,
         5
     ])
-    return (24, np.max(dims))
+    return (25, np.max(dims))
 
 def to_pad_vect(inputv, pad_w, pad_v = 0.0, scale_v = 1.0):
     v = np.asarray(inputv)
@@ -71,6 +71,7 @@ def convert_obs_pad(obs, bias=0.0):
     g_v = to_pad_vect(obs.prod_v, pad_w, scale_v=1000.0)
     g_tr = to_pad_vect(obs.target_dispatch, pad_w, scale_v=150.0)
     g_ar = to_pad_vect(obs.actual_dispatch, pad_w, scale_v=150.0)
+    g_cost = to_pad_vect(obs.gen_cost_per_MW, pad_w, pad_v=0.0, scale_v=1.0)
     g_buses = np.zeros(obs.n_gen)
     for gen_id in range(obs.n_gen):
         g_buses[gen_id] = topo[g_pos[gen_id]]
@@ -116,13 +117,13 @@ def convert_obs_pad(obs, bias=0.0):
     res = np.stack([
         # [0;3] Time
         time_v, time_line_cd, time_sub_cd, time_line_nm,
-        # [4;9] Gens
-        g_p, g_q, g_v, g_ar, g_tr, g_bus,
-        # [10;13] Loads
+        # [4;10] Gens
+        g_p, g_q, g_v, g_ar, g_tr, g_bus, g_cost,
+        # [11;14] Loads
         l_p, l_q, l_v, l_bus,
-        # [14;18] Origins
+        # [15;19] Origins
         or_p, or_q, or_v, or_bus, or_rho,
-        # [19;23] Extremities
+        # [20;24] Extremities
         ex_p, ex_q, ex_v, ex_bus, ex_rho
     ])
     return res + bias

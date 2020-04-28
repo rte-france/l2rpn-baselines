@@ -29,7 +29,7 @@ class SliceRDQN_NN(object):
         self.n_slices = len(slices.keys())
         self.encoded_size = 64
         self.h_size = 256
-        self.lr = learning_rate        
+        self.lr = learning_rate
         self.model = None
         self.construct_q_network()
 
@@ -40,14 +40,14 @@ class SliceRDQN_NN(object):
         # Reshape to (batch_size * trace_len, data_size)
         # So that Dense process each data vect separately
         sliced = tf.reshape(sliced, (-1, sliced.shape[2] * sliced.shape[3]), name=name+"_enc_reshape")
-                
+
         # Bayesian NN simulate using dropout
         lay1 = tfkl.Dropout(self.dropout_rate, name=name+"_bnn")(sliced)
 
         # Three layers encoder
         lay1 = tfkl.Dense(128, name=name+"_fc1")(lay1)
         lay1 = tf.nn.leaky_relu(lay1, alpha=0.01, name=name+"_leak_fc1")
-        lay2 = tfkl.Dense(76, name=name+"_fc2")(lay1)
+        lay2 = tfkl.Dense(96, name=name+"_fc2")(lay1)
         lay2 = tf.nn.leaky_relu(lay2, alpha=0.01, name=name+"_leak_fc2")
         lay3 = tfkl.Dense(self.encoded_size, name=name+"_fc3")(lay2)
         lay3 = tf.nn.leaky_relu(lay3, alpha=0.01, name=name+"_leak_fc3")
@@ -141,7 +141,7 @@ class SliceRDQN_NN(object):
         q_dn_mean = tf.reduce_mean(q_dn, axis=1, name="q_dn_mean")
         q_slices = tf.concat(q_slices_li, 1, name="q_slices_concat")
         output_q = tf.concat([q_dn_mean, q_slices], 1, name="q_batch")
-        
+
         # Backwards pass
         model_inputs = [
             input_mem_states,
@@ -186,7 +186,7 @@ class SliceRDQN_NN(object):
         move = np.argmax(Q)
 
         return move, Q, mem, carry
-        
+
     def random_move(self, data, mem, carry):
         self.trace_length.assign(1)
         self.dropout_rate.assign(0.0)
@@ -201,7 +201,7 @@ class SliceRDQN_NN(object):
         move = np.random.randint(0, self.action_size)
 
         return move, mem, carry
-        
+
     def predict_move(self, data, mem, carry):
         self.trace_length.assign(1)
         self.dropout_rate.assign(0.0)

@@ -21,12 +21,12 @@ from l2rpn_baselines.SliceRDQN.SliceRDQN_NN import SliceRDQN_NN
 from l2rpn_baselines.SliceRDQN.slice_util import *
 
 INITIAL_EPSILON = 0.80
-FINAL_EPSILON = 0.05
+FINAL_EPSILON = 0.01
 DECAY_EPSILON = 1024*32
 STEP_EPSILON = (INITIAL_EPSILON-FINAL_EPSILON)/DECAY_EPSILON
-DISCOUNT_FACTOR = 0.99
+DISCOUNT_FACTOR = 1.0
 REPLAY_BUFFER_SIZE = 1024*8
-UPDATE_FREQ = 64
+UPDATE_FREQ = 512
 UPDATE_TARGET_HARD_FREQ = -1
 UPDATE_TARGET_SOFT_TAU = 0.001
 INPUT_BIAS = 3.0
@@ -51,7 +51,7 @@ class SliceRDQN(AgentWithConverter):
         self.batch_size = batch_size
         self.is_training = is_training
         self.lr = lr
-        
+
         # Declare required vars
         self.Qmain = None
         self.obs = None
@@ -74,15 +74,15 @@ class SliceRDQN(AgentWithConverter):
         # Slices dict
         self.slices = {
             "lines": {
-                "indexes": [1,3,14,15,17,19,20,22,23],
+                "indexes": [1,3,4,9,10,11,14,15,18,20,23,24],
                 "q_len": lines_q_len(self.action_space)
             },
             "sub": {
-                "indexes": [1,2,4,9,10,11,13,14,17,19,22,23],
+                "indexes": [1,2,4,9,10,11,12,14,15,18,20,23,24],
                 "q_len": topo_q_len(self.action_space)
             },
             "disp": {
-                "indexes": [0,4,7,8,9,10,11,13,17,22,23],
+                "indexes": [0,4,7,8,9,10,11,12,14,18,23,24],
                 "q_len": disp_q_len(self.action_space)
             }
         }
@@ -170,7 +170,7 @@ class SliceRDQN(AgentWithConverter):
         self.carry_state = c
 
         return a
-    
+
     def load(self, path):
         self.Qmain.load_network(path)
         if self.is_training:
@@ -202,7 +202,7 @@ class SliceRDQN(AgentWithConverter):
         modelpath = os.path.join(save_path, self.name + ".tf")
         self.tf_writer = tf.summary.create_file_writer(logpath, name=self.name)
         self._save_hyperparameters(save_path, env, num_steps)
-        
+
         # Training loop
         self._reset_state(env.current_obs)
         while step < num_steps:
@@ -284,7 +284,7 @@ class SliceRDQN(AgentWithConverter):
                 total_reward = 0
             else:
                 alive_steps += 1
-            
+
             # Save the network every 1000 iterations
             if step > 0 and step % 1000 == 0:
                 self.save(modelpath)
@@ -321,7 +321,7 @@ class SliceRDQN(AgentWithConverter):
         # Save the graph just the first time
         if training_step == 0:
             tf.summary.trace_on()
-        
+
         # T batch predict
         Q, _, _ = self.Qmain.model.predict(q_input, batch_size = self.batch_size)
 
@@ -333,7 +333,7 @@ class SliceRDQN(AgentWithConverter):
         # T+1 batch predict
         Q1, _, _ = self.Qmain.model.predict(q1_input, batch_size = self.batch_size)
         Q2, _, _ = self.Qtarget.model.predict(q2_input, batch_size = self.batch_size)
-        
+
         # Compute batch Double Q update to Qtarget
         for i in range(self.batch_size):
             idx = i * (self.trace_length - 1)
