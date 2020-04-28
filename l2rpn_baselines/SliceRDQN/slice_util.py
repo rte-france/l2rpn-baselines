@@ -69,8 +69,8 @@ def convert_obs_pad(obs, bias=0.0):
     g_p = to_pad_vect(obs.prod_p, pad_w, scale_v=1000.0)
     g_q = to_pad_vect(obs.prod_q, pad_w, scale_v=1000.0)
     g_v = to_pad_vect(obs.prod_v, pad_w, scale_v=1000.0)
-    g_tr = to_pad_vect(obs.target_dispatch, pad_w, scale_v=100.0)
-    g_ar = to_pad_vect(obs.actual_dispatch, pad_w, scale_v=100.0)
+    g_tr = to_pad_vect(obs.target_dispatch, pad_w, scale_v=150.0)
+    g_ar = to_pad_vect(obs.actual_dispatch, pad_w, scale_v=150.0)
     g_buses = np.zeros(obs.n_gen)
     for gen_id in range(obs.n_gen):
         g_buses[gen_id] = topo[g_pos[gen_id]]

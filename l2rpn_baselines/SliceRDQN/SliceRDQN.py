@@ -20,16 +20,16 @@ from l2rpn_baselines.SliceRDQN.ExperienceBuffer import ExperienceBuffer
 from l2rpn_baselines.SliceRDQN.SliceRDQN_NN import SliceRDQN_NN
 from l2rpn_baselines.SliceRDQN.slice_util import *
 
-INITIAL_EPSILON = 0.95
-FINAL_EPSILON = 0.0
+INITIAL_EPSILON = 0.80
+FINAL_EPSILON = 0.05
 DECAY_EPSILON = 1024*32
 STEP_EPSILON = (INITIAL_EPSILON-FINAL_EPSILON)/DECAY_EPSILON
-DISCOUNT_FACTOR = 1.0
+DISCOUNT_FACTOR = 0.99
 REPLAY_BUFFER_SIZE = 1024*8
 UPDATE_FREQ = 64
 UPDATE_TARGET_HARD_FREQ = -1
 UPDATE_TARGET_SOFT_TAU = 0.001
-INPUT_BIAS = 0.0
+INPUT_BIAS = 3.0
 
 class SliceRDQN(AgentWithConverter):
     def __init__(self,
@@ -65,6 +65,7 @@ class SliceRDQN(AgentWithConverter):
         self.epoch_rewards = None
         self.epoch_alive = None
         self.Qtarget = None
+        self.epsilon = INITIAL_EPSILON
 
         # Compute dimensions from intial state
         self.action_size = self.action_space.n
@@ -73,15 +74,15 @@ class SliceRDQN(AgentWithConverter):
         # Slices dict
         self.slices = {
             "lines": {
-                "indexes": (0,1,3,14,15,16,17,18,19,20,21,22,23),
+                "indexes": [1,3,14,15,17,19,20,22,23],
                 "q_len": lines_q_len(self.action_space)
             },
             "sub": {
-                "indexes": (0,1,2,4,5,6,9,10,11,12,13,17,18,22,23),
+                "indexes": [1,2,4,9,10,11,13,14,17,19,22,23],
                 "q_len": topo_q_len(self.action_space)
             },
             "disp": {
-                "indexes": (0,1,3,4,5,6,7,8,9,10,11,12,13,17,18,22,23),
+                "indexes": [0,4,7,8,9,10,11,13,17,22,23],
                 "q_len": disp_q_len(self.action_space)
             }
         }
@@ -189,7 +190,7 @@ class SliceRDQN(AgentWithConverter):
         num_training_steps = iterations
         num_steps = num_pre_training_steps + num_training_steps
         step = 0
-        epsilon = INITIAL_EPSILON
+        self.epsilon = INITIAL_EPSILON
         alive_steps = 0
         total_reward = 0
         episode = 0
@@ -216,7 +217,7 @@ class SliceRDQN(AgentWithConverter):
                 episode_exp = []
 
             if step % 1000 == 0:
-                print("Step [{}] -- Dropout [{}]".format(step, epsilon))
+                print("Step [{}] -- Dropout [{}]".format(step, self.epsilon))
 
             # Choose an action
             if step <= num_pre_training_steps:
@@ -232,7 +233,7 @@ class SliceRDQN(AgentWithConverter):
                 a, _, m, c = self.Qmain.bayesian_move(self.state,
                                                       self.mem_state,
                                                       self.carry_state,
-                                                      epsilon)
+                                                      self.epsilon)
 
             # Update LSTM state
             self.mem_state = m
@@ -251,10 +252,10 @@ class SliceRDQN(AgentWithConverter):
             if step >= num_pre_training_steps:
                 training_step = step - num_pre_training_steps
                 # Slowly decay dropout rate
-                if epsilon > FINAL_EPSILON:
-                    epsilon -= STEP_EPSILON
-                if epsilon < FINAL_EPSILON:
-                    epsilon = FINAL_EPSILON
+                if self.epsilon > FINAL_EPSILON:
+                    self.epsilon -= STEP_EPSILON
+                if self.epsilon < FINAL_EPSILON:
+                    self.epsilon = FINAL_EPSILON
 
                 # Perform training at given frequency
                 if step % UPDATE_FREQ == 0 and self.exp_buffer.can_sample():
@@ -313,7 +314,7 @@ class SliceRDQN(AgentWithConverter):
 
         # Batch predict
         self.Qmain.trace_length.assign(self.trace_length)
-        self.Qmain.dropout_rate.assign(0.0)
+        self.Qmain.dropout_rate.assign(self.epsilon)
         self.Qtarget.trace_length.assign(self.trace_length)
         self.Qtarget.dropout_rate.assign(0.0)
 

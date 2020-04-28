@@ -28,7 +28,7 @@ class SliceRDQN_NN(object):
         self.slices = slices
         self.n_slices = len(slices.keys())
         self.encoded_size = 64
-        self.h_size = 512
+        self.h_size = 256
         self.lr = learning_rate        
         self.model = None
         self.construct_q_network()
@@ -40,7 +40,6 @@ class SliceRDQN_NN(object):
         # Reshape to (batch_size * trace_len, data_size)
         # So that Dense process each data vect separately
         sliced = tf.reshape(sliced, (-1, sliced.shape[2] * sliced.shape[3]), name=name+"_enc_reshape")
-        data_size = sliced.shape[1]
                 
         # Bayesian NN simulate using dropout
         lay1 = tfkl.Dropout(self.dropout_rate, name=name+"_bnn")(sliced)
@@ -48,7 +47,7 @@ class SliceRDQN_NN(object):
         # Three layers encoder
         lay1 = tfkl.Dense(128, name=name+"_fc1")(lay1)
         lay1 = tf.nn.leaky_relu(lay1, alpha=0.01, name=name+"_leak_fc1")
-        lay2 = tfkl.Dense(256, name=name+"_fc2")(lay1)
+        lay2 = tfkl.Dense(76, name=name+"_fc2")(lay1)
         lay2 = tf.nn.leaky_relu(lay2, alpha=0.01, name=name+"_leak_fc2")
         lay3 = tfkl.Dense(self.encoded_size, name=name+"_fc3")(lay2)
         lay3 = tf.nn.leaky_relu(lay3, alpha=0.01, name=name+"_leak_fc3")

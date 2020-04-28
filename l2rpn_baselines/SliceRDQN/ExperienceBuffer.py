@@ -61,8 +61,8 @@ class ExperienceBuffer:
         sampled_episodes = random.sample(self.buffer, self.batch_size)
         # Get random trace in each episode
         for episode in sampled_episodes:
-            max_trace_start = len(episode) - self.trace_length + 1
-            trace_start = np.random.randint(0, max_trace_start)
+            max_trace_start = len(episode) - self.trace_length
+            trace_start = np.random.randint(0, max_trace_start + 1)
             trace_end = trace_start + self.trace_length
             sample = episode[trace_start:trace_end]
             samples.append(sample)
