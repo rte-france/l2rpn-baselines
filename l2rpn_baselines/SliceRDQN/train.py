@@ -108,10 +108,10 @@ if __name__ == "__main__":
     #cr.addReward("bridge", BridgeReward(), 5.0)
     #cr.addReward("distance", DistanceReward(), 5.0)
     #cr.addReward("overflow", CloseToOverflowReward(), 5.0)
-    cr.addReward("game", GameplayReward(), 20.0)
-    cr.addReward("reco", LinesReconnectedReward(), 10.0)
-    cr.addReward("eco", EconomicReward(), 1e-2)
-    cr.set_range(-10.0, 10.0)
+    cr.addReward("game", GameplayReward(), 3.0)
+    cr.addReward("eco", EconomicReward(), 2.0)
+    cr.addReward("reco", LinesReconnectedReward(), 1.0)
+    cr.set_range(0.0, 10.0)
     # Initialize custom rewards
     cr.initialize(env)
 
