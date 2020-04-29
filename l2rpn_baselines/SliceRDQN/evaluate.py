@@ -111,7 +111,7 @@ if __name__ == "__main__":
     # Create dataset env
     env = make(args.data_dir,
                reward_class=RedispReward,
-               action_class=TopologyChangeAndDispatchAction,
+               action_class=TopologyAndDispatchAction,
                other_rewards={
                    "bridge": BridgeReward,
                    "overflow": CloseToOverflowReward,

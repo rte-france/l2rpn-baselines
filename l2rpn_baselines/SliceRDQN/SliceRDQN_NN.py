@@ -27,8 +27,8 @@ class SliceRDQN_NN(object):
         self.observation_shape = observation_shape
         self.slices = slices
         self.n_slices = len(slices.keys())
-        self.encoded_size = 64
-        self.h_size = 256
+        self.encoded_size = 384
+        self.h_size = 512
         self.lr = learning_rate
         self.model = None
         self.construct_q_network()
@@ -45,9 +45,9 @@ class SliceRDQN_NN(object):
         lay1 = tfkl.Dropout(self.dropout_rate, name=name+"_bnn")(sliced)
 
         # Three layers encoder
-        lay1 = tfkl.Dense(128, name=name+"_fc1")(lay1)
+        lay1 = tfkl.Dense(496, name=name+"_fc1")(lay1)
         lay1 = tf.nn.leaky_relu(lay1, alpha=0.01, name=name+"_leak_fc1")
-        lay2 = tfkl.Dense(96, name=name+"_fc2")(lay1)
+        lay2 = tfkl.Dense(412, name=name+"_fc2")(lay1)
         lay2 = tf.nn.leaky_relu(lay2, alpha=0.01, name=name+"_leak_fc2")
         lay3 = tfkl.Dense(self.encoded_size, name=name+"_fc3")(lay2)
         lay3 = tf.nn.leaky_relu(lay3, alpha=0.01, name=name+"_leak_fc3")
