@@ -208,6 +208,14 @@ class SliceRDQN(AgentWithConverter):
         while step < num_steps:
             # New episode
             if self.done:
+                if episode % 1000 == 0:
+                    # shuffle the data every now and then
+                    # TODO change the "1000" above
+                    env.chronics_handler.shuffle(
+                        shuffler=lambda x: x[np.random.choice(len(x), size=len(x), replace=False)])
+                new_obs = env.reset() # This shouldn't raise
+                self.reset(new_obs)
+
                 new_obs = env.reset() # This shouldn't raise
                 self._reset_state(new_obs)
                 # Push current episode experience to experience buffer
