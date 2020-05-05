@@ -22,6 +22,11 @@ We thank kindly all baselines contributors.
 
    An example of a Recurrent Deep-Q Network implementation.
 
+ - [SliceRDQN](/l2rpn_baselines/SliceRDQN):
+
+   A multi Recurrent Q-streams implementation.
+   Where each action class has it's own Q network embedded in the global net. 
+
 ## 2. How to?
 
 ### 2.a Use a baseline
