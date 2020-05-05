@@ -39,42 +39,49 @@ class DoubleDuelingRDQN_NN(object):
         input_carry_state = tfk.Input(dtype=tf.float32, shape=(self.h_size), name='input_carry_state')
         input_layer = tfk.Input(dtype=tf.float32, shape=(None, self.observation_size), name='input_obs')
 
+        # Get shapes from input_layer
+        batch_size = tf.shape(input_layer)[0]
+        trace_len = tf.shape(input_layer)[1]
+        data_size = tf.shape(input_layer)[-1]
+
+        # Reshape for dense processing
+        input_format = tf.reshape(input_layer, (-1, input_layer.shape[-1]), name="dense_reshape")
+
         # Bayesian NN simulate
-        lay1 = tfkl.Dropout(self.dropout_rate, name="bnn_dropout")(input_layer)
+        lay1 = tfkl.Dropout(self.dropout_rate, name="bnn_dropout")(input_format)
         # Forward pass
         lay1 = tfkl.Dense(512, name="fc_1")(lay1)
-
+        lay1 = tf.nn.leaky_relu(lay1, alpha=0.01, name="leak_fc_1")
         lay2 = tfkl.Dense(256, name="fc_2")(lay1)
-        lay2 = tfka.relu(lay2, alpha=0.01) #leaky_relu
-        
+        lay2 = tf.nn.leaky_relu(lay2, alpha=0.01, name="leak_fc_2")
         lay3 = tfkl.Dense(128, name="fc_3")(lay2)
-        lay3 = tfka.relu(lay3, alpha=0.01) #leaky_relu
-        
+        lay3 = tf.nn.leaky_relu(lay3, alpha=0.01, name="leak_fc_3")
         lay4 = tfkl.Dense(self.h_size, name="fc_4")(lay3)
-        
+
+        # Reshape to (batch_size, trace_len, data_size) for rnn
+        rnn_format = tf.reshape(lay4, (batch_size, trace_len, self.h_size),name="rnn_reshape")
         # Recurring part
         lstm_layer = tfkl.LSTM(self.h_size, return_state=True, name="lstm")
-        lstm_input = lay4
         lstm_state = [input_mem_state, input_carry_state]
-        lay5, mem_s, carry_s = lstm_layer(lstm_input, initial_state=lstm_state)
-        lstm_output = lay5
-        
+        lstm_output, mem_s, carry_s = lstm_layer(rnn_format, initial_state=lstm_state)
+
         # Advantage and Value streams
         advantage = tfkl.Dense(64, name="fc_adv")(lstm_output)
-        #advantage = tfka.relu(advantage, alpha=0.01) #leaky_relu
+        advantage = tf.nn.leaky_relu(advantage, alpha=0.01, name="leak_adv")
         advantage = tfkl.Dense(self.action_size, name="adv")(advantage)
 
         value = tfkl.Dense(64, name="fc_val")(lstm_output)
-        #value = tfka.relu(value, alpha=0.01) #leaky_relu
+        value = tf.nn.leaky_relu(value, alpha=0.01, name="leak_val")
         value = tfkl.Dense(1, name="val")(value)
 
-        advantage_mean = tf.math.reduce_mean(advantage, axis=1, keepdims=True, name="advantage_mean")
-        advantage = tfkl.subtract([advantage, advantage_mean], name="advantage_subtract")
+        advantage_mean = tf.math.reduce_mean(advantage, axis=1, keepdims=True, name="adv_mean")
+        advantage = tfkl.subtract([advantage, advantage_mean], name="adv_sub")
         Q = tf.math.add(value, advantage, name="Qout")
 
         # Backwards pass
         self.model = tfk.Model(inputs=[input_mem_state, input_carry_state, input_layer],
-                               outputs=[Q, mem_s, carry_s])
+                               outputs=[Q, mem_s, carry_s],
+                               name=self.__class__.__name__)
         losses = [
             self._clipped_mse_loss,
             self._no_loss,
@@ -93,17 +100,17 @@ class DoubleDuelingRDQN_NN(object):
     def bayesian_move(self, data, mem, carry, rate = 0.0):
         self.dropout_rate.assign(float(rate))
         self.trace_length.assign(1)
-        
+
         data_input = data.reshape(1, 1, -1)
         mem_input = mem.reshape(1, -1)
         carry_input = carry.reshape(1, -1)
         model_input = [mem_input, carry_input, data_input]
-        
+
         Q, mem, carry = self.model.predict(model_input, batch_size = 1)
         move = np.argmax(Q)
 
         return move, Q, mem, carry
-        
+
     def random_move(self, data, mem, carry):
         self.trace_length.assign(1)
         self.dropout_rate.assign(0.0)
@@ -126,7 +133,7 @@ class DoubleDuelingRDQN_NN(object):
         mem_input = mem.reshape(1, -1)
         carry_input = carry.reshape(1, -1)
         model_input = [mem_input, carry_input, data_input]
-        
+
         Q, mem, carry = self.model.predict(model_input, batch_size = 1)
         move = np.argmax(Q)
 
@@ -159,4 +166,3 @@ class DoubleDuelingRDQN_NN(object):
         # nothing has changed
         self.model.load_weights(path)
         print("Succesfully loaded network from: {}".format(path))
-

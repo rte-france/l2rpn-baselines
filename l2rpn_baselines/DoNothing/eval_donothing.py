@@ -3,11 +3,13 @@
 import os
 import argparse
 
-from grid2op.MakeEnv import make2
+from grid2op.MakeEnv import make
 from grid2op.Runner import Runner
 from grid2op.Reward import *
 from grid2op.Action import *
 from grid2op.Agent import DoNothingAgent
+
+from l2rpn_baselines.utils.save_log_gif import save_log_gif
 
 DEFAULT_LOGS_DIR = "./logs-eval/do-nothing-baseline"
 DEFAULT_NB_EPISODE = 1
@@ -68,19 +70,21 @@ def evaluate(env,
         msg_tmp += "\ttime steps: {:.0f}/{:.0f}".format(nb_time_step, max_ts)
         print(msg_tmp)
 
+    if save_gif:
+        save_log_gif(logs_path, res)
 
 if __name__ == "__main__":
     # Parse command line
     args = cli()
     # Create dataset env
-    env = make2(args.data_dir,
-                reward_class=RedispReward,
-                action_class=TopologyChangeAction,
-                other_rewards={
-                    "bridge": BridgeReward,
-                    "overflow": CloseToOverflowReward,
-                    "distance": DistanceReward
-                })
+    env = make(args.data_dir,
+               reward_class=RedispReward,
+               action_class=TopologyChangeAction,
+               other_rewards={
+                   "bridge": BridgeReward,
+                   "overflow": CloseToOverflowReward,
+                   "distance": DistanceReward
+               })
     # Call evaluation interface
     evaluate(env,
              logs_path=args.logs_dir,

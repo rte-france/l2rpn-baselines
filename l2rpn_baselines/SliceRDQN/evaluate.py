@@ -17,15 +17,13 @@ from grid2op.Runner import Runner
 from grid2op.Reward import *
 from grid2op.Action import *
 
-from l2rpn_baselines.DoubleDuelingDQN.DoubleDuelingDQN import DoubleDuelingDQN as DDDQNAgent
+from l2rpn_baselines.SliceRDQN.SliceRDQN import SliceRDQN as RDQNAgent
 from l2rpn_baselines.utils.save_log_gif import save_log_gif
 
-DEFAULT_LOGS_DIR = "./logs-evals"
+DEFAULT_LOGS_DIR = "./logs-eval"
 DEFAULT_NB_EPISODE = 1
 DEFAULT_NB_PROCESS = 1
 DEFAULT_MAX_STEPS = -1
-DEFAULT_NUM_FRAMES = 4
-
 
 def cli():
     parser = argparse.ArgumentParser(description="Eval baseline DDDQN")
@@ -49,9 +47,6 @@ def cli():
                         help="Enable GIF Output")
     parser.add_argument("--verbose", action='store_true',
                         help="Verbose runner output")
-    parser.add_argument("--num_frames", required=False,
-                        default=DEFAULT_NUM_FRAMES, type=int,
-                        help="Number of stacked states")
     return parser.parse_args()
 
 
@@ -61,7 +56,6 @@ def evaluate(env,
              nb_episode=DEFAULT_NB_EPISODE,
              nb_process=DEFAULT_NB_PROCESS,
              max_steps=DEFAULT_MAX_STEPS,
-             num_frames=DEFAULT_NUM_FRAMES,
              verbose=False,
              save_gif=False):
 
@@ -72,11 +66,11 @@ def evaluate(env,
     runner_params = env.get_params_for_runner()
     runner_params["verbose"] = args.verbose
 
+    # Run
     # Create agent
-    agent = DDDQNAgent(env.observation_space,
-                       env.action_space,
-                       is_training=False,
-                       num_frames=num_frames)
+    agent = RDQNAgent(env.observation_space,
+                      env.action_space,
+                      is_training=False)
 
     # Load weights from file
     agent.load(load_path)
@@ -117,7 +111,7 @@ if __name__ == "__main__":
     # Create dataset env
     env = make(args.data_dir,
                reward_class=RedispReward,
-               action_class=TopologyChangeAndDispatchAction,
+               action_class=TopologyAndDispatchAction,
                other_rewards={
                    "bridge": BridgeReward,
                    "overflow": CloseToOverflowReward,
@@ -130,6 +124,5 @@ if __name__ == "__main__":
              nb_episode=args.nb_episode,
              nb_process=args.nb_process,
              max_steps=args.max_steps,
-             num_frames=args.num_frames,
              verbose=args.verbose,
              save_gif=args.gif)

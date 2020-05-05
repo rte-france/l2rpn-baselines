@@ -10,13 +10,22 @@ We thank kindly all baselines contributors.
 
    This a template baseline, provided as an example for contributors.
 
+ - [DoNothing](/l2rpn_baselines/DoNothing):
+
+   The most simple baseline, that takes no actions until it fails.
+
  - [DoubleDuelingDQN](/l2rpn_baselines/DoubleDuelingDQN):
 
-    An example of a simple Double-DQN implementation.
+   An example of a Double-DQN implementation.
 
  - [DoubleDuelingRDQN](/l2rpn_baselines/DoubleDuelingRDQN):
 
-   An example of a simple Recurrent Deep-Q Network implementation.
+   An example of a Recurrent Deep-Q Network implementation.
+
+ - [SliceRDQN](/l2rpn_baselines/SliceRDQN):
+
+   A multi Recurrent Q-streams implementation.
+   Where each action class has it's own Q network embedded in the global net. 
 
 ## 2. How to?
 

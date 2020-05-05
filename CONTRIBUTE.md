@@ -11,7 +11,7 @@ We provide this guide and a [Template baseline](/l2rpn_baselines/Template) to he
     *   [2.2. MyContrib.evaluate](#mycontribevaluate)
     *   [2.3. MyContrib.train (optional)](#mycontribtrain-optional)
     *   [2.4. MyContrib\/MyContrib.md (optional)](#mycontribmycontribmd-optional)
-*   [3. Check the licenses and open a github issue]()
+*   [3. Submit your baseline](#submit-your-baseline)
 
 # One baseline, one submodule
 As shown by the [Template baseline](/l2rpn_baselines/Template), it is expected from baselines to take the form a python submodule
@@ -54,6 +54,8 @@ from l2rpn_baselines.MyContrib.MyContrib import MyContrib
 from l2rpn_baselines.MyContrib.evaluate import evaluate
 from l2rpn_baselines.MyContrib.train import train
 ```
+
+As it is [pythonic](https://docs.python.org/3/tutorial/modules.html#intra-package-references) and less error prone, the exports MUST be absolute. That is, as part of this package all imports from within this package MUST import from the root of `l2rpn_baselines` as showcased above. 
 
 ## MyContrib.evaluate
 
@@ -125,18 +127,18 @@ It is encouraged to provide a markdown file at the root of your baseline submodu
  - Training enviroment (if applicable)
  - Number of training iterations (if applicable)
  - Values of hyperparameters (if applicable)
+ - Any other information worth mentionning
 
 
-# Submit a github issue
-Once all of the above have been performed, the best way to submit a new baseline is to post an issue on the official
-github repository of this package [l2rpn-baselines](https://github.com/rte-france/l2rpn-baselines) saying
-that you would like your code to be included in the l2rpn_baselines package.
+# Submit your baseline
+Once all of the above have been performed, the best way to submit a new baseline is to open a pull request on the 
+github repository of this package [l2rpn-baselines](https://github.com/rte-france/l2rpn-baselines) showing your code included in the l2rpn_baselines package.
 
 Note that before acceptance, your baselines will be checked by RTE teams. In order to ease the review process, it is
 recommended that all of the above steps have been carefully respected, in particular the input / outputs and names
 of each function mentionned in this document.
 
-A studyo of the open source licenses you used will also be carried out. To ease this process, we recommand you to
+A study of the open source licenses you used will also be carried out. To ease this process, we recommand you to
 post your baseline under one of the following license:
 - Apache
 - MIT

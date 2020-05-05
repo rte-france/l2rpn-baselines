@@ -8,22 +8,22 @@
 # SPDX-License-Identifier: MPL-2.0
 # This file is part of L2RPN Baselines, L2RPN Baselines a repository to host baselines for l2rpn competitions.
 
-export RDQN_NAME=rdqn-X.0.0.x
-export RDQN_DATA=~/data_grid2op/rte_case14_realistic
+export SRDQN_NAME=slice-rdqn-X.0.0.x
+export SRDQN_DATA=~/data_grid2op/rte_case14_realistic
 
-./inspect_action_space.py --path_data $RDQN_DATA
+./inspect_action_space.py --path_data $SRDQN_DATA
 
-rm -rf ./logs-train/$RDQN_NAME
+rm -rf ./logs-train/$SRDQN_NAME
 ./train.py \
-    --name $RDQN_NAME \
-    --data_dir $RDQN_DATA \
+    --name $SRDQN_NAME \
+    --data_dir $SRDQN_DATA \
     --num_pre_steps 256 \
     --num_train_steps 131072 \
     --trace_length 12
 
-rm -rf ./logs-eval/$RDQN_NAME
+rm -rf ./logs-eval/$SRDQN_NAME
 ./evaluate.py \
-    --data_dir $RDQN_DATA \
-    --load_file ./models/$RDQN_NAME.tf \
-    --logs_dir ./logs-eval/$RDQN_NAME \
+    --data_dir $SRDQN_DATA \
+    --load_file ./models/$SRDQN_NAME.tf \
+    --logs_dir ./logs-eval/$SRDQN_NAME \
     --nb_episode 10

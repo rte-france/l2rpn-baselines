@@ -13,36 +13,25 @@ from setuptools import setup
 
 pkgs = {
     "required": [
-        "grid2op[challenge]>=0.7.0"
+        "grid2op[challenge,optional]>=0.8.0"
     ],
     "extras": {
-        "optional": [
-            "numba>=0.48.0",
-            "matplotlib>=3.2.1",
-            "plotly>=4.5.4",
-            "seaborn>=0.10.0",
-            "pygame>=1.9.6",
-            "imageio",
-            "imageio_ffmpeg"
-        ],
         "docs": [
-            "numpydoc>=0.9.2",
-            "sphinx>=2.4.4",
-            "sphinx-rtd-theme>=0.4.3",
-            "sphinxcontrib-trio>=1.1.0",
-            "autodocsumm",
+            "grid2op[docs]"
         ]
     }
 }
 
-
 setup(name='l2rpn_baselines',
-      version='0.1.1',
-      description='L2RPN Baselines a repository to host baselines for l2rpn competitions.',
-      long_description='This repository aims at facilitating the use of state of the art algorithm in coming from the '
-                       'reinforcement learning community or the power system community in the l2rpn competitions. It '
-                       'also provides some usefull function to make life or participants to the l2rpn competitions '
-                       'easier.',
+      version='0.2.0',
+      description='L2RPN Baselines a repository to host ' \
+      'baselines for l2rpn competitions.',
+      long_description='This repository aims at facilitating ' \
+      'the use of state of the art algorithm in coming from the ' \
+      'reinforcement learning community or the power system ' \
+      'community in the l2rpn competitions. It  also provides ' \
+      'some usefull function to make life or participants to the ' \
+      'l2rpn competitions easier.',
       classifiers=[
           'Development Status :: 4 - Beta',
           'Programming Language :: Python :: 3.6',
