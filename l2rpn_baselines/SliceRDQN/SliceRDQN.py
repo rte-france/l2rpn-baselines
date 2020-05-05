@@ -20,13 +20,13 @@ from l2rpn_baselines.SliceRDQN.ExperienceBuffer import ExperienceBuffer
 from l2rpn_baselines.SliceRDQN.SliceRDQN_NN import SliceRDQN_NN
 from l2rpn_baselines.SliceRDQN.slice_util import *
 
-INITIAL_EPSILON = 0.80
-FINAL_EPSILON = 0.01
-DECAY_EPSILON = 1024*64
+INITIAL_EPSILON = 0.8
+FINAL_EPSILON = 0.05
+DECAY_EPSILON = 1024*128
 STEP_EPSILON = (INITIAL_EPSILON-FINAL_EPSILON)/DECAY_EPSILON
-DISCOUNT_FACTOR = 0.99
+DISCOUNT_FACTOR = 0.55
 REPLAY_BUFFER_SIZE = 1024*8
-UPDATE_FREQ = 512
+UPDATE_FREQ = 756
 UPDATE_TARGET_HARD_FREQ = -1
 UPDATE_TARGET_SOFT_TAU = 0.001
 INPUT_BIAS = 3.0
@@ -244,7 +244,7 @@ class SliceRDQN(AgentWithConverter):
             # Execute action
             new_obs, reward, self.done, info = env.step(act)
             new_state = self.convert_obs(new_obs)
-            
+
             # Save to current episode experience
             episode_exp.append((self.state, a, reward, self.done, new_state))
 
@@ -351,20 +351,18 @@ class SliceRDQN(AgentWithConverter):
         loss = self.Qmain.model.train_on_batch(batch_x, batch_y)
         loss = loss[0]
 
-        # Log some useful metrics
-        if step % (UPDATE_FREQ * 2) == 0:
-            print("loss =", loss)
-            with self.tf_writer.as_default():
-                mean_reward = np.mean(self.epoch_rewards)
-                mean_alive = np.mean(self.epoch_alive)
-                if len(self.epoch_rewards) >= 100:
-                    mean_reward_100 = np.mean(self.epoch_rewards[-100:])
-                    mean_alive_100 = np.mean(self.epoch_alive[-100:])
-                else:
-                    mean_reward_100 = mean_reward
-                    mean_alive_100 = mean_alive
-                tf.summary.scalar("mean_reward", mean_reward, step)
-                tf.summary.scalar("mean_alive", mean_alive, step)
-                tf.summary.scalar("mean_reward_100", mean_reward_100, step)
-                tf.summary.scalar("mean_alive_100", mean_alive_100, step)
-                tf.summary.scalar("loss", loss, step)
+        print("loss =", loss)
+        with self.tf_writer.as_default():
+            mean_reward = np.mean(self.epoch_rewards)
+            mean_alive = np.mean(self.epoch_alive)
+            if len(self.epoch_rewards) >= 100:
+                mean_reward_100 = np.mean(self.epoch_rewards[-100:])
+                mean_alive_100 = np.mean(self.epoch_alive[-100:])
+            else:
+                mean_reward_100 = mean_reward
+                mean_alive_100 = mean_alive
+            tf.summary.scalar("mean_reward", mean_reward, step)
+            tf.summary.scalar("mean_alive", mean_alive, step)
+            tf.summary.scalar("mean_reward_100", mean_reward_100, step)
+            tf.summary.scalar("mean_alive_100", mean_alive_100, step)
+            tf.summary.scalar("loss", loss, step)

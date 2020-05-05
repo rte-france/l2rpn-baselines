@@ -14,6 +14,7 @@ import tensorflow as tf
 from grid2op.MakeEnv import make
 from grid2op.Reward import *
 from grid2op.Action import *
+from grid2op.Parameters import Parameters
 
 from l2rpn_baselines.SliceRDQN.SliceRDQN import SliceRDQN as RDQNAgent
 
@@ -98,20 +99,26 @@ def train(env,
 
 if __name__ == "__main__":
     args = cli()
+
+    # Set custom params
+    param = Parameters()
+    #param.NO_OVERFLOW_DISCONNECTION = True
+
     # Create grid2op game environement
     env = make(args.data_dir,
+               param=param,
                action_class=TopologyAndDispatchAction,
                reward_class=CombinedScaledReward)
 
     # Register custom reward for training
     cr = env.reward_helper.template_reward
-    cr.addReward("bridge", BridgeReward(), 1.0)
+    #cr.addReward("bridge", BridgeReward(), 1.0)
     #cr.addReward("distance", DistanceReward(), 5.0)
     cr.addReward("overflow", CloseToOverflowReward(), 1.0)
     cr.addReward("game", GameplayReward(), 2.0)
     #cr.addReward("eco", EconomicReward(), 2.0)
     cr.addReward("reco", LinesReconnectedReward(), 1.0)
-    cr.set_range(0.0, 10.0)
+    cr.set_range(20.0, 30.0)
     # Initialize custom rewards
     cr.initialize(env)
 
