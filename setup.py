@@ -13,7 +13,7 @@ from setuptools import setup
 
 pkgs = {
     "required": [
-        "grid2op[challenge,optional]>=0.7.1"
+        "grid2op[challenge,optional]>=0.8.0"
     ],
     "extras": {
         "docs": [
@@ -23,7 +23,7 @@ pkgs = {
 }
 
 setup(name='l2rpn_baselines',
-      version='0.1.1',
+      version='0.1.2',
       description='L2RPN Baselines a repository to host ' \
       'baselines for l2rpn competitions.',
       long_description='This repository aims at facilitating ' \
