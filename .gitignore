@@ -132,3 +132,5 @@ dmypy.json
 
 
 .idea
+l2rpn_baselines/SliceRDQN/logs-train/
+l2rpn_baselines/SliceRDQN/models/

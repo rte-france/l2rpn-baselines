@@ -30,6 +30,7 @@ UPDATE_FREQ = 64
 UPDATE_TARGET_HARD_FREQ = 16
 UPDATE_TARGET_SOFT_TAU = -1
 
+
 class DoubleDuelingDQN(AgentWithConverter):
     def __init__(self,
                  observation_space,
@@ -73,10 +74,10 @@ class DoubleDuelingDQN(AgentWithConverter):
         # Load network graph
         self.Qmain = DoubleDuelingDQN_NN(self.action_size,
                                          self.observation_size,
-                                         num_frames = self.num_frames,
-                                         learning_rate = self.lr,
-                                         learning_rate_decay_steps = LR_DECAY_STEPS,
-                                         learning_rate_decay_rate = LR_DECAY_RATE)
+                                         num_frames=self.num_frames,
+                                         learning_rate=self.lr,
+                                         learning_rate_decay_steps=LR_DECAY_STEPS,
+                                         learning_rate_decay_rate=LR_DECAY_RATE)
         # Setup training vars if needed
         if self.is_training:
             self._init_training()

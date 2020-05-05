@@ -21,7 +21,7 @@ DEFAULT_NAME = "SliceRDQN"
 DEFAULT_SAVE_DIR = "./models"
 DEFAULT_LOG_DIR = "./logs-train"
 DEFAULT_PRE_STEPS = 256
-DEFAULT_TRAIN_STEPS = 1024
+DEFAULT_TRAIN_STEPS = 1024 * 1024 * 10
 DEFAULT_TRACE_LEN = 12
 DEFAULT_BATCH_SIZE = 32
 DEFAULT_LR = 1e-5
@@ -31,9 +31,9 @@ def cli():
     parser = argparse.ArgumentParser(description="Train baseline DDQN")
 
     # Paths
-    parser.add_argument("--name", required=True,
+    parser.add_argument("--name", required=False, default="SliceRDQN_ls",
                         help="The name of the model")
-    parser.add_argument("--data_dir", required=True,
+    parser.add_argument("--data_dir", required=False, default="l2rpn_case14_sandbox",
                         help="Path to the dataset root directory")
     parser.add_argument("--save_dir", required=False,
                         default=DEFAULT_SAVE_DIR, type=str,
@@ -99,10 +99,14 @@ def train(env,
 if __name__ == "__main__":
     args = cli()
     # Create grid2op game environement
+    from lightsim2grid.LightSimBackend import LightSimBackend
+    backend = LightSimBackend()
+
     env = make(args.data_dir,
                action_class=TopologyChangeAndDispatchAction,
-               reward_class=CombinedScaledReward)
-
+               reward_class=CombinedScaledReward,
+               backend=backend)
+    env.set_chunk_size(100)
     # Register custom reward for training
     cr = env.reward_helper.template_reward
     #cr.addReward("bridge", BridgeReward(), 5.0)

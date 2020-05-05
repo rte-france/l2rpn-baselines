@@ -66,7 +66,7 @@ class DoubleDuelingDQN_NN(object):
     def train_on_batch(self, x, y_true, sample_weight):
         with tf.GradientTape() as tape:
             # Get y_pred for batch
-            y_pred = self.model.predict_on_batch(x)
+            y_pred = self.model(x)
 
             # Compute loss for each sample in the batch
             batch_loss = self._clipped_batch_loss(y_true, y_pred)
