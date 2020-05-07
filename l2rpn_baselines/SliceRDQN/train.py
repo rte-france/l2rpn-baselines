@@ -77,7 +77,8 @@ def train(env,
 
     # Limit gpu usage
     physical_devices = tf.config.list_physical_devices('GPU')
-    tf.config.experimental.set_memory_growth(physical_devices[0], True)
+    if len(physical_devices) > 0:
+        tf.config.experimental.set_memory_growth(physical_devices[0], True)
 
     agent = RDQNAgent(env.observation_space,
                       env.action_space,
@@ -107,7 +108,7 @@ if __name__ == "__main__":
 
     env = make(args.data_dir,
                param=param,
-               action_class=TopologyAndDispatchAction,
+               action_class=TopologyAction,
                reward_class=CombinedScaledReward)
 
     # Do not load entires scenario at once
