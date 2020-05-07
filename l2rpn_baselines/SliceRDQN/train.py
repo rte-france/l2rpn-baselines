@@ -108,7 +108,7 @@ if __name__ == "__main__":
 
     env = make(args.data_dir,
                param=param,
-               action_class=TopologyAndDispatchAction,
+               action_class=TopologyAction,
                reward_class=CombinedScaledReward)
 
     # Do not load entires scenario at once
