@@ -20,16 +20,17 @@ from l2rpn_baselines.SliceRDQN.ExperienceBuffer import ExperienceBuffer
 from l2rpn_baselines.SliceRDQN.SliceRDQN_NN import SliceRDQN_NN
 from l2rpn_baselines.SliceRDQN.slice_util import *
 
-INITIAL_EPSILON = 0.8
-FINAL_EPSILON = 0.05
-DECAY_EPSILON = 1024*128
+INITIAL_EPSILON = 0.80
+FINAL_EPSILON = 0.01
+DECAY_EPSILON = 1024*256
 STEP_EPSILON = (INITIAL_EPSILON-FINAL_EPSILON)/DECAY_EPSILON
-DISCOUNT_FACTOR = 0.55
+DISCOUNT_FACTOR = 0.99
 REPLAY_BUFFER_SIZE = 1024*8
-UPDATE_FREQ = 756
+UPDATE_FREQ = 512
 UPDATE_TARGET_HARD_FREQ = -1
 UPDATE_TARGET_SOFT_TAU = 0.001
 INPUT_BIAS = 3.0
+SUFFLE_FREQ = 1000
 
 class SliceRDQN(AgentWithConverter):
     def __init__(self,
@@ -78,13 +79,13 @@ class SliceRDQN(AgentWithConverter):
                 "q_len": lines_q_len(self.action_space)
             },
             "sub": {
-                "indexes": [1,2,4,9,10,11,12,14,15,18,20,23,24],
+                "indexes": [1,2,3,4,9,10,11,12,14,15,18,20,23,24],
                 "q_len": topo_q_len(self.action_space)
             },
-            "disp": {
-                "indexes": [0,4,7,8,9,10,11,12,14,18,23,24],
-                "q_len": disp_q_len(self.action_space)
-            }
+            #"disp": {
+            #    "indexes": [4,7,8,9,10,11,12,14,18,23,24],
+            #    "q_len": disp_q_len(self.action_space)
+            #}
         }
         self.n_slices = len(self.slices.keys())
 
@@ -208,23 +209,19 @@ class SliceRDQN(AgentWithConverter):
         while step < num_steps:
             # New episode
             if self.done:
-                if episode % 1000 == 0:
+                if episode % SUFFLE_FREQ == 0:
                     # shuffle the data every now and then
-                    # TODO change the "1000" above
                     env.chronics_handler.shuffle(
                         shuffler=lambda x: x[np.random.choice(len(x), size=len(x), replace=False)])
                 new_obs = env.reset() # This shouldn't raise
                 self.reset(new_obs)
-
-                new_obs = env.reset() # This shouldn't raise
-                self._reset_state(new_obs)
                 # Push current episode experience to experience buffer
                 self._register_experience(episode_exp, episode)
                 # Reset current episode experience
                 episode += 1
                 episode_exp = []
 
-            if step % 1000 == 0:
+            if step % SUFFLE_FREQ == 0:
                 print("Step [{}] -- Dropout [{}]".format(step, self.epsilon))
 
             # Choose an action
@@ -232,11 +229,6 @@ class SliceRDQN(AgentWithConverter):
                 a, m, c = self.Qmain.random_move(self.state,
                                                  self.mem_state,
                                                  self.carry_state)
-            elif len(episode_exp) < self.trace_length:
-                a, m, c = self.Qmain.random_move(self.state,
-                                                 self.mem_state,
-                                                 self.carry_state)
-                a = 0
             else:
                 a, _, m, c = self.Qmain.bayesian_move(self.state,
                                                       self.mem_state,
