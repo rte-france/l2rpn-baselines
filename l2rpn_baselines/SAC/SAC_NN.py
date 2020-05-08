@@ -6,10 +6,7 @@
 # SPDX-License-Identifier: MPL-2.0
 # This file is part of L2RPN Baselines, L2RPN Baselines a repository to host baselines for l2rpn competitions.
 
-
-import random
 import numpy as np
-import pdb
 import os
 
 # tf2.0 friendly
@@ -17,28 +14,22 @@ import warnings
 
 with warnings.catch_warnings():
     warnings.filterwarnings("ignore", category=FutureWarning)
-    import tensorflow.keras
-    import tensorflow.keras.backend as K
     from tensorflow.keras.models import load_model, Sequential, Model
     from tensorflow.keras.optimizers import Adam
-    from tensorflow.keras.layers import Activation, Dropout, Flatten, Dense, subtract, add
-    from tensorflow.keras.layers import Input, Lambda, Concatenate
+    from tensorflow.keras.layers import Activation, Dense
+    from tensorflow.keras.layers import Input, Concatenate
 
-import grid2op
-from grid2op.Agent import AgentWithConverter
-from grid2op.Converter import IdToAct
-
-
+from l2rpn_baselines.utils import BaseDeepQ, TrainingParam
 
 # This class implements the "Sof Actor Critic" model.
 # It is a custom implementation, courtesy to Clement Goubet
 # The original paper is: https://arxiv.org/abs/1801.01290
-class SAC(RLQvalue):
+class SAC(BaseDeepQ):
     """Constructs the desired soft actor critic network"""
 
     def __init__(self, action_size, observation_size, lr=1e-5,
                  training_param=TrainingParam()):
-        RLQvalue.__init__(self, action_size, observation_size, lr, training_param)
+        BaseDeepQ.__init__(self, action_size, observation_size, lr, training_param)
         # TODO add as meta param the number of "Q" you want to use (here 2)
         # TODO add as meta param size and types of the networks
         self.average_reward = 0
