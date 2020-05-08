@@ -23,7 +23,7 @@ pkgs = {
 }
 
 setup(name='l2rpn_baselines',
-      version='0.2.0',
+      version='0.2.1',
       description='L2RPN Baselines a repository to host ' \
       'baselines for l2rpn competitions.',
       long_description='This repository aims at facilitating ' \
