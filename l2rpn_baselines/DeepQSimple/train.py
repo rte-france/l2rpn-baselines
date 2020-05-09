@@ -49,13 +49,21 @@ if __name__ == "__main__":
     from grid2op.Reward import CombinedScaledReward, CloseToOverflowReward, GameplayReward, LinesReconnectedReward
     args = cli().parse_args()
 
+    try:
+        from lightsim2grid.LightSimBackend import LightSimBackend
+        backend = LightSimBackend()
+    except:
+        from grid2op.Backend import PandaPowerBackend
+        backend = PandaPowerBackend()
+
     # Use custom params
     params = Parameters()
 
     # Create grid2op game environement
     env = make(args.env_name,
                param=params,
-               reward_class=CombinedScaledReward)
+               reward_class=CombinedScaledReward,
+               backend=backend)
 
     # Only load 128 steps in ram
     env.chronics_handler.set_chunk_size(128)

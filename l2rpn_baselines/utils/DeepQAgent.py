@@ -171,7 +171,10 @@ class DeepQAgent(AgentWithConverter):
     def _need_reset(self, env, observation_num, epoch_num, done):
         if done or observation_num == 0:
             self._reset_process_buffer()
-            obs = env.reset()
+            one_week = 7*24*60*5  # number of time steps per weeks
+            env.reset()
+            env.fast_forward_chronics(np.random.randint(0, min(one_week, env.chronics_handler.max_timestep())))
+            obs = env.current_obs
             tmp_obs = self.convert_obs(obs)
             self.process_buffer.append(tmp_obs)
             epoch_num += 1
@@ -247,7 +250,7 @@ class DeepQAgent(AgentWithConverter):
         alive_frame += 1
         if done:
             alive_frame = 0
-        return done, reward, total_reward, alive_frame
+        return done, temp_reward, total_reward, alive_frame
         # we need to handle vectors for "done"
         # reward[~temp_done] += temp_reward[~temp_done]
         #
