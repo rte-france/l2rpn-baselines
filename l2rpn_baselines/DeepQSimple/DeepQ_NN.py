@@ -19,7 +19,7 @@ with warnings.catch_warnings():
 from l2rpn_baselines.utils import BaseDeepQ, TrainingParam
 
 
-class DeepQ(BaseDeepQ):
+class DeepQ_NN(BaseDeepQ):
     """Constructs the desired deep q learning network"""
 
     def __init__(self,

@@ -20,4 +20,8 @@ def cli_train():
                         help="Name given to your model.")
     parser.add_argument("--load_path", required=False,
                         help="Path from which to reload your model from (by default ``None`` to NOT reload anything)")
+    parser.add_argument("--env_name", required=False, default="l2rpn_case14_sandbox",
+                        help="Name of the environment to load (default \"l2rpn_case14_sandbox\"")
+    parser.add_argument("--logs_dir", required=False, default=None,
+                        help="Where to output the training logs (usually tensorboard logs)")
     return parser

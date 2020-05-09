@@ -10,6 +10,8 @@ import os
 import numpy as np
 from l2rpn_baselines.utils.TrainingParam import TrainingParam
 from tensorflow.keras.models import load_model
+import pdb
+import tensorflow as tf
 
 
 # refactorization of the code in a base class to avoid copy paste.
@@ -48,7 +50,9 @@ class BaseDeepQ(object):
         """Predict movement of game controler where is epsilon
         probability randomly move."""
         rand_val = np.random.random(data.shape[0])
-        q_actions = self.model.predict(data)
+        data_ts = tf.convert_to_tensor(data, dtype=tf.float32)
+        q_actions = self.model.predict(data_ts)
+
         opt_policy = np.argmax(np.abs(q_actions), axis=-1)
         opt_policy[rand_val < epsilon] = np.random.randint(0, self.action_size, size=(np.sum(rand_val < epsilon)))
 
@@ -57,16 +61,18 @@ class BaseDeepQ(object):
 
     def train(self, s_batch, a_batch, r_batch, d_batch, s2_batch, observation_num):
         """Trains network to fit given parameters"""
-        targets = self.model.predict(s_batch)
-        fut_action = self.target_model.predict(s2_batch)
-        targets[:, a_batch] = r_batch
+        s_batch_ts = tf.convert_to_tensor(s_batch, dtype=tf.float32)
+        s2_batch_ts = tf.convert_to_tensor(s2_batch, dtype=tf.float32)
+
+        targets = self.model.predict(s_batch_ts)
+        fut_action = self.target_model.predict(s2_batch_ts)
+
+        targets[:, a_batch.flatten()] = r_batch
         targets[d_batch, a_batch[d_batch]] += self.training_param.DECAY_RATE * np.max(fut_action[d_batch], axis=-1)
 
-        loss = self.model.train_on_batch(s_batch, targets)
-        # Print the loss every 100 iterations.
-        if observation_num % 100 == 0:
-            print("We had a loss equal to ", loss)
-        return np.all(np.isfinite(loss))
+        targets_ts = tf.convert_to_tensor(targets, dtype=tf.float32)
+        loss = self.model.train_on_batch(s_batch_ts, targets_ts)
+        return loss
 
     @staticmethod
     def _get_path_model(path, name=None):

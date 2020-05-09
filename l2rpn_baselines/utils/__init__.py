@@ -14,7 +14,8 @@ __all__ = ["cli_eval",
            "train_generic",
            "TrainingParam",
            "ReplayBuffer",
-           "BaseDeepQ"]
+           "BaseDeepQ",
+           "DeepQAgent"]
 
 from l2rpn_baselines.utils.cli_eval import cli_eval
 from l2rpn_baselines.utils.cli_train import cli_train
@@ -25,3 +26,4 @@ from l2rpn_baselines.utils.train_generic import train_generic
 from l2rpn_baselines.utils.TrainingParam import TrainingParam
 from l2rpn_baselines.utils.ReplayBuffer import ReplayBuffer
 from l2rpn_baselines.utils.BaseDeepQ import BaseDeepQ
+from l2rpn_baselines.utils.DeepQAgent import DeepQAgent

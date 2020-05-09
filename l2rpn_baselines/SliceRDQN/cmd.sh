@@ -14,7 +14,7 @@ export SRDQN_DATA=~/data_grid2op/rte_case14_realistic
 ./inspect_action_space.py --path_data $SRDQN_DATA
 
 rm -rf ./logs-train/$SRDQN_NAME
-./train.py \
+./DeepQSimple.py \
     --name $SRDQN_NAME \
     --data_dir $SRDQN_DATA \
     --num_pre_steps 256 \
