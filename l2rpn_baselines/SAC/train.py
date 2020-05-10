@@ -10,9 +10,9 @@
 
 import tensorflow as tf
 from l2rpn_baselines.utils import cli_train as cli
-from l2rpn_baselines.DeepQSimple.DeepQSimple import DeepQSimple
+from l2rpn_baselines.SAC.SAC import SAC
 
-DEFAULT_NAME = "DeepQSimple"
+DEFAULT_NAME = "SoftActorCritic"
 
 
 def train(env,
@@ -27,8 +27,8 @@ def train(env,
     if len(physical_devices) > 0:
         tf.config.experimental.set_memory_growth(physical_devices[0], True)
 
-    baseline = DeepQSimple(env.action_space,
-                           name=name)
+    baseline = SAC(env.action_space,
+                   name=name)
 
     if load_path is not None:
         baseline.load(load_path)

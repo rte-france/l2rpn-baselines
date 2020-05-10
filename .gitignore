@@ -130,9 +130,15 @@ dmypy.json
 # Pyre type checker
 .pyre/
 
-
 .idea
 l2rpn_baselines/SliceRDQN/logs-train/
 l2rpn_baselines/SliceRDQN/models/
 l2rpn_baselines/DeepQSimple/test_simple/
 l2rpn_baselines/DeepQSimple/tf_logs/
+l2rpn_baselines/DuelQSimple/test_simple/
+l2rpn_baselines/DuelQSimple/tf_logs/
+l2rpn_baselines/DoubleDuelingDQN/logs-train/
+l2rpn_baselines/DoubleDuelingDQN/models/
+l2rpn_baselines/DoubleDuelingRDQN/logs-train/
+l2rpn_baselines/DoubleDuelingRDQN/models/
+

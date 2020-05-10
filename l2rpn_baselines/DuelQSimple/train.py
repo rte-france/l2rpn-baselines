@@ -10,7 +10,7 @@
 
 import tensorflow as tf
 from l2rpn_baselines.utils import cli_train as cli
-from l2rpn_baselines.DeepQSimple.DeepQSimple import DeepQSimple
+from l2rpn_baselines.DuelQSimple.DuelQSimple import DuelQSimple
 
 DEFAULT_NAME = "DeepQSimple"
 
@@ -27,7 +27,7 @@ def train(env,
     if len(physical_devices) > 0:
         tf.config.experimental.set_memory_growth(physical_devices[0], True)
 
-    baseline = DeepQSimple(env.action_space,
+    baseline = DuelQSimple(env.action_space,
                            name=name)
 
     if load_path is not None:

@@ -26,8 +26,12 @@ class DeepQ_NN(BaseDeepQ):
                  action_size,
                  observation_size,
                  lr=1e-5,
+                 learning_rate_decay_steps=1000,
+                 learning_rate_decay_rate=0.95,
                  training_param=TrainingParam()):
-        BaseDeepQ.__init__(self, action_size, observation_size, lr, training_param)
+        BaseDeepQ.__init__(self, action_size, observation_size,
+                           lr, learning_rate_decay_steps, learning_rate_decay_rate,
+                           training_param)
         self.construct_q_network()
 
     def construct_q_network(self):
@@ -35,7 +39,8 @@ class DeepQ_NN(BaseDeepQ):
 
         # Uses the network architecture found in DeepMind paper
         self.model = Sequential()
-        input_layer = Input(shape=(self.observation_size * self.training_param.NUM_FRAMES,))
+        input_layer = Input(shape=(self.observation_size * self.training_param.NUM_FRAMES,),
+                            name="state")
         layer1 = Dense(self.observation_size * self.training_param.NUM_FRAMES)(input_layer)
         layer1 = Activation('relu')(layer1)
         layer2 = Dense(self.observation_size)(layer1)
@@ -44,11 +49,12 @@ class DeepQ_NN(BaseDeepQ):
         layer3 = Activation('relu')(layer3)
         layer4 = Dense(2 * self.action_size)(layer3)
         layer4 = Activation('relu')(layer4)
-        output = Dense(self.action_size)(layer4)
+        output = Dense(self.action_size, name="output")(layer4)
 
         self.model = Model(inputs=[input_layer], outputs=[output])
-        self.model.compile(loss='mse', optimizer=Adam(lr=self.lr_))
+        self.schedule_lr_model, self.optimizer_model = self.make_optimiser()
+        self.model.compile(loss='mse', optimizer=self.optimizer_model)
 
         self.target_model = Model(inputs=[input_layer], outputs=[output])
-        self.target_model.compile(loss='mse', optimizer=Adam(lr=self.lr_))
+        # self.target_model.compile(loss='mse', optimizer=Adam(lr=self.lr_))
         self.target_model.set_weights(self.model.get_weights())

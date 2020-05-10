@@ -18,7 +18,7 @@ in this __init__.py file:
 - `evaluate` [**mandatory**] contains the script to evaluate the performance of this baseline. It must
   follow the directive in "evaluate.py"
 - `train` [**optional**] contains the script to train your baseline. If provided, it must follow
-  the directives given in "DeepQSimple.py"
+  the directives given in "SAC.py"
   
 See the import above for an example on how to export your scripts properly.
 """

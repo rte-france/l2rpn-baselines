@@ -14,7 +14,7 @@ export RDQN_DATA=~/data_grid2op/rte_case14_realistic
 ./inspect_action_space.py --path_data $RDQN_DATA
 
 rm -rf ./logs-train/$RDQN_NAME
-./DeepQSimple.py \
+./SAC.py \
     --name $RDQN_NAME \
     --data_dir $RDQN_DATA \
     --num_pre_steps 256 \

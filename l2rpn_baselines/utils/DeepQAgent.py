@@ -12,6 +12,7 @@ from abc import abstractmethod, ABC
 from tqdm import tqdm
 import tensorflow as tf
 
+from grid2op.Exceptions import Grid2OpException
 from grid2op.Agent import AgentWithConverter
 from grid2op.Converter import IdToAct
 
@@ -24,7 +25,9 @@ class DeepQAgent(AgentWithConverter):
     def __init__(self,
                  action_space,
                  name="DeepQAgent",
-                 lr=1e-5):
+                 lr=1e-5,
+                 learning_rate_decay_steps=1000,
+                 learning_rate_decay_rate=0.95):
         AgentWithConverter.__init__(self, action_space, action_space_converter=IdToAct)
 
         # and now back to the origin implementation
@@ -37,6 +40,7 @@ class DeepQAgent(AgentWithConverter):
         self.tf_writer = None
         self.name = name
         self.losses = None
+        self.graph_saved = False
 
     @abstractmethod
     def init_deep_q(self, transformed_observation):
@@ -70,8 +74,13 @@ class DeepQAgent(AgentWithConverter):
               save_path,
               logdir,
               training_param=TrainingParam()):
+
         self.training_param = training_param
         self._init_replay_buffer()
+
+        # efficient reading of the data (read them by chunk of roughly 1 day
+        nb_ts_one_day = 24 * 60 / 5  # number of time steps per day
+        self.set_chunk(env, nb_ts_one_day)
 
         # Create file system related vars
         if save_path is not None:
@@ -103,12 +112,6 @@ class DeepQAgent(AgentWithConverter):
         total_rewards = np.zeros(iterations)
         with tqdm(total=iterations) as pbar:
             while observation_num < iterations:
-                if observation_num % 1000 == 999:
-                    # for efficient reading of data: at early stage of training, it is advised to load
-                    # data by chunk: the model will do game over pretty easily (no need to load all the dataset)
-                    tmp = min(10000 * (iterations // observation_num), 10000)
-                    self.set_chunk(env, int(max(10, tmp)))
-
                 # reset or build the environment
                 epoch_num = self._need_reset(env, observation_num, epoch_num, done)
 
@@ -137,20 +140,24 @@ class DeepQAgent(AgentWithConverter):
 
                 self._store_new_state(initial_state, pm_i, reward, done)
 
-                if self.replay_buffer.size() > training_param.MIN_OBSERVATION:
+                if self.replay_buffer.size() > max(training_param.MIN_OBSERVATION, training_param.MINIBATCH_SIZE):
                     s_batch, a_batch, r_batch, d_batch, s2_batch = self.replay_buffer.sample(
                         training_param.MINIBATCH_SIZE)
-                    loss = self.deep_q.train(s_batch, a_batch, r_batch, d_batch, s2_batch, observation_num)
-                    self.deep_q.target_train()
-                    self.losses[observation_num] = loss
+                    tf_writer = None
+                    if self.graph_saved is False:
+                        tf_writer = self.tf_writer
+                    loss = self.deep_q.train(s_batch, a_batch, r_batch, d_batch, s2_batch,
+                                             tf_writer)
+                    self.graph_saved = True
                     if not np.all(np.isfinite(loss)):
                         # if the loss is not finite i stop the learning
                         print("ERROR INFINITE LOSS")
                         break
+                    self.deep_q.target_train()
+                    self.losses[observation_num] = loss
 
                 # Save the network every 1000 iterations
                 if observation_num % SAVING_NUM == 0 or observation_num == iterations - 1:
-                    print("Saving Network")
                     self.save(save_path)
 
                 # save some information to tensorboard
@@ -168,12 +175,47 @@ class DeepQAgent(AgentWithConverter):
             res.append(self.convert_act(act_id))
         return res
 
+    def _fast_forward_env(self, env, time=7*24*60/5):
+        env.fast_forward_chronics(np.random.randint(0, min(time, env.chronics_handler.max_timestep())))
+
+    def _reset_env_clean_state(self, env):
+        """
+
+        """
+        # /!\ DO NOT ATTEMPT TO MODIFY OTHERWISE IT WILL PROBABLY CRASH /!\
+        # /!\ THIS WILL BE PART OF THE ENVIRONMENT IN FUTURE GRID2OP RELEASE /!\
+        # AND OF COURSE USING THIS METHOD DURING THE EVALUATION IS COMPLETELY FORBIDDEN
+        env.current_obs = None
+        env.env_modification = None
+        env._reset_maintenance()
+        env._reset_redispatching()
+        env._reset_vectors_and_timings()
+        _backend_action = env._backend_action_class()
+        _backend_action.all_changed()
+        env._backend_action =_backend_action
+        env.backend.apply_action(_backend_action)
+        _backend_action.reset()
+        *_, fail_to_start, info = env.step(env.action_space())
+        if fail_to_start:
+            raise Grid2OpException("Impossible to initialize the powergrid, the powerflow diverge at iteration 0. "
+                                   "Available information are: {}".format(info))
+        env._reset_vectors_and_timings()
+
     def _need_reset(self, env, observation_num, epoch_num, done):
         if done or observation_num == 0:
             self._reset_process_buffer()
-            one_week = 7*24*60*5  # number of time steps per weeks
-            env.reset()
-            env.fast_forward_chronics(np.random.randint(0, min(one_week, env.chronics_handler.max_timestep())))
+            nb_ts_one_day = 24*60/5
+
+            # the 3-4 lines below allow to reuse the loaded dataset and continue further up in the
+            try:
+                self._reset_env_clean_state(env)
+                # random fast forward between now and next day
+                self._fast_forward_env(env, time=nb_ts_one_day)
+            except StopIteration:
+                env.reset()
+                # random fast forward between now and next week
+                self._fast_forward_env(env, time=7*nb_ts_one_day)
+
             obs = env.current_obs
             tmp_obs = self.convert_obs(obs)
             self.process_buffer.append(tmp_obs)
@@ -194,7 +236,7 @@ class DeepQAgent(AgentWithConverter):
         into one training sample"""
         # here i simply concatenate the action in case of multiple action in the "buffer"
         if self.training_param.NUM_FRAMES != 1:
-            raise RuntimeError("This h_need_resetas not been tested with self.training_param.NUM_FRAMES != 1 for now")
+            raise RuntimeError("This has not been tested with self.training_param.NUM_FRAMES != 1 for now")
         # return np.array([np.concatenate(el) for el in self.process_buffer])
         return np.concatenate(self.process_buffer).reshape(1, -1)
 
@@ -221,10 +263,12 @@ class DeepQAgent(AgentWithConverter):
         #                                  new_state[sub_env_id])
 
     def _next_move(self, curr_state, epsilon):
-        pm_i, pq_v = self.deep_q.predict_movement(curr_state, epsilon)
+        curr_state_ts = tf.convert_to_tensor(curr_state, dtype=tf.float32)
+        pm_i, pq_v = self.deep_q.predict_movement(curr_state_ts, epsilon)
         act = self._convert_all_act(pm_i)
         if len(act) == 1:
             act = act[0]
+
         # act = self.convert_act(pm_i)
         # # and build the convenient vectors (it was scalars before)
         # predict_movement_int = []

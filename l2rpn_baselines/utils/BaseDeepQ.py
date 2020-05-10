@@ -10,6 +10,7 @@ import os
 import numpy as np
 from l2rpn_baselines.utils.TrainingParam import TrainingParam
 from tensorflow.keras.models import load_model
+import tensorflow.keras.optimizers as tfko
 import pdb
 import tensorflow as tf
 
@@ -32,16 +33,24 @@ class BaseDeepQ(object):
                  action_size,
                  observation_size,
                  lr=1e-5,
+                 learning_rate_decay_steps=1000,
+                 learning_rate_decay_rate=0.95,
                  training_param=TrainingParam()):
         # TODO add more flexibilities when building the deep Q networks, with a "NNParam" for example.
         self.action_size = action_size
         self.observation_size = observation_size
-        self.lr_ = lr
+        self.lr = lr
+        self.lr_decay_steps = learning_rate_decay_steps
+        self.lr_decay_rate = learning_rate_decay_rate
         self.qvalue_evolution = np.zeros((0,))
         self.training_param = training_param
 
         self.model = None
         self.target_model = None
+
+    def make_optimiser(self):
+        schedule = tfko.schedules.InverseTimeDecay(self.lr, self.lr_decay_steps, self.lr_decay_rate)
+        return schedule, tfko.Adam(learning_rate=schedule)
 
     def construct_q_network(self):
         raise NotImplementedError("Not implemented")
@@ -49,9 +58,9 @@ class BaseDeepQ(object):
     def predict_movement(self, data, epsilon):
         """Predict movement of game controler where is epsilon
         probability randomly move."""
+        batch_size_predict = data.shape[0]
         rand_val = np.random.random(data.shape[0])
-        data_ts = tf.convert_to_tensor(data, dtype=tf.float32)
-        q_actions = self.model.predict(data_ts)
+        q_actions = self.model.predict(data, batch_size=batch_size_predict)
 
         opt_policy = np.argmax(np.abs(q_actions), axis=-1)
         opt_policy[rand_val < epsilon] = np.random.randint(0, self.action_size, size=(np.sum(rand_val < epsilon)))
@@ -59,19 +68,25 @@ class BaseDeepQ(object):
         self.qvalue_evolution = np.concatenate((self.qvalue_evolution, q_actions[0, opt_policy]))
         return opt_policy, q_actions[0, opt_policy]
 
-    def train(self, s_batch, a_batch, r_batch, d_batch, s2_batch, observation_num):
+    def train(self, s_batch, a_batch, r_batch, d_batch, s2_batch, tf_writer=None):
         """Trains network to fit given parameters"""
-        s_batch_ts = tf.convert_to_tensor(s_batch, dtype=tf.float32)
-        s2_batch_ts = tf.convert_to_tensor(s2_batch, dtype=tf.float32)
+        batch_size_train = s_batch.shape[0]
 
-        targets = self.model.predict(s_batch_ts)
-        fut_action = self.target_model.predict(s2_batch_ts)
+        # Save the graph just the first time
+        if tf_writer is not None:
+            tf.summary.trace_on()
+        targets = self.model.predict(s_batch, batch_size=batch_size_train)
+        if tf_writer is not None:
+            with tf_writer.as_default():
+                tf.summary.trace_export("model-graph", 0)
+            tf.summary.trace_off()
+        fut_action = self.target_model.predict(s2_batch, batch_size=batch_size_train)
 
         targets[:, a_batch.flatten()] = r_batch
         targets[d_batch, a_batch[d_batch]] += self.training_param.DECAY_RATE * np.max(fut_action[d_batch], axis=-1)
 
         targets_ts = tf.convert_to_tensor(targets, dtype=tf.float32)
-        loss = self.model.train_on_batch(s_batch_ts, targets_ts)
+        loss = self.model.train_on_batch(s_batch, targets_ts)
         return loss
 
     @staticmethod
@@ -89,7 +104,6 @@ class BaseDeepQ(object):
         path_model, path_target_model = self._get_path_model(path, name)
         self.model.save('{}.{}'.format(path_model, ext))
         self.target_model.save('{}.{}'.format(path_target_model, ext))
-        print("Successfully saved network.")
 
     def load_network(self, path, name=None, ext="h5"):
         # nothing has changed

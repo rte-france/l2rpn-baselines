@@ -12,31 +12,35 @@ import warnings
 with warnings.catch_warnings():
     warnings.filterwarnings("ignore", category=FutureWarning)
     from tensorflow.keras.models import Sequential, Model
-    from tensorflow.keras.optimizers import Adam
     from tensorflow.keras.layers import Activation, Dense
-    from tensorflow.keras.layers import Input
+    from tensorflow.keras.layers import Input, Lambda, subtract, add
+    import tensorflow.keras.backend as K
 
 from l2rpn_baselines.utils import BaseDeepQ, TrainingParam
 
 
-class DuelQ(BaseDeepQ):
+class DuelQ_NN(BaseDeepQ):
     """Constructs the desired duelling deep q learning network"""
-
     def __init__(self,
                  action_size,
                  observation_size,
                  lr=0.00001,
+                 learning_rate_decay_steps=1000,
+                 learning_rate_decay_rate=0.95,
                  training_param=TrainingParam()):
-        BaseDeepQ.__init__(self, action_size, observation_size, lr, training_param)
+        BaseDeepQ.__init__(self, action_size, observation_size, lr,
+                           learning_rate_decay_steps=learning_rate_decay_steps,
+                           learning_rate_decay_rate=learning_rate_decay_rate,
+                           training_param=training_param)
         self.construct_q_network()
 
     def construct_q_network(self):
         # Uses the network architecture found in DeepMind paper
         # The inputs and outputs size have changed, as well as replacing the convolution by dense layers.
         self.model = Sequential()
-
-        input_layer = Input(shape=(self.observation_size * self.training_param.NUM_FRAMES,))
-        lay1 = Dense(self.observation_size * self.training_param.NUM_FRAMES)(input_layer)
+        input_layer = Input(shape=(self.observation_size,),
+                            name="observation")
+        lay1 = Dense(self.observation_size)(input_layer)
         lay1 = Activation('relu')(lay1)
 
         lay2 = Dense(self.observation_size)(lay1)
@@ -53,11 +57,11 @@ class DuelQ(BaseDeepQ):
         meaner = Lambda(lambda x: K.mean(x, axis=1))
         mn_ = meaner(advantage)
         tmp = subtract([advantage, mn_])
-        policy = add([tmp, value])
+        policy = add([tmp, value], name="policy")
 
         self.model = Model(inputs=[input_layer], outputs=[policy])
-        self.model.compile(loss='mse', optimizer=Adam(lr=self.lr_))
+        self.schedule_model, self.optimizer_model = self.make_optimiser()
+        self.model.compile(loss='mse', optimizer=self.optimizer_model)
 
         self.target_model = Model(inputs=[input_layer], outputs=[policy])
-        self.target_model.compile(loss='mse', optimizer=Adam(lr=self.lr_))
         print("Successfully constructed networks.")
