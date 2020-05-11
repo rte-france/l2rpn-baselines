@@ -25,10 +25,11 @@ class DeepQAgent(AgentWithConverter):
     def __init__(self,
                  action_space,
                  name="DeepQAgent",
-                 lr=1e-5,
-                 learning_rate_decay_steps=1000,
-                 learning_rate_decay_rate=0.95,
-                 store_action=False):
+                 lr=1e-3,
+                 learning_rate_decay_steps=3000,
+                 learning_rate_decay_rate=0.99,
+                 store_action=False,
+                 istraining=False):
         AgentWithConverter.__init__(self, action_space, action_space_converter=IdToAct)
 
         # and now back to the origin implementation
@@ -36,7 +37,6 @@ class DeepQAgent(AgentWithConverter):
 
         self.deep_q = None
         self.training_param = None
-        self.process_buffer = []
         self.tf_writer = None
         self.name = name
         self.losses = None
@@ -46,6 +46,12 @@ class DeepQAgent(AgentWithConverter):
         self.learning_rate_decay_rate = learning_rate_decay_rate
         self.store_action = store_action
         self.dict_action = {}
+        self.istraining = istraining
+        self.actions_per_1000steps = np.zeros((1000, self.action_space.size()), dtype=np.int)
+        self.illegal_actions_per_1000steps = np.zeros(1000, dtype=np.int)
+        self.ambiguous_actions_per_1000steps = np.zeros(1000, dtype=np.int)
+        self.train_lr = lr
+        self.epsilon = 1.0
 
     @abstractmethod
     def init_deep_q(self, transformed_observation):
@@ -53,7 +59,15 @@ class DeepQAgent(AgentWithConverter):
 
     # grid2op.Agent interface
     def convert_obs(self, observation):
-        return np.concatenate((observation.rho, observation.line_status, observation.topo_vect))
+        return np.concatenate((observation.prod_p,
+                               observation.load_p,
+                               observation.rho,
+                               observation.timestep_overflow,
+                               observation.line_status,
+                               observation.topo_vect,
+                               observation.time_before_cooldown_line,
+                               observation.time_before_cooldown_sub,
+                               )).reshape(1, -1)
 
     def _store_action_played(self, action_int):
         if self.store_action:
@@ -115,11 +129,10 @@ class DeepQAgent(AgentWithConverter):
         UPDATE_FREQ = 100  # update tensorboard every "UPDATE_FREQ" steps
         SAVING_NUM = 1000
 
-        # same as in the original implemenation, except the process buffer is now in this class
-        observation_num = 0
+        training_step = 0
 
         # some parameters have been move to a class named "training_param" for convenience
-        epsilon = training_param.INITIAL_EPSILON
+        self.epsilon = training_param.INITIAL_EPSILON
 
         # now the number of alive frames and total reward depends on the "underlying environment". It is vector instead
         # of scalar
@@ -129,42 +142,37 @@ class DeepQAgent(AgentWithConverter):
         self.losses = np.zeros(iterations)
         alive_frames = np.zeros(iterations)
         total_rewards = np.zeros(iterations)
+        new_state = None
         with tqdm(total=iterations) as pbar:
-            while observation_num < iterations:
+            while training_step < iterations:
                 # reset or build the environment
-                epoch_num = self._need_reset(env, observation_num, epoch_num, done)
+                initial_state = self._need_reset(env, training_step, epoch_num, done, new_state)
 
-                # Slowly decay the learning rate
-                if epsilon > training_param.FINAL_EPSILON:
-                    epsilon -= (training_param.INITIAL_EPSILON - training_param.FINAL_EPSILON) / training_param.EPSILON_DECAY
+                # Slowly decay the exploration parameter epsilon
+                # if self.epsilon > training_param.FINAL_EPSILON:
+                self.epsilon = training_param.get_next_epsilon(current_step=training_step)
 
-                initial_state = self._convert_process_buffer()
-                if observation_num == 0:
+                if training_step == 0:
                     # we initialize the NN with the proper shape
                     self.init_deep_q(initial_state)
-                self._reset_process_buffer()
 
                 # then we need to predict the next moves. Agents have been adapted to predict a batch of data
-                pm_i, pq_v, act = self._next_move(initial_state, epsilon)
-                # TODO stores the "pm_i" somewhere.
-                # like a matrix where the action taken are stored (each column is an action count)
-                # and the rows could be the epoch passed (each 100 or 200 epoch for example)
-                # so we can see how the agent performs
+                pm_i, pq_v, act = self._next_move(initial_state, self.epsilon)
 
                 # todo store the illegal / ambiguous / ... actions
                 reward, done = self._init_local_train_loop()
-                for i in range(training_param.NUM_FRAMES):
-                    temp_observation_obj, temp_reward, temp_done, _ = env.step(act)
+                temp_observation_obj, temp_reward, temp_done, info = env.step(act)
+                new_state = self.convert_obs(temp_observation_obj)
 
-                    # and then "de stack" the observations coming from different environments
-                    self._update_process_buffer(temp_observation_obj)
+                self._updage_illegal_ambiguous(training_step, info)
+                done, reward, total_reward, alive_frame, epoch_num \
+                    = self._update_loop(done, temp_reward, temp_done, alive_frame, total_reward, reward, epoch_num)
 
-                    done, reward, total_reward, alive_frame \
-                        = self._update_loop(done, temp_reward, temp_done, alive_frame, total_reward, reward)
+                self._store_new_state(initial_state, pm_i, reward, done, new_state)
 
-                self._store_new_state(initial_state, pm_i, reward, done)
-
+                # now train the model
                 if self.replay_buffer.size() > max(training_param.MIN_OBSERVATION, training_param.MINIBATCH_SIZE):
+                    # train the model
                     s_batch, a_batch, r_batch, d_batch, s2_batch = self.replay_buffer.sample(
                         training_param.MINIBATCH_SIZE)
                     tf_writer = None
@@ -172,27 +180,44 @@ class DeepQAgent(AgentWithConverter):
                         tf_writer = self.tf_writer
                     loss = self.deep_q.train(s_batch, a_batch, r_batch, d_batch, s2_batch,
                                              tf_writer)
+                    self.train_lr = self.deep_q.optimizer_model._decayed_lr('float32').numpy()
                     self.graph_saved = True
                     if not np.all(np.isfinite(loss)):
                         # if the loss is not finite i stop the learning
                         print("ERROR INFINITE LOSS")
                         break
                     self.deep_q.target_train()
-                    self.losses[observation_num] = loss
+                    self.losses[training_step] = np.sum(loss)
 
                 # Save the network every 1000 iterations
-                if observation_num % SAVING_NUM == 0 or observation_num == iterations - 1:
+                if training_step % SAVING_NUM == 0 or training_step == iterations - 1:
                     self.save(save_path)
 
                 # save some information to tensorboard
-                if alive_frame:
-                    alive_frames[epoch_num] = alive_frame
-                    total_rewards[epoch_num] = total_reward
-                self._save_tensorboard(observation_num, epoch_num, UPDATE_FREQ, total_rewards, alive_frames)
-                observation_num += 1
+                alive_frames[epoch_num] = alive_frame
+                total_rewards[epoch_num] = total_reward
+                self._store_action_played_train(training_step, pm_i)
+
+                self._save_tensorboard(training_step, epoch_num, UPDATE_FREQ, total_rewards, alive_frames)
+                training_step += 1
                 pbar.update(1)
 
     # auxiliary functions
+    def _updage_illegal_ambiguous(self, curr_step, info):
+        self.illegal_actions_per_1000steps[curr_step % 1000] = info["is_illegal"]
+        self.ambiguous_actions_per_1000steps[curr_step % 1000] = info["is_ambiguous"]
+
+    def _store_action_played_train(self, training_step, action_id):
+        # which_row = int(int(training_step) // 1000)
+        which_row = training_step % 1000
+        # if self.actions_per_1000steps.shape[0] <= which_row:
+        #     self.actions_per_1000steps = np.concatenate((self.actions_per_1000steps,
+        #                                                   np.zeros((1, self.action_space.size()), dtype=np.int))
+        #                                                  )
+        # self.actions_per_1000steps[which_row, action_id] += 1
+        self.actions_per_1000steps[which_row, :] = 0
+        self.actions_per_1000steps[which_row, action_id] += 1
+
     def _convert_all_act(self, act_as_integer):
         res = []
         for act_id in act_as_integer:
@@ -227,9 +252,8 @@ class DeepQAgent(AgentWithConverter):
                                    "Available information are: {}".format(info))
         env._reset_vectors_and_timings()
 
-    def _need_reset(self, env, observation_num, epoch_num, done):
-        if done or observation_num == 0:
-            self._reset_process_buffer()
+    def _need_reset(self, env, observation_num, epoch_num, done, new_state):
+        if done or new_state is None:
             nb_ts_one_day = 24*60/5
 
             # the 3-4 lines below allow to reuse the loaded dataset and continue further up in the
@@ -243,37 +267,18 @@ class DeepQAgent(AgentWithConverter):
                 self._fast_forward_env(env, time=7*nb_ts_one_day)
 
             obs = env.current_obs
-            tmp_obs = self.convert_obs(obs)
-            self.process_buffer.append(tmp_obs)
-            epoch_num += 1
+            new_state = self.convert_obs(obs)
             if epoch_num % len(env.chronics_handler.real_data.subpaths) == 0:
                 # re shuffle the data
                 env.chronics_handler.shuffle(lambda x: x[np.random.choice(len(x), size=len(x), replace=False)])
-        return epoch_num
 
-    def _reset_process_buffer(self):
-        self.process_buffer = []
+        return new_state
 
     def _init_replay_buffer(self):
         self.replay_buffer = ReplayBuffer(self.training_param.BUFFER_SIZE)
 
-    def _convert_process_buffer(self):
-        """Converts the list of NUM_FRAMES images in the process buffer
-        into one training sample"""
-        # here i simply concatenate the action in case of multiple action in the "buffer"
-        if self.training_param.NUM_FRAMES != 1:
-            raise RuntimeError("This has not been tested with self.training_param.NUM_FRAMES != 1 for now")
-        # return np.array([np.concatenate(el) for el in self.process_buffer])
-        return np.concatenate(self.process_buffer).reshape(1, -1)
-
-    def _update_process_buffer(self, temp_observation_obj):
-        self.process_buffer.append(self.convert_obs(temp_observation_obj))
-        # for worker_id, obs in enumerate(temp_observation_obj):
-        #     self.process_buffer[worker_id].append(self.convert_obs(temp_observation_obj[worker_id]))
-
-    def _store_new_state(self, initial_state, predict_movement_int, reward, done):
+    def _store_new_state(self, initial_state, predict_movement_int, reward, done, new_state):
         # vectorized version of the previous code
-        new_state = self._convert_process_buffer()
         self.replay_buffer.add(initial_state.reshape(-1),
                                predict_movement_int.reshape(-1),
                                reward,
@@ -314,13 +319,16 @@ class DeepQAgent(AgentWithConverter):
         total_reward = 0.0
         return alive_frame, total_reward
 
-    def _update_loop(self, done, temp_reward, temp_done, alive_frame, total_reward, reward):
-        total_reward += temp_reward
+    def _update_loop(self, done, temp_reward, temp_done, alive_frame, total_reward, reward, epoch_num):
         done = temp_done
-        alive_frame += 1
         if done:
             alive_frame = 0
-        return done, temp_reward, total_reward, alive_frame
+            total_reward = 0.
+            epoch_num += 1
+        else:
+            total_reward += temp_reward
+            alive_frame += 1
+        return done, temp_reward, total_reward, alive_frame, epoch_num
         # we need to handle vectors for "done"
         # reward[~temp_done] += temp_reward[~temp_done]
         #
@@ -353,25 +361,39 @@ class DeepQAgent(AgentWithConverter):
         # Log some useful metrics every even updates
         if step % UPDATE_FREQ == 0:
             with self.tf_writer.as_default():
-                mean_reward = np.mean(epoch_rewards[:epoch_num])
-                mean_alive = np.mean(epoch_alive[:epoch_num])
+                mean_reward = np.nanmean(epoch_rewards[:epoch_num])
+                mean_alive = np.nanmean(epoch_alive[:epoch_num])
                 mean_reward_30 = mean_reward
                 mean_alive_30 = mean_alive
                 mean_reward_100 = mean_reward
                 mean_alive_100 = mean_alive
 
+                tmp = self.actions_per_1000steps > 0
+                tmp = tmp.sum(axis=0)
+                nb_action_taken_last_1000_step = np.sum(tmp > 0)
+
+                nb_illegal_act = np.sum(self.illegal_actions_per_1000steps)
+                nb_ambiguous_act = np.sum(self.ambiguous_actions_per_1000steps)
+
                 if epoch_num >= 100:
-                    mean_reward_100 = np.mean(epoch_rewards[(epoch_num-100):epoch_num])
-                    mean_alive_100 = np.mean(epoch_alive[(epoch_num-100):epoch_num])
+                    mean_reward_100 = np.nanmean(epoch_rewards[(epoch_num-100):epoch_num])
+                    mean_alive_100 = np.nanmean(epoch_alive[(epoch_num-100):epoch_num])
 
                 if epoch_num >= 30:
-                    mean_reward_30 = np.mean(epoch_rewards[(epoch_num-30):epoch_num])
-                    mean_alive_30 = np.mean(epoch_alive[(epoch_num-30):epoch_num])
+                    mean_reward_30 = np.nanmean(epoch_rewards[(epoch_num-30):epoch_num])
+                    mean_alive_30 = np.nanmean(epoch_alive[(epoch_num-30):epoch_num])
 
+                # show first the Mean reward and mine time alive (hence the upper case)
+                tf.summary.scalar("Mean_alive_30", mean_alive_30, step)
+                tf.summary.scalar("Mean_reward_30", mean_reward_30, step)
+                # then it's alpha numerical order, hence the "z_" in front of some information
+                tf.summary.scalar("loss", self.losses[step], step)
                 tf.summary.scalar("mean_reward", mean_reward, step)
                 tf.summary.scalar("mean_alive", mean_alive, step)
                 tf.summary.scalar("mean_reward_100", mean_reward_100, step)
                 tf.summary.scalar("mean_alive_100", mean_alive_100, step)
-                tf.summary.scalar("mean_reward_30", mean_reward_30, step)
-                tf.summary.scalar("mean_alive_30", mean_alive_30, step)
-                # tf.summary.scalar("lr", self.deep_q.train_lr, step)
+                tf.summary.scalar("nb_differentaction_taken_1000", nb_action_taken_last_1000_step, step)
+                tf.summary.scalar("nb_illegal_act", nb_illegal_act, step)
+                tf.summary.scalar("nb_ambiguous_act", nb_ambiguous_act, step)
+                tf.summary.scalar("z_lr", self.train_lr, step)
+                tf.summary.scalar("z_epsilon", self.epsilon, step)

@@ -5,6 +5,7 @@
 # you can obtain one at http://mozilla.org/MPL/2.0/.
 # SPDX-License-Identifier: MPL-2.0
 # This file is part of L2RPN Baselines, L2RPN Baselines a repository to host baselines for l2rpn competitions.
+import numpy as np
 
 
 class TrainingParam(object):
@@ -17,11 +18,10 @@ class TrainingParam(object):
                  DECAY_RATE=0.9,
                  BUFFER_SIZE=40000,
                  MINIBATCH_SIZE=64,
-                 TOT_FRAME=3000000,
-                 EPSILON_DECAY=10000,
-                 MIN_OBSERVATION=50,  # 5000
-                 FINAL_EPSILON=1 / 300,  # have on average 1 random action per scenario of approx 287 time steps
-                 INITIAL_EPSILON=0.1,
+                 STEP_FOR_FINAL_EPSILON=100000,  # step at which min_espilon is obtain
+                 MIN_OBSERVATION=5000,  # 5000
+                 FINAL_EPSILON=1./300.,  # have on average 1 random action per day of approx 288 time steps
+                 INITIAL_EPSILON=0.7,
                  TAU=0.01,
                  ALPHA=1,
                  NUM_FRAMES=1,
@@ -30,11 +30,21 @@ class TrainingParam(object):
         self.DECAY_RATE = DECAY_RATE
         self.BUFFER_SIZE = BUFFER_SIZE
         self.MINIBATCH_SIZE = MINIBATCH_SIZE
-        self.TOT_FRAME = TOT_FRAME
-        self.EPSILON_DECAY = EPSILON_DECAY
         self.MIN_OBSERVATION = MIN_OBSERVATION  # 5000
-        self.FINAL_EPSILON = FINAL_EPSILON  # have on average 1 random action per scenario of approx 287 time steps
-        self.INITIAL_EPSILON = INITIAL_EPSILON
+        self.FINAL_EPSILON = float(FINAL_EPSILON)  # have on average 1 random action per day of approx 288 timesteps at the end (never kill completely the exploration)
+        self.INITIAL_EPSILON = float(INITIAL_EPSILON)
+        self.STEP_FOR_FINAL_EPSILON = float(STEP_FOR_FINAL_EPSILON)
         self.TAU = TAU
         self.NUM_FRAMES = NUM_FRAMES
         self.ALPHA = ALPHA
+
+        self._exp_facto = np.log(self.INITIAL_EPSILON/self.FINAL_EPSILON)
+
+    def get_next_epsilon(self, current_step):
+        if current_step > self.STEP_FOR_FINAL_EPSILON:
+            res = self.FINAL_EPSILON
+        else:
+            # exponential decrease
+            res = self.INITIAL_EPSILON * np.exp(- (current_step / self.STEP_FOR_FINAL_EPSILON) * self._exp_facto )
+        return res
+

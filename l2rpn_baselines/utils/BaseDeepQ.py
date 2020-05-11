@@ -49,6 +49,8 @@ class BaseDeepQ(object):
 
         self.model = None
         self.target_model = None
+        self.schedule_model = None
+        self.optimizer_model = None
 
     def make_optimiser(self):
         schedule = tfko.schedules.InverseTimeDecay(self.lr, self.lr_decay_steps, self.lr_decay_rate)
