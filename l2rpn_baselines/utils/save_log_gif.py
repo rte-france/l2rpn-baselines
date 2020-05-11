@@ -9,6 +9,7 @@
 import os
 from grid2op.Episode import EpisodeReplay
 
+
 def save_log_gif(path_log, res, gif_name=None):
     """
     Output a gif named (by default "episode.gif") that is the replay of the episode in a gif format,
@@ -31,6 +32,10 @@ def save_log_gif(path_log, res, gif_name=None):
         if gif_name is None:
             gif_name = chron_name
         gif_path = os.path.join(path_log, chron_name, gif_name)
-        print ("Creating {}.gif".format(gif_name))
+        print("Creating {}.gif".format(gif_name))
         ep_replay.replay_episode(episode_id=chron_name, gif_name=gif_name, display=False)
-        print ("Wrote {}.gif".format(gif_path))
+        print("Wrote {}.gif".format(gif_path))
+
+
+if __name__ == "__main__":
+    pass

@@ -8,10 +8,13 @@
 
 from l2rpn_baselines.utils import DeepQAgent
 from l2rpn_baselines.DuelQSimple.DuelQ_NN import DuelQ_NN
+DEFAULT_NAME = "DuelQSimple"
 
 
 class DuelQSimple(DeepQAgent):
     def init_deep_q(self, transformed_observation):
         self.deep_q = DuelQ_NN(self.action_space.size(),
                                observation_size=transformed_observation.shape[-1],
-                               lr=self.lr)
+                               lr=self.lr,
+                               learning_rate_decay_rate=self.learning_rate_decay_rate,
+                               learning_rate_decay_steps=self.learning_rate_decay_steps)

@@ -35,7 +35,7 @@ def cli():
                         help="The path to the model [.h5]")
     parser.add_argument("--logs_dir", required=False,
                         default=DEFAULT_LOGS_DIR, type=str,
-                        help="Path to output logs directory") 
+                        help="Path to output logs directory")
     parser.add_argument("--nb_episode", required=False,
                         default=DEFAULT_NB_EPISODE, type=int,
                         help="Number of episodes to evaluate")

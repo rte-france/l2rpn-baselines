@@ -10,9 +10,7 @@
 
 import tensorflow as tf
 from l2rpn_baselines.utils import cli_train as cli
-from l2rpn_baselines.DeepQSimple.DeepQSimple import DeepQSimple
-
-DEFAULT_NAME = "DeepQSimple"
+from l2rpn_baselines.DeepQSimple.DeepQSimple import DeepQSimple, DEFAULT_NAME
 
 
 def train(env,

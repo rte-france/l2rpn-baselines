@@ -57,3 +57,7 @@ def train_generic(agent,
                 **kwargs_train)
 
     return agent
+
+
+if __name__ == "__main__":
+    pass

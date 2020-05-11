@@ -8,7 +8,7 @@
 
 import os
 import numpy as np
-from abc import abstractmethod, ABC
+from abc import abstractmethod
 from tqdm import tqdm
 import tensorflow as tf
 
@@ -27,20 +27,25 @@ class DeepQAgent(AgentWithConverter):
                  name="DeepQAgent",
                  lr=1e-5,
                  learning_rate_decay_steps=1000,
-                 learning_rate_decay_rate=0.95):
+                 learning_rate_decay_rate=0.95,
+                 store_action=False):
         AgentWithConverter.__init__(self, action_space, action_space_converter=IdToAct)
 
         # and now back to the origin implementation
         self.replay_buffer = None
 
         self.deep_q = None
-        self.lr = lr
         self.training_param = None
         self.process_buffer = []
         self.tf_writer = None
         self.name = name
         self.losses = None
         self.graph_saved = False
+        self.lr = lr
+        self.learning_rate_decay_steps = learning_rate_decay_steps
+        self.learning_rate_decay_rate = learning_rate_decay_rate
+        self.store_action = store_action
+        self.dict_action = {}
 
     @abstractmethod
     def init_deep_q(self, transformed_observation):
@@ -50,20 +55,34 @@ class DeepQAgent(AgentWithConverter):
     def convert_obs(self, observation):
         return np.concatenate((observation.rho, observation.line_status, observation.topo_vect))
 
+    def _store_action_played(self, action_int):
+        if self.store_action:
+            if action_int not in self.dict_action:
+                act = self.action_space.all_actions[action_int]
+                self.dict_action[action_int] = [0, act]
+            self.dict_action[action_int][0] += 1
+
     def my_act(self, transformed_observation, reward, done=False):
         if self.deep_q is None:
             self.init_deep_q(transformed_observation)
         predict_movement_int, *_ = self.deep_q.predict_movement(transformed_observation.reshape(1, -1), epsilon=0.0)
-        return int(predict_movement_int)
+        res = int(predict_movement_int)
+        self._store_action_played(res)
+        return res
 
     # baseline interface
     def load(self, path):
         # not modified compare to original implementation
-        self.deep_q.load_network(path)
+        if not os.path.exists(path):
+            raise RuntimeError("The model should be stored in \"{}\". But this appears to be empty".format(path))
+        try:
+            self.deep_q.load_network(path, name=self.name)
+        except Exception as e:
+            raise RuntimeError("Impossible to load the model located at \"{}\"".format(path))
 
     def save(self, path):
         if path is not None:
-            self.deep_q.save_network(os.path.join(path, self.name))
+            self.deep_q.save_network(path, name=self.name)
 
     def set_chunk(self, env, nb):
         env.set_chunk_size(int(max(100, nb)))
@@ -127,7 +146,12 @@ class DeepQAgent(AgentWithConverter):
 
                 # then we need to predict the next moves. Agents have been adapted to predict a batch of data
                 pm_i, pq_v, act = self._next_move(initial_state, epsilon)
+                # TODO stores the "pm_i" somewhere.
+                # like a matrix where the action taken are stored (each column is an action count)
+                # and the rows could be the epoch passed (each 100 or 200 epoch for example)
+                # so we can see how the agent performs
 
+                # todo store the illegal / ambiguous / ... actions
                 reward, done = self._init_local_train_loop()
                 for i in range(training_param.NUM_FRAMES):
                     temp_observation_obj, temp_reward, temp_done, _ = env.step(act)
@@ -197,6 +221,8 @@ class DeepQAgent(AgentWithConverter):
         _backend_action.reset()
         *_, fail_to_start, info = env.step(env.action_space())
         if fail_to_start:
+            # this is happening because not enough care has been taken to handle these problems
+            # more care will be taken when this feature will be available in grid2op directly.
             raise Grid2OpException("Impossible to initialize the powergrid, the powerflow diverge at iteration 0. "
                                    "Available information are: {}".format(info))
         env._reset_vectors_and_timings()
@@ -211,7 +237,7 @@ class DeepQAgent(AgentWithConverter):
                 self._reset_env_clean_state(env)
                 # random fast forward between now and next day
                 self._fast_forward_env(env, time=nb_ts_one_day)
-            except StopIteration:
+            except (StopIteration, Grid2OpException):
                 env.reset()
                 # random fast forward between now and next week
                 self._fast_forward_env(env, time=7*nb_ts_one_day)

@@ -25,6 +25,7 @@ DEFAULT_NB_EPISODE = 1
 DEFAULT_NB_PROCESS = 1
 DEFAULT_MAX_STEPS = -1
 
+
 def cli():
     parser = argparse.ArgumentParser(description="Eval baseline DDDQN")
     parser.add_argument("--data_dir", required=True,
@@ -33,7 +34,7 @@ def cli():
                         help="The path to the model [.h5]")
     parser.add_argument("--logs_dir", required=False,
                         default=DEFAULT_LOGS_DIR, type=str,
-                        help="Path to output logs directory") 
+                        help="Path to output logs directory")
     parser.add_argument("--nb_episode", required=False,
                         default=DEFAULT_NB_EPISODE, type=int,
                         help="Number of episodes to evaluate")
@@ -61,7 +62,8 @@ def evaluate(env,
 
     # Limit gpu usage
     physical_devices = tf.config.list_physical_devices('GPU')
-    tf.config.experimental.set_memory_growth(physical_devices[0], True)
+    if len(physical_devices):
+        tf.config.experimental.set_memory_growth(physical_devices[0], True)
 
     runner_params = env.get_params_for_runner()
     runner_params["verbose"] = args.verbose
@@ -104,6 +106,7 @@ def evaluate(env,
 
     if save_gif:
         save_log_gif(logs_path, res)
+
 
 if __name__ == "__main__":
     # Parse command line

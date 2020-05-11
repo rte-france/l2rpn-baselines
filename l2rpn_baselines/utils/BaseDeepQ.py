@@ -8,11 +8,13 @@
 
 import os
 import numpy as np
-from l2rpn_baselines.utils.TrainingParam import TrainingParam
-from tensorflow.keras.models import load_model
-import tensorflow.keras.optimizers as tfko
-import pdb
 import tensorflow as tf
+import tensorflow.keras.optimizers as tfko
+
+from tensorflow.keras.models import load_model
+
+from l2rpn_baselines.utils.TrainingParam import TrainingParam
+import pdb
 
 
 # refactorization of the code in a base class to avoid copy paste.

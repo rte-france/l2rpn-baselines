@@ -9,10 +9,8 @@
 # This file is part of L2RPN Baselines, L2RPN Baselines a repository to host baselines for l2rpn competitions.
 
 import tensorflow as tf
-from l2rpn_baselines.utils import cli_train as cli
-from l2rpn_baselines.DuelQSimple.DuelQSimple import DuelQSimple
-
-DEFAULT_NAME = "DeepQSimple"
+from l2rpn_baselines.utils import cli_train
+from l2rpn_baselines.DeepQSimple.DeepQSimple import DeepQSimple, DEFAULT_NAME
 
 
 def train(env,
@@ -27,7 +25,7 @@ def train(env,
     if len(physical_devices) > 0:
         tf.config.experimental.set_memory_growth(physical_devices[0], True)
 
-    baseline = DuelQSimple(env.action_space,
+    baseline = DeepQSimple(env.action_space,
                            name=name)
 
     if load_path is not None:
@@ -47,14 +45,14 @@ if __name__ == "__main__":
     from grid2op.Parameters import Parameters
     from grid2op import make
     from grid2op.Reward import L2RPNReward
-    args = cli().parse_args()
-
     try:
         from lightsim2grid.LightSimBackend import LightSimBackend
         backend = LightSimBackend()
     except:
         from grid2op.Backend import PandaPowerBackend
         backend = PandaPowerBackend()
+
+    args = cli_train().parse_args()
 
     # Use custom params
     params = Parameters()
