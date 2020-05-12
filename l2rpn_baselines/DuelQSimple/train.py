@@ -19,7 +19,8 @@ def train(env,
           save_path=None,
           load_path=None,
           logs_dir=None,
-          nb_env=1):
+          nb_env=1,
+          lr=1e-4):
 
     # Limit gpu usage
     physical_devices = tf.config.list_physical_devices('GPU')
@@ -29,7 +30,8 @@ def train(env,
     baseline = DeepQSimple(env.action_space,
                            name=name,
                            istraining=True,
-                           nb_env=nb_env)
+                           nb_env=nb_env,
+                           lr=lr)
 
     if load_path is not None:
         baseline.load(load_path)

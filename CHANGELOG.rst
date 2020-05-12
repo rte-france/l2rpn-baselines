@@ -1,5 +1,10 @@
 Change Log
 ===========
+[0.2.1] - 2020-04-23
+--------------------
+- [ADDED] DeepQSimple, SAC and DuelQSimple baselines
+- [ADDED] utilitary code to create more easily agents
+- [ADDED] Multi processing training of agents using `grid2op.Environment.MultiEnvironment`
 
 [0.1.1] - 2020-04-23
 --------------------
