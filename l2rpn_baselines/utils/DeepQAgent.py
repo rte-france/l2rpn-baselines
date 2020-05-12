@@ -58,6 +58,7 @@ class DeepQAgent(AgentWithConverter):
 
         self.obs_as_vect = None
         self._tmp_obs = None
+        self.reset_num = None
 
     @abstractmethod
     def init_deep_q(self, transformed_observation):
@@ -181,6 +182,7 @@ class DeepQAgent(AgentWithConverter):
         alive_frames = np.zeros(iterations)
         total_rewards = np.zeros(iterations)
         new_state = None
+        self.reset_num = 0
         with tqdm(total=iterations) as pbar:
             while training_step < iterations:
                 # reset or build the environment
@@ -217,9 +219,7 @@ class DeepQAgent(AgentWithConverter):
                 done, reward, total_reward, alive_frame, epoch_num \
                     = self._update_loop(done, temp_reward, temp_done, alive_frame, total_reward, reward, epoch_num)
 
-                if np.any(~np.isfinite(initial_state)) or np.any(~np.isfinite(new_state)):
-                    pdb.set_trace()
-
+                # update the replay buffer
                 self._store_new_state(initial_state, pm_i, reward, done, new_state)
 
                 # now train the model
@@ -243,15 +243,15 @@ class DeepQAgent(AgentWithConverter):
 
     # auxiliary functions
     def _train_model(self, training_param, training_step):
-        if self.replay_buffer.size() > max(training_param.MIN_OBSERVATION, training_param.MINIBATCH_SIZE):
+        if training_step > max(training_param.MIN_OBSERVATION, training_param.MINIBATCH_SIZE):
             # train the model
-            s_batch, a_batch, r_batch, d_batch, s2_batch = self.replay_buffer.sample(
-                training_param.MINIBATCH_SIZE)
+            s_batch, a_batch, r_batch, d_batch, s2_batch = self.replay_buffer.sample(training_param.MINIBATCH_SIZE)
             tf_writer = None
             if self.graph_saved is False:
                 tf_writer = self.tf_writer
             loss = self.deep_q.train(s_batch, a_batch, r_batch, d_batch, s2_batch,
                                      tf_writer)
+            # save learning rate for later
             self.train_lr = self.deep_q.optimizer_model._decayed_lr('float32').numpy()
             self.graph_saved = True
             if not np.all(np.isfinite(loss)):
@@ -358,10 +358,12 @@ class DeepQAgent(AgentWithConverter):
         done = temp_done
         alive_frame[done] = 0
         total_reward[done] = 0.
-        if np.any(done):
-            # TODO urgent for that !!!!
-            # this does not really make sense
+        self.reset_num += np.sum(done)
+        if self.reset_num >= self.__nb_env:
+            # increase the "global epoch num" represented by "epoch_num" only when on average
+            # all environments are "done"
             epoch_num += 1
+            self.reset_num = 0
         total_reward[~done] += temp_reward[~done]
         alive_frame[~done] += 1
         return done, temp_reward, total_reward, alive_frame, epoch_num
@@ -377,7 +379,7 @@ class DeepQAgent(AgentWithConverter):
             return
 
         # Log some useful metrics every even updates
-        if step % UPDATE_FREQ == 0:
+        if step % UPDATE_FREQ == 0 and epoch_num > 0:
             with self.tf_writer.as_default():
                 mean_reward = np.nanmean(epoch_rewards[:epoch_num])
                 mean_alive = np.nanmean(epoch_alive[:epoch_num])
@@ -390,8 +392,8 @@ class DeepQAgent(AgentWithConverter):
                 tmp = tmp.sum(axis=0)
                 nb_action_taken_last_1000_step = np.sum(tmp > 0)
 
-                nb_illegal_act = np.sum(self.illegal_actions_per_1000steps) / self.__nb_env
-                nb_ambiguous_act = np.sum(self.ambiguous_actions_per_1000steps) / self.__nb_env
+                nb_illegal_act = np.sum(self.illegal_actions_per_1000steps)
+                nb_ambiguous_act = np.sum(self.ambiguous_actions_per_1000steps)
 
                 if epoch_num >= 100:
                     mean_reward_100 = np.nanmean(epoch_rewards[(epoch_num-100):epoch_num])
@@ -402,19 +404,21 @@ class DeepQAgent(AgentWithConverter):
                     mean_alive_30 = np.nanmean(epoch_alive[(epoch_num-30):epoch_num])
 
                 # to ensure "fair" comparison between single env and multi env
-                step = step * self.__nb_env
+                step_tb = step  # * self.__nb_env
+                # if multiply by the number of env we have "trouble" with random exploration at the beginning
+                # because it lasts the same number of "real" steps
 
                 # show first the Mean reward and mine time alive (hence the upper case)
-                tf.summary.scalar("Mean_alive_30", mean_alive_30, step)
-                tf.summary.scalar("Mean_reward_30", mean_reward_30, step)
+                tf.summary.scalar("Mean_alive_30", mean_alive_30, step_tb)
+                tf.summary.scalar("Mean_reward_30", mean_reward_30, step_tb)
                 # then it's alpha numerical order, hence the "z_" in front of some information
-                tf.summary.scalar("loss", self.losses[step], step)
-                tf.summary.scalar("mean_reward", mean_reward, step)
-                tf.summary.scalar("mean_alive", mean_alive, step)
-                tf.summary.scalar("mean_reward_100", mean_reward_100, step)
-                tf.summary.scalar("mean_alive_100", mean_alive_100, step)
-                tf.summary.scalar("nb_differentaction_taken_1000", nb_action_taken_last_1000_step, step)
-                tf.summary.scalar("nb_illegal_act", nb_illegal_act, step)
-                tf.summary.scalar("nb_ambiguous_act", nb_ambiguous_act, step)
-                tf.summary.scalar("z_lr", self.train_lr, step)
-                tf.summary.scalar("z_epsilon", self.epsilon, step)
+                tf.summary.scalar("loss", self.losses[step], step_tb)
+                tf.summary.scalar("mean_reward", mean_reward, step_tb)
+                tf.summary.scalar("mean_alive", mean_alive, step_tb)
+                tf.summary.scalar("mean_reward_100", mean_reward_100, step_tb)
+                tf.summary.scalar("mean_alive_100", mean_alive_100, step_tb)
+                tf.summary.scalar("nb_differentaction_taken_1000", nb_action_taken_last_1000_step, step_tb)
+                tf.summary.scalar("nb_illegal_act", nb_illegal_act, step_tb)
+                tf.summary.scalar("nb_ambiguous_act", nb_ambiguous_act, step_tb)
+                tf.summary.scalar("z_lr", self.train_lr, step_tb)
+                tf.summary.scalar("z_epsilon", self.epsilon, step_tb)
