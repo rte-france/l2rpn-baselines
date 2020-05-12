@@ -27,6 +27,7 @@ def save_log_gif(path_log, res, gif_name=None):
         Name of the gif that will be used.
 
     """
+    init_gif_name = gif_name
     ep_replay = EpisodeReplay(path_log)
     for _, chron_name, cum_reward, nb_time_step, max_ts in res:
         if gif_name is None:
@@ -35,6 +36,7 @@ def save_log_gif(path_log, res, gif_name=None):
         print("Creating {}.gif".format(gif_name))
         ep_replay.replay_episode(episode_id=chron_name, gif_name=gif_name, display=False)
         print("Wrote {}.gif".format(gif_path))
+        gif_name = init_gif_name
 
 
 if __name__ == "__main__":

@@ -18,6 +18,10 @@ def cli_train():
                         help="Path where the model should be saved.")
     parser.add_argument("--name", required=False,
                         help="Name given to your model.")
+    parser.add_argument("--nb_env", required=False, default=1, type=int,
+                        help="Number of process to use when training your Agent. If > 1 then MultiEnv will be used. "
+                             "NB: not all models are compatible. NB it does not work on windows at the moment. "
+                             "NB: experimental at the moment.")
     parser.add_argument("--load_path", required=False,
                         help="Path from which to reload your model from (by default ``None`` to NOT reload anything)")
     parser.add_argument("--env_name", required=False, default="l2rpn_case14_sandbox",

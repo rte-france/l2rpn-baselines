@@ -30,7 +30,7 @@ class ReplayBuffer:
         # and s2 is next state
         if np.any(~np.isfinite(s)) or np.any(~np.isfinite(s2)):
             # TODO proper handling of infinite values somewhere !!!!
-            return
+            raise RuntimeError("Infinite value somwhere in at least one of the state")
 
         experience = (s, a, r, d, s2)
         if self.count < self.buffer_size:
