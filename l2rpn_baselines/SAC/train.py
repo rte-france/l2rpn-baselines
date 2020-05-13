@@ -101,12 +101,6 @@ if __name__ == "__main__":
         env.chronics_handler = env_init.chronics_handler
         env.current_obs = env_init.current_obs
 
-        # env._reset_maintenance = lambda : None
-        # env._reset_redispatching = lambda : None
-        # env._reset_vectors_and_timings = lambda : None
-        # env._backend_action_class = env_init._backend_action_class
-        # env.backend = env_init.backend
-
     nm_ = args.name if args.name is not None else DEFAULT_NAME
     try:
         train(env,

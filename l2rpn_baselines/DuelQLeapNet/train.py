@@ -10,7 +10,7 @@
 
 import tensorflow as tf
 from l2rpn_baselines.utils import cli_train
-from l2rpn_baselines.DeepQSimple.DeepQSimple import DeepQSimple, DEFAULT_NAME
+from l2rpn_baselines.DuelQLeapNet.DuelQLeapNet import DuelQLeapNet, DEFAULT_NAME
 
 
 def train(env,
@@ -27,11 +27,11 @@ def train(env,
     if len(physical_devices) > 0:
         tf.config.experimental.set_memory_growth(physical_devices[0], True)
 
-    baseline = DeepQSimple(env.action_space,
-                           name=name,
-                           istraining=True,
-                           nb_env=nb_env,
-                           lr=lr)
+    baseline = DuelQLeapNet(env.action_space,
+                            name=name,
+                            istraining=True,
+                            nb_env=nb_env,
+                            lr=lr)
 
     if load_path is not None:
         baseline.load(load_path)

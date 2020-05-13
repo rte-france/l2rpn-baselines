@@ -134,8 +134,9 @@ class SAC_NN(BaseDeepQ):
             self.previous_size = batch_size
         return self.previous_eyes, self.previous_arange
 
-    def predict_movement(self, data, epsilon):
-        batch_size = data.shape[0]
+    def predict_movement(self, data, epsilon, batch_size=None):
+        if batch_size is None:
+            batch_size = data.shape[0]
         rand_val = np.random.random(data.shape[0])
         p_actions = self.model_policy.predict(data, batch_size=batch_size)
         opt_policy_orig = np.argmax(np.abs(p_actions), axis=-1)
@@ -166,9 +167,10 @@ class SAC_NN(BaseDeepQ):
             self.previous_size_train = batch_size
         return self.previous_eyes_train
 
-    def train(self, s_batch, a_batch, r_batch, d_batch, s2_batch, tf_writer=None):
+    def train(self, s_batch, a_batch, r_batch, d_batch, s2_batch, tf_writer=None, batch_size=None):
         """Trains networks to fit given parameters"""
-        batch_size = s_batch.shape[0]
+        if batch_size is None:
+            batch_size = s_batch.shape[0]
         target = np.zeros((batch_size, 1))
         # training of the action state value networks
         last_action = np.zeros((batch_size, self.action_size))

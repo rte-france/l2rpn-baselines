@@ -51,6 +51,7 @@ class BaseDeepQ(object):
         self.target_model = None
         self.schedule_model = None
         self.optimizer_model = None
+        self.custom_objects = None  # to be able to load other keras layers type
 
     def make_optimiser(self):
         schedule = tfko.schedules.InverseTimeDecay(self.lr, self.lr_decay_steps, self.lr_decay_rate)
@@ -59,12 +60,14 @@ class BaseDeepQ(object):
     def construct_q_network(self):
         raise NotImplementedError("Not implemented")
 
-    def predict_movement(self, data, epsilon):
+    def predict_movement(self, data, epsilon, batch_size=None):
         """Predict movement of game controler where is epsilon
         probability randomly move."""
-        batch_size_predict = data.shape[0]
-        rand_val = np.random.random(data.shape[0])
-        q_actions = self.model.predict(data, batch_size=batch_size_predict)
+        if batch_size is None:
+            batch_size = data.shape[0]
+
+        rand_val = np.random.random(batch_size)
+        q_actions = self.model.predict(data, batch_size=batch_size)
 
         opt_policy = np.argmax(np.abs(q_actions), axis=-1)
         opt_policy[rand_val < epsilon] = np.random.randint(0, self.action_size, size=(np.sum(rand_val < epsilon)))
@@ -72,19 +75,20 @@ class BaseDeepQ(object):
         self.qvalue_evolution = np.concatenate((self.qvalue_evolution, q_actions[0, opt_policy]))
         return opt_policy, q_actions[0, opt_policy]
 
-    def train(self, s_batch, a_batch, r_batch, d_batch, s2_batch, tf_writer=None):
+    def train(self, s_batch, a_batch, r_batch, d_batch, s2_batch, tf_writer=None, batch_size=None):
         """Trains network to fit given parameters"""
-        batch_size_train = s_batch.shape[0]
+        if batch_size is None:
+            batch_size = s_batch.shape[0]
 
         # Save the graph just the first time
         if tf_writer is not None:
             tf.summary.trace_on()
-        targets = self.model.predict(s_batch, batch_size=batch_size_train)
+        targets = self.model.predict(s_batch, batch_size=batch_size)
         if tf_writer is not None:
             with tf_writer.as_default():
                 tf.summary.trace_export("model-graph", 0)
             tf.summary.trace_off()
-        fut_action = self.target_model.predict(s2_batch, batch_size=batch_size_train)
+        fut_action = self.target_model.predict(s2_batch, batch_size=batch_size)
 
         targets[:, a_batch.flatten()] = r_batch
         targets[d_batch, a_batch[d_batch]] += self.training_param.DECAY_RATE * np.max(fut_action[d_batch], axis=-1)
@@ -112,8 +116,8 @@ class BaseDeepQ(object):
     def load_network(self, path, name=None, ext="h5"):
         # nothing has changed
         path_model, path_target_model = self._get_path_model(path, name)
-        self.model = load_model('{}.{}'.format(path_model, ext))
-        self.target_model = load_model('{}.{}'.format(path_target_model, ext))
+        self.model = load_model('{}.{}'.format(path_model, ext), custom_objects=self.custom_objects)
+        self.target_model = load_model('{}.{}'.format(path_target_model, ext), custom_objects=self.custom_objects)
         print("Succesfully loaded network.")
 
     def target_train(self):

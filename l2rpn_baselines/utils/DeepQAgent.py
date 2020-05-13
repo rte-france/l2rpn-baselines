@@ -78,6 +78,7 @@ class DeepQAgent(AgentWithConverter):
                                )).reshape(1, -1)
 
             self._tmp_obs = np.zeros((1, tmp.shape[1]), dtype=np.float32)
+
         # TODO optimize that
         self._tmp_obs[:] = np.concatenate((observation.prod_p,
                                observation.load_p,
@@ -130,7 +131,7 @@ class DeepQAgent(AgentWithConverter):
         try:
             self.deep_q.load_network(path, name=self.name)
         except Exception as e:
-            raise RuntimeError("Impossible to load the model located at \"{}\"".format(path))
+            raise RuntimeError("Impossible to load the model located at \"{}\" with error {}".format(path, e))
 
     def save(self, path):
         if path is not None:
@@ -328,7 +329,6 @@ class DeepQAgent(AgentWithConverter):
             if epoch_num % len(env.chronics_handler.real_data.subpaths) == 0:
                 # re shuffle the data
                 env.chronics_handler.shuffle(lambda x: x[np.random.choice(len(x), size=len(x), replace=False)])
-
         return new_state
 
     def _init_replay_buffer(self):
@@ -344,8 +344,7 @@ class DeepQAgent(AgentWithConverter):
                                    new_state)
 
     def _next_move(self, curr_state, epsilon):
-        curr_state_ts = tf.convert_to_tensor(curr_state, dtype=tf.float32)
-        pm_i, pq_v = self.deep_q.predict_movement(curr_state_ts, epsilon)
+        pm_i, pq_v = self.deep_q.predict_movement(curr_state, epsilon)
         act = self._convert_all_act(pm_i)
         return pm_i, pq_v, act
 

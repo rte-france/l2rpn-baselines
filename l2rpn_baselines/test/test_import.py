@@ -60,5 +60,10 @@ class TestSliceRDQN(TestImport, unittest.TestCase):
         return "SliceRDQN"
 
 
+class TestDuelQLeapNet(TestImport, unittest.TestCase):
+    def load_module(self):
+        return "DuelQLeapNet"
+
+
 if __name__ == "__main__":
     unittest.main()
