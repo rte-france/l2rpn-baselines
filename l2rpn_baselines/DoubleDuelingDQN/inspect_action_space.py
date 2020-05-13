@@ -32,11 +32,14 @@ class NpEncoder(json.JSONEncoder):
             return bool(obj)
         else:
             return super(NpEncoder, self).default(obj)
+
+
 def cli():
     parser = argparse.ArgumentParser(description="Action space inspector")
     parser.add_argument("--path_data", required=True,
                         help="Path to the dataset root directory")
     return parser.parse_args()
+
 
 def prune_impact_bool(impact_section, bool_key):
     if impact_section is None:
@@ -47,6 +50,7 @@ def prune_impact_bool(impact_section, bool_key):
         return None
 
     return impact_section
+
 
 def prune_impact_count(impact_section, count_key):
     if impact_section is None:
@@ -59,6 +63,7 @@ def prune_impact_count(impact_section, count_key):
     impact_section.pop(count_key)
     return impact_section
 
+
 def prune_impact_array(impact_section, array_key):
     if impact_section is None:
         return None
@@ -68,6 +73,7 @@ def prune_impact_array(impact_section, array_key):
         return None
 
     return impact_section[array_key]
+
 
 def print_actions(agent):
     actions_dict = {}

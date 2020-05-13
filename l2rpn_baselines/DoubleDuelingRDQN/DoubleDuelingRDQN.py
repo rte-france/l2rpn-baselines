@@ -309,8 +309,8 @@ class DoubleDuelingRDQN(AgentWithConverter):
                 tf.summary.trace_export(self.name + "-graph", step)
 
         # T+1 batch predict
-        Q1, _, _ = self.Qmain.model.predict(q1_input, batch_size = self.batch_size)
-        Q2, _, _ = self.Qtarget.model.predict(q2_input, batch_size = self.batch_size)
+        Q1, _, _ = self.Qmain.model.predict(q1_input, batch_size=self.batch_size)
+        Q2, _, _ = self.Qtarget.model.predict(q2_input, batch_size=self.batch_size)
 
         # Compute batch Double Q update to Qtarget
         for i in range(self.batch_size):

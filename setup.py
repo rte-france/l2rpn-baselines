@@ -6,10 +6,10 @@
 # SPDX-License-Identifier: MPL-2.0
 # This file is part of L2RPN Baselines, L2RPN Baselines a repository to host baselines for l2rpn competitions.
 
-import subprocess
-import sys
 import setuptools
 from setuptools import setup
+__version__ = "0.3.0"
+
 
 pkgs = {
     "required": [
@@ -22,8 +22,9 @@ pkgs = {
     }
 }
 
+
 setup(name='l2rpn_baselines',
-      version='0.2.1',
+      version=__version__,
       description='L2RPN Baselines a repository to host ' \
       'baselines for l2rpn competitions.',
       long_description='This repository aims at facilitating ' \

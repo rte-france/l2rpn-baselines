@@ -31,9 +31,9 @@ def cli():
     parser = argparse.ArgumentParser(description="Train baseline DDQN")
 
     # Paths
-    parser.add_argument("--name", required=True,
+    parser.add_argument("--name", default=DEFAULT_NAME,
                         help="The name of the model")
-    parser.add_argument("--data_dir", required=True,
+    parser.add_argument("--data_dir", default="rte_case14_realistic",
                         help="Path to the dataset root directory")
     parser.add_argument("--save_dir", required=False,
                         default=DEFAULT_SAVE_DIR, type=str,

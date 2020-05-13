@@ -11,11 +11,6 @@
 import argparse
 import tensorflow as tf
 
-from grid2op.MakeEnv import make
-from grid2op.Reward import *
-from grid2op.Action import *
-from grid2op.Parameters import Parameters
-
 from l2rpn_baselines.DoubleDuelingDQN.DoubleDuelingDQN import DoubleDuelingDQN as DDDQNAgent
 
 DEFAULT_NAME = "DoubleDuelingDQN"
@@ -27,13 +22,13 @@ DEFAULT_N_FRAMES = 4
 DEFAULT_BATCH_SIZE = 32
 DEFAULT_LR = 1e-5
 
+
 def cli():
     parser = argparse.ArgumentParser(description="Train baseline DDQN")
-
     # Paths
-    parser.add_argument("--name", required=True,
+    parser.add_argument("--name", default=DEFAULT_NAME,
                         help="The name of the model")
-    parser.add_argument("--data_dir", required=True,
+    parser.add_argument("--data_dir", default="rte_case14_realistic",
                         help="Path to the dataset root directory")
     parser.add_argument("--save_dir", required=False,
                         default=DEFAULT_SAVE_DIR, type=str,
@@ -59,7 +54,6 @@ def cli():
     parser.add_argument("--learning_rate", required=False,
                         default=DEFAULT_LR, type=float,
                         help="Learning rate for the Adam optimizer")
-
     return parser.parse_args()
 
 
@@ -98,8 +92,13 @@ def train(env,
 
 
 if __name__ == "__main__":
-    args = cli()
+    from grid2op.MakeEnv import make
+    from grid2op.Reward import *
+    from grid2op.Action import *
+    from grid2op.Parameters import Parameters
+    import sys
 
+    args = cli()
     # Use custom params
     params = Parameters()
     params.MAX_SUB_CHANGED = 2

@@ -192,7 +192,7 @@ class DoubleDuelingDQN(AgentWithConverter):
     def train(self, env,
               iterations,
               save_path,
-              num_pre_training_steps = 0,
+              num_pre_training_steps=0,
               logdir = "logs-train"):
         # Make sure we can fill the experience buffer
         if num_pre_training_steps < self.batch_size * self.num_frames:
@@ -336,8 +336,8 @@ class DoubleDuelingDQN(AgentWithConverter):
                 tf.summary.trace_export(self.name + "-graph", step)
 
         # T+1 batch predict
-        Q1 = self.Qmain.model.predict(input_t_1, batch_size = self.batch_size)
-        Q2 = self.Qtarget.model.predict(input_t_1, batch_size = self.batch_size)
+        Q1 = self.Qmain.model.predict(input_t_1, batch_size=self.batch_size)
+        Q2 = self.Qtarget.model.predict(input_t_1, batch_size=self.batch_size)
 
         # Compute batch Qtarget using Double DQN
         for i in range(self.batch_size):
