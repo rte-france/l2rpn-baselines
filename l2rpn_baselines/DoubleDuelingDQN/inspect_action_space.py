@@ -9,7 +9,7 @@
 # This file is part of L2RPN Baselines, L2RPN Baselines a repository to host baselines for l2rpn competitions.
 
 
-# import argparse
+import argparse
 import json
 import tensorflow as tf
 import numpy as np
@@ -32,11 +32,13 @@ class NpEncoder(json.JSONEncoder):
             return bool(obj)
         else:
             return super(NpEncoder, self).default(obj)
-# def cli():
-#     parser = argparse.ArgumentParser(description="Action space inspector")
-#     parser.add_argument("--path_data", required=True,
-#                         help="Path to the dataset root directory")
-#     return parser.parse_args()
+
+
+def cli():
+    parser = argparse.ArgumentParser(description="Action space inspector")
+    parser.add_argument("--path_data", required=True,
+                        help="Path to the dataset root directory")
+    return parser.parse_args()
 
 
 def prune_impact_bool(impact_section, bool_key):
