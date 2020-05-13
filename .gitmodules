@@ -1,0 +1,3 @@
+[submodule "l2rpn_baselines/PandapowerOPFAgent"]
+	path = l2rpn_baselines/PandapowerOPFAgent
+	url = https://github.com/jhmenke/grid2op_pp_baseline

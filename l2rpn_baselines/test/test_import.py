@@ -65,5 +65,10 @@ class TestDuelQLeapNet(TestImport, unittest.TestCase):
         return "DuelQLeapNet"
 
 
+class TestPandapowerOPFAgent(TestImport, unittest.TestCase):
+    def load_module(self):
+        return "TestPandapowerOPFAgent"
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -2,7 +2,12 @@
 
 This package holds reference baselines for the [L2RPN challenge](https://l2rpn.chalearn.org/)
 
-We thank kindly all baselines contributors.
+We thank kindly all baselines [contributors](../AUTHORS.txt).
+
+*Disclaimer* All baselines shown in this code are used to serve as example. They are in no way optimal and none of them
+(to our knowledge) have been calibrated (learning rate is not tuned, neither is the number of layers, the size
+of each layers, the activation functions etc.)
+
 
 ## 1. Current available baselines
 
@@ -27,6 +32,24 @@ We thank kindly all baselines contributors.
    A multi Recurrent Q-streams implementation.
    Where each action class has it's own Q network embedded in the global net. 
 
+ - [DeepQSimple](/l2rpn_baselines/DeepQSimple):
+
+   A simple implementation of the Deep Q Learning algorithm
+   
+ - [DuelQSimple](/l2rpn_baselines/DuelQSimple):
+
+   An alternative implementation to the Double DQN implementation. 
+   
+ - [DuelQLeapNet](/l2rpn_baselines/DuelQLeapNet):
+
+   Another alternative implementation to the Double DQN implementation that uses the LeapNet see 
+   [LeapNet](https://github.com/BDonnot/leap_net) as a way to model the Q-value.
+ 
+ - [PandapowerOPFAgent](/l2rpn_baselines/PandapowerOPFAgent) 
+   
+   A baseline thats uses an "Optimal Power Flow", a specific method develop by the power system community to 
+   control the flows.
+   
 ## 2. How to?
 
 ### 2.a Use a baseline

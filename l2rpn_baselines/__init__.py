@@ -7,6 +7,7 @@ __all__ = [
     "DeepQSimple",
     "DuelQSimple",
     "SAC",
+    "PandapowerOPFAgent",
     # utilitary scripts
     "utils"
 ]
