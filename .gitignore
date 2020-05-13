@@ -144,3 +144,6 @@ l2rpn_baselines/DoubleDuelingRDQN/models/
 l2rpn_baselines/DuelQSimple/test_argparse.py
 remove/
 l2rpn_baselines/DuelQSimple/pretty_good/
+l2rpn_baselines/SAC/test_simple/
+l2rpn_baselines/SAC/tf_logs/
+l2rpn_baselines/DuelQSimple/test_redisp.py

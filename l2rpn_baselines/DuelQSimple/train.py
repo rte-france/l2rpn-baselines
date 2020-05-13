@@ -88,13 +88,15 @@ if __name__ == "__main__":
     env = make(args.env_name,
                param=params,
                reward_class=MyReward,
-               backend=backend)
+               backend=backend,
+               # action_class=PowerlineSetAndDispatchAction
+               )
 
     if args.nb_env > 1:
         env_init = env
         from grid2op.Environment import MultiEnvironment
         env = MultiEnvironment(int(args.nb_env), env)
-        # TODO hack i'll fix in 0.8.2
+        # TODO hack i'll fix in 0.9.0
         env.action_space = env_init.action_space
         env.observation_space = env_init.observation_space
         env.fast_forward_chronics = lambda x: None
@@ -118,6 +120,5 @@ if __name__ == "__main__":
               nb_env=args.nb_env)
     finally:
         env.close()
-
-    if args.nb_env > 1:
-        env_init.close()
+        if args.nb_env > 1:
+            env_init.close()

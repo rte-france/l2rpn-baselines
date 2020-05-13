@@ -20,7 +20,8 @@ def train(env,
           iterations=1,
           save_path=None,
           load_path=None,
-          logs_dir=None):
+          logs_dir=None,
+          nb_env=1):
 
     # Limit gpu usage
     physical_devices = tf.config.list_physical_devices('GPU')
@@ -29,7 +30,8 @@ def train(env,
 
     baseline = SAC(env.action_space,
                    name=name,
-                   istraining=True)
+                   istraining=True,
+                   nb_env=nb_env)
 
     if load_path is not None:
         baseline.load(load_path)
@@ -57,19 +59,64 @@ if __name__ == "__main__":
         from grid2op.Backend import PandaPowerBackend
         backend = PandaPowerBackend()
 
+    # is it highly recommended to modify the reward depening on the algorithm.
+    # for example here i will push my algorithm to learn that plyaing illegal or ambiguous action is bad
+    class MyReward(L2RPNReward):
+        def initialize(self, env):
+            self.reward_min = 0.0
+            self.reward_max = 1.0
+
+        def __call__(self, action, env, has_error, is_done, is_illegal, is_ambiguous):
+            if has_error or is_illegal or is_ambiguous:
+                # previous action was bad
+                res = self.reward_min
+            elif is_done:
+                # really strong reward if an episode is over without game over
+                res = self.reward_max
+            else:
+                res = super().__call__(action, env, has_error, is_done, is_illegal, is_ambiguous)
+                res /= env.n_line
+            return res
+
     # Use custom params
     params = Parameters()
 
     # Create grid2op game environement
+    env_init = None
     env = make(args.env_name,
                param=params,
-               reward_class=L2RPNReward,
-               backend=backend)
+               reward_class=MyReward,
+               backend=backend,
+               # action_class=PowerlineSetAndDispatchAction
+               )
+
+    if args.nb_env > 1:
+        env_init = env
+        from grid2op.Environment import MultiEnvironment
+        env = MultiEnvironment(int(args.nb_env), env)
+        # TODO hack i'll fix in 0.9.0
+        env.action_space = env_init.action_space
+        env.observation_space = env_init.observation_space
+        env.fast_forward_chronics = lambda x: None
+        env.chronics_handler = env_init.chronics_handler
+        env.current_obs = env_init.current_obs
+
+        # env._reset_maintenance = lambda : None
+        # env._reset_redispatching = lambda : None
+        # env._reset_vectors_and_timings = lambda : None
+        # env._backend_action_class = env_init._backend_action_class
+        # env.backend = env_init.backend
 
     nm_ = args.name if args.name is not None else DEFAULT_NAME
-    train(env,
-          name=nm_,
-          iterations=args.num_train_steps,
-          save_path=args.save_path,
-          load_path=args.load_path,
-          logs_dir=args.logs_dir)
+    try:
+        train(env,
+              name=nm_,
+              iterations=args.num_train_steps,
+              save_path=args.save_path,
+              load_path=args.load_path,
+              logs_dir=args.logs_dir,
+              nb_env=args.nb_env)
+    finally:
+        env.close()
+        if args.nb_env > 1:
+            env_init.close()

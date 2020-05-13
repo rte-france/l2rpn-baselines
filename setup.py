@@ -8,7 +8,7 @@
 
 import setuptools
 from setuptools import setup
-from l2rpn_baselines import __version__
+__version__ = "0.3.0"
 
 
 pkgs = {

@@ -278,7 +278,7 @@ class DeepQAgent(AgentWithConverter):
 
         """
         # /!\ DO NOT ATTEMPT TO MODIFY OTHERWISE IT WILL PROBABLY CRASH /!\
-        # /!\ THIS WILL BE PART OF THE ENVIRONMENT IN FUTURE GRID2OP RELEASE /!\
+        # /!\ THIS WILL BE PART OF THE ENVIRONMENT IN FUTURE GRID2OP RELEASE (>= 0.9.0) /!\
         # AND OF COURSE USING THIS METHOD DURING THE EVALUATION IS COMPLETELY FORBIDDEN
         if self.__nb_env > 1:
             return
@@ -381,8 +381,12 @@ class DeepQAgent(AgentWithConverter):
         # Log some useful metrics every even updates
         if step % UPDATE_FREQ == 0 and epoch_num > 0:
             with self.tf_writer.as_default():
+                last_alive = epoch_alive[(epoch_num-1)]
+                last_reward = epoch_rewards[(epoch_num-1)]
+
                 mean_reward = np.nanmean(epoch_rewards[:epoch_num])
                 mean_alive = np.nanmean(epoch_alive[:epoch_num])
+
                 mean_reward_30 = mean_reward
                 mean_alive_30 = mean_alive
                 mean_reward_100 = mean_reward
@@ -413,12 +417,19 @@ class DeepQAgent(AgentWithConverter):
                 tf.summary.scalar("Mean_reward_30", mean_reward_30, step_tb)
                 # then it's alpha numerical order, hence the "z_" in front of some information
                 tf.summary.scalar("loss", self.losses[step], step_tb)
+
+                tf.summary.scalar("last_alive", last_alive, step_tb)
+                tf.summary.scalar("last_reward", last_reward, step_tb)
+
                 tf.summary.scalar("mean_reward", mean_reward, step_tb)
                 tf.summary.scalar("mean_alive", mean_alive, step_tb)
+
                 tf.summary.scalar("mean_reward_100", mean_reward_100, step_tb)
                 tf.summary.scalar("mean_alive_100", mean_alive_100, step_tb)
+
                 tf.summary.scalar("nb_differentaction_taken_1000", nb_action_taken_last_1000_step, step_tb)
                 tf.summary.scalar("nb_illegal_act", nb_illegal_act, step_tb)
                 tf.summary.scalar("nb_ambiguous_act", nb_ambiguous_act, step_tb)
+
                 tf.summary.scalar("z_lr", self.train_lr, step_tb)
                 tf.summary.scalar("z_epsilon", self.epsilon, step_tb)

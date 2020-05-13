@@ -104,6 +104,7 @@ class SAC_NN(BaseDeepQ):
         # state value function approximation
         self.model_value = self._build_model_value()
         self.schedule_lr_value, self.optimizer_value = self.make_optimiser()
+        self.optimizer_model = self.optimizer_value
         self.model_value.compile(loss='mse', optimizer=self.optimizer_value)
 
         self.model_value_target = self._build_model_value()

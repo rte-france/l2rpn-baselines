@@ -46,7 +46,7 @@ class DuelQ_NN(BaseDeepQ):
         lay2 = Dense(self.observation_size)(lay1)
         lay2 = Activation('relu')(lay2)
 
-        lay3 = Dense(2 * self.action_size)(lay2)
+        lay3 = Dense(2 * self.action_size)(lay2)  # put at self.action_size
         lay3 = Activation('relu')(lay3)
 
         fc1 = Dense(self.action_size)(lay3)

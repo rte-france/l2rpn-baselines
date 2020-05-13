@@ -20,8 +20,8 @@ class TrainingParam(object):
                  MINIBATCH_SIZE=64,
                  STEP_FOR_FINAL_EPSILON=100000,  # step at which min_espilon is obtain
                  MIN_OBSERVATION=5000,  # 5000
-                 FINAL_EPSILON=1./300.,  # have on average 1 random action per day of approx 288 time steps
-                 INITIAL_EPSILON=0.7,
+                 FINAL_EPSILON=1./(7*288.),  # have on average 1 random action per week of approx 7*288 time steps
+                 INITIAL_EPSILON=0.4,
                  TAU=0.01,
                  ALPHA=1,
                  NUM_FRAMES=1,
