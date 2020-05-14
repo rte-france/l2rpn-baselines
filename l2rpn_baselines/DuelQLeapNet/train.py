@@ -11,6 +11,7 @@
 import tensorflow as tf
 from l2rpn_baselines.utils import cli_train
 from l2rpn_baselines.DuelQLeapNet.DuelQLeapNet import DuelQLeapNet, DEFAULT_NAME
+from l2rpn_baselines.utils import TrainingParam
 
 
 def train(env,
@@ -20,18 +21,24 @@ def train(env,
           load_path=None,
           logs_dir=None,
           nb_env=1,
-          lr=1e-4):
+          training_param=None):
 
     # Limit gpu usage
     physical_devices = tf.config.list_physical_devices('GPU')
     if len(physical_devices) > 0:
         tf.config.experimental.set_memory_growth(physical_devices[0], True)
 
+    if training_param is None:
+        training_param = TrainingParam()
+
     baseline = DuelQLeapNet(env.action_space,
                             name=name,
                             istraining=True,
                             nb_env=nb_env,
-                            lr=lr)
+                            lr=training_param.lr,
+                            learning_rate_decay_steps=training_param.lr_decay_steps,
+                            learning_rate_decay_rate=training_param.lr_decay_rate
+                            )
 
     if load_path is not None:
         baseline.load(load_path)
@@ -103,6 +110,8 @@ if __name__ == "__main__":
         env.chronics_handler = env_init.chronics_handler
         env.current_obs = env_init.current_obs
 
+    tp = TrainingParam()
+
     nm_ = args.name if args.name is not None else DEFAULT_NAME
     try:
         train(env,
@@ -111,7 +120,8 @@ if __name__ == "__main__":
               save_path=args.save_path,
               load_path=args.load_path,
               logs_dir=args.logs_dir,
-              nb_env=args.nb_env)
+              nb_env=args.nb_env,
+              training_param=tp)
     finally:
         env.close()
         if args.nb_env > 1:

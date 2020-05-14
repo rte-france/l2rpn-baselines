@@ -135,6 +135,7 @@ class DeepQAgent(AgentWithConverter):
 
     def save(self, path):
         if path is not None:
+            self.training_param.save_as_json(path, name="{}_training_params.json".format(self.name))
             self.deep_q.save_network(path, name=self.name)
 
     # utilities for data reading
@@ -146,7 +147,10 @@ class DeepQAgent(AgentWithConverter):
               iterations,
               save_path,
               logdir,
-              training_param=TrainingParam()):
+              training_param=None):
+
+        if training_param is None:
+            training_param = TrainingParam()
 
         self.training_param = training_param
         self._init_replay_buffer()
@@ -172,7 +176,7 @@ class DeepQAgent(AgentWithConverter):
         training_step = 0
 
         # some parameters have been move to a class named "training_param" for convenience
-        self.epsilon = training_param.INITIAL_EPSILON
+        self.epsilon = self.training_param.initial_epsilon
 
         # now the number of alive frames and total reward depends on the "underlying environment". It is vector instead
         # of scalar
@@ -191,7 +195,7 @@ class DeepQAgent(AgentWithConverter):
 
                 # Slowly decay the exploration parameter epsilon
                 # if self.epsilon > training_param.FINAL_EPSILON:
-                self.epsilon = training_param.get_next_epsilon(current_step=training_step)
+                self.epsilon = self.training_param.get_next_epsilon(current_step=training_step)
 
                 if training_step == 0:
                     # we initialize the NN with the proper shape
@@ -224,7 +228,7 @@ class DeepQAgent(AgentWithConverter):
                 self._store_new_state(initial_state, pm_i, reward, done, new_state)
 
                 # now train the model
-                if not self._train_model(training_param, training_step):
+                if not self._train_model(training_step):
                     # infinite loss in this case
                     print("ERROR INFINITE LOSS")
                     break
@@ -243,10 +247,11 @@ class DeepQAgent(AgentWithConverter):
                 pbar.update(1)
 
     # auxiliary functions
-    def _train_model(self, training_param, training_step):
-        if training_step > max(training_param.MIN_OBSERVATION, training_param.MINIBATCH_SIZE):
+    def _train_model(self, training_step):
+        self.training_param.tell_step(training_step)
+        if training_step > max(self.training_param.min_observation, self.training_param.minibatch_size):
             # train the model
-            s_batch, a_batch, r_batch, d_batch, s2_batch = self.replay_buffer.sample(training_param.MINIBATCH_SIZE)
+            s_batch, a_batch, r_batch, d_batch, s2_batch = self.replay_buffer.sample(self.training_param.minibatch_size)
             tf_writer = None
             if self.graph_saved is False:
                 tf_writer = self.tf_writer
@@ -332,7 +337,7 @@ class DeepQAgent(AgentWithConverter):
         return new_state
 
     def _init_replay_buffer(self):
-        self.replay_buffer = ReplayBuffer(self.training_param.BUFFER_SIZE)
+        self.replay_buffer = ReplayBuffer(self.training_param.buffer_size)
 
     def _store_new_state(self, initial_state, predict_movement_int, reward, done, new_state):
         # vectorized version of the previous code
