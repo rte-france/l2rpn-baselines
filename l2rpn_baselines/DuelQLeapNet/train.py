@@ -9,9 +9,12 @@
 # This file is part of L2RPN Baselines, L2RPN Baselines a repository to host baselines for l2rpn competitions.
 
 import tensorflow as tf
+
 from l2rpn_baselines.utils import cli_train
 from l2rpn_baselines.DuelQLeapNet.DuelQLeapNet import DuelQLeapNet, DEFAULT_NAME
 from l2rpn_baselines.utils import TrainingParam
+
+import pdb
 
 
 def train(env,
@@ -21,7 +24,8 @@ def train(env,
           load_path=None,
           logs_dir=None,
           nb_env=1,
-          training_param=None):
+          training_param=None,
+          **kwargs_converters):
 
     # Limit gpu usage
     physical_devices = tf.config.list_physical_devices('GPU')
@@ -37,7 +41,8 @@ def train(env,
                             nb_env=nb_env,
                             lr=training_param.lr,
                             learning_rate_decay_steps=training_param.lr_decay_steps,
-                            learning_rate_decay_rate=training_param.lr_decay_rate
+                            learning_rate_decay_rate=training_param.lr_decay_rate,
+                            **kwargs_converters
                             )
 
     if load_path is not None:
@@ -111,7 +116,13 @@ if __name__ == "__main__":
         env.current_obs = env_init.current_obs
 
     tp = TrainingParam()
-
+    tp.lr = 3e-4
+    tp.lr_decay_steps = 30000
+    tp.minibatch_size = 128
+    tp.final_epsilon = 1./(7*288.)
+    tp.buffer_size = 120000
+    kwargs_converters = {"all_actions": None, "set_line_status": False, "change_bus_vect": False}
+    # kwargs_converters = {}
     nm_ = args.name if args.name is not None else DEFAULT_NAME
     try:
         train(env,
@@ -121,7 +132,8 @@ if __name__ == "__main__":
               load_path=args.load_path,
               logs_dir=args.logs_dir,
               nb_env=args.nb_env,
-              training_param=tp)
+              training_param=tp,
+              **kwargs_converters)
     finally:
         env.close()
         if args.nb_env > 1:

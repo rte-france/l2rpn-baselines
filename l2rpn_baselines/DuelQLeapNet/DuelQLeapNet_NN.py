@@ -11,6 +11,7 @@ import numpy as np
 # tf2.0 friendly
 import warnings
 
+import tensorflow as tf
 with warnings.catch_warnings():
     warnings.filterwarnings("ignore", category=FutureWarning)
     from tensorflow.keras.models import Sequential, Model
@@ -102,7 +103,11 @@ class DuelQLeapNet_NN(BaseDeepQ):
                  lr=0.00001,
                  learning_rate_decay_steps=1000,
                  learning_rate_decay_rate=0.95,
-                 training_param=TrainingParam()):
+                 training_param=None,
+                 max_grad=1e3,
+                 max_loss=1e3):
+        if training_param is None:
+            training_param = TrainingParam()
         BaseDeepQ.__init__(self,
                            action_size,
                            observation_size,
@@ -115,6 +120,8 @@ class DuelQLeapNet_NN(BaseDeepQ):
         self.add_tau = add_tau
         self.custom_objects = {"Ltau": Ltau}
         self.construct_q_network()
+        self.max_grad = max_grad
+        self.max_loss = max_loss
 
     def construct_q_network(self):
         # Uses the network architecture found in DeepMind paper
@@ -182,3 +189,33 @@ class DuelQLeapNet_NN(BaseDeepQ):
                             tf_writer=tf_writer,
                             batch_size=batch_size)
         return res
+
+    def train_on_batch(self, model, optimizer_model, x, y_true):
+        """
+        clip the loss
+        """
+        with tf.GradientTape() as tape:
+            # Get y_pred for batch
+            y_pred = model(x)
+            # Compute loss for each sample in the batch
+            # and then clip it
+            batch_loss = self._clipped_batch_loss(y_true, y_pred)
+            # Compute mean scalar loss
+            loss = tf.math.reduce_mean(batch_loss)
+
+        # Compute gradients
+        grads = tape.gradient(loss, self.model.trainable_variables)
+        # clip gradients
+        grads, _ = tf.clip_by_global_norm(grads, self.max_grad)
+
+        # Apply gradients
+        optimizer_model.apply_gradients(zip(grads, model.trainable_variables))
+        # Store LR
+        self.train_lr = self.optimizer_model._decayed_lr('float32').numpy()
+        # Return loss scalar
+        return loss.numpy()
+
+    def _clipped_batch_loss(self, y_true, y_pred):
+        sq_error = tf.math.square(y_true - y_pred, name="sq_error")
+        batch_sq_error = tf.math.reduce_sum(sq_error, axis=1, name="batch_sq_error")
+        return tf.clip_by_value(batch_sq_error, 0.0, self.max_loss, name="batch_sq_error_clip")

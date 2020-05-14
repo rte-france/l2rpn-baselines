@@ -23,9 +23,11 @@ class DuelQLeapNet(DeepQAgent):
                  learning_rate_decay_rate=0.99,
                  store_action=False,
                  istraining=False,
-                 nb_env=1):
+                 nb_env=1,
+                 **kwargs_converters):
         DeepQAgent.__init__(self, action_space, name, lr, learning_rate_decay_steps, learning_rate_decay_rate,
-                            store_action, istraining, nb_env)
+                            store_action, istraining, nb_env,
+                            **kwargs_converters)
         self.tau_dim_start = None
         self.tau_dim_end = None
         self.add_tau = -1  # remove one to tau to have a vector of 0 and 1 instead of 1 and 2

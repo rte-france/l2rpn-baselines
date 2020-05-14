@@ -31,8 +31,9 @@ class DeepQAgent(AgentWithConverter):
                  learning_rate_decay_rate=0.99,
                  store_action=False,
                  istraining=False,
-                 nb_env=1):
-        AgentWithConverter.__init__(self, action_space, action_space_converter=IdToAct)
+                 nb_env=1,
+                 **kwargs_converters):
+        AgentWithConverter.__init__(self, action_space, action_space_converter=IdToAct, **kwargs_converters)
 
         # and now back to the origin implementation
         self.replay_buffer = None
@@ -131,10 +132,18 @@ class DeepQAgent(AgentWithConverter):
         try:
             self.deep_q.load_network(path, name=self.name)
         except Exception as e:
-            raise RuntimeError("Impossible to load the model located at \"{}\" with error {}".format(path, e))
+            raise RuntimeError("Impossible to load the model located at \"{}\" with error \n{}".format(path, e))
+        try:
+            self.action_space.init_converter(all_actions=os.path.join(path, "{}_action_space.npy".format(self.name)))
+        except Exception as e:
+            raise RuntimeError("Impossible to reload converter action space with error \n{}".format(e))
 
     def save(self, path):
         if path is not None:
+            nm_conv = "{}_action_space.npy".format(self.name)
+            conv_path = os.path.join(path, nm_conv)
+            if not os.path.exists(conv_path):
+                self.action_space.save(path=path, name=nm_conv)
             self.training_param.save_as_json(path, name="{}_training_params.json".format(self.name))
             self.deep_q.save_network(path, name=self.name)
 

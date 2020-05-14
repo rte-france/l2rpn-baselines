@@ -15,8 +15,10 @@ class TrainingParam(object):
     A class to store the training parameters of the models. It was hard coded in the getting_started/notebook 3
     of grid2op and put in this repository instead.
     """
-    __int_attr = ["buffer_size", "minibatch_size", "step_for_final_epsilon", "min_observation", "last_step"]
-    __float_attr = ["final_epsilon", "initial_epsilon", "lr", "lr_decay_steps", "lr_decay_rate"]
+    __int_attr = ["buffer_size", "minibatch_size", "step_for_final_epsilon",
+                  "min_observation", "last_step", "num_frames"]
+    __float_attr = ["final_epsilon", "initial_epsilon", "lr", "lr_decay_steps", "lr_decay_rate",
+                    "decay_rate", "tau"]
 
     def __init__(self,
                  buffer_size=40000,
@@ -28,10 +30,9 @@ class TrainingParam(object):
                  lr=1e-4,
                  lr_decay_steps=10000,
                  lr_decay_rate=0.999,
-                 TAU=0.01,
-                 ALPHA=1,
-                 NUM_FRAMES=1,
-                 DECAY_RATE=0.9,
+                 num_frames=1,
+                 decay_rate=0.9,
+                 tau=0.01
                  ):
 
         # self.DECAY_RATE = DECAY_RATE
@@ -48,6 +49,9 @@ class TrainingParam(object):
         self.lr_decay_steps = float(lr_decay_steps)
         self.lr_decay_rate = float(lr_decay_rate)
         self.last_step = 0
+        self.num_frames = int(num_frames)
+        self.decay_rate = float(decay_rate)
+        self.tau = float(tau)
 
         self._exp_facto = np.log(self.initial_epsilon/self.final_epsilon)
 

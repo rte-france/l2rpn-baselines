@@ -37,7 +37,7 @@ class BaseDeepQ(object):
                  lr=1e-5,
                  learning_rate_decay_steps=1000,
                  learning_rate_decay_rate=0.95,
-                 training_param=TrainingParam()):
+                 training_param=None):
         # TODO add more flexibilities when building the deep Q networks, with a "NNParam" for example.
         self.action_size = action_size
         self.observation_size = observation_size
@@ -45,7 +45,10 @@ class BaseDeepQ(object):
         self.lr_decay_steps = learning_rate_decay_steps
         self.lr_decay_rate = learning_rate_decay_rate
         self.qvalue_evolution = np.zeros((0,))
-        self.training_param = training_param
+        if training_param is None:
+            self.training_param = TrainingParam()
+        else:
+            self.training_param = training_param
 
         self.model = None
         self.target_model = None
@@ -91,10 +94,14 @@ class BaseDeepQ(object):
         fut_action = self.target_model.predict(s2_batch, batch_size=batch_size)
 
         targets[:, a_batch.flatten()] = r_batch
-        targets[d_batch, a_batch[d_batch]] += self.training_param.DECAY_RATE * np.max(fut_action[d_batch], axis=-1)
+        targets[d_batch, a_batch[d_batch]] += self.training_param.decay_rate * np.max(fut_action[d_batch], axis=-1)
 
         targets_ts = tf.convert_to_tensor(targets, dtype=tf.float32)
-        loss = self.model.train_on_batch(s_batch, targets_ts)
+        loss = self.train_on_batch(self.model, self.optimizer_model, s_batch, targets_ts)
+        return loss
+
+    def train_on_batch(self, model, optimizer_model, x, y_true):
+        loss = self.model.train_on_batch(x, y_true)
         return loss
 
     @staticmethod
@@ -125,6 +132,6 @@ class BaseDeepQ(object):
         model_weights = self.model.get_weights()
         target_model_weights = self.target_model.get_weights()
         for i in range(len(model_weights)):
-            target_model_weights[i] = self.training_param.TAU * model_weights[i] + (1 - self.training_param.TAU) * \
+            target_model_weights[i] = self.training_param.tau * model_weights[i] + (1 - self.training_param.tau) * \
                                       target_model_weights[i]
         self.target_model.set_weights(target_model_weights)
