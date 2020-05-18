@@ -228,7 +228,8 @@ class DeepQAgent(AgentWithConverter):
                     temp_done = np.array([temp_done], dtype=np.bool)
                     info = [info]
                 new_state = self.convert_obs_train(temp_observation_obj)
-
+                if np.any(~np.isfinite(temp_reward)):
+                    pdb.set_trace()
                 self._updage_illegal_ambiguous(training_step, info)
                 done, reward, total_reward, alive_frame, epoch_num \
                     = self._update_loop(done, temp_reward, temp_done, alive_frame, total_reward, reward, epoch_num)

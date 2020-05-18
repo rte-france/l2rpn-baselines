@@ -51,7 +51,8 @@ def train(env,
     baseline.train(env,
                    iterations,
                    save_path=save_path,
-                   logdir=logs_dir)
+                   logdir=logs_dir,
+                   training_param=training_param)
     # as in our example (and in our explanation) we recommend to save the mode regurlarly in the "train" function
     # it is not necessary to save it again here. But if you chose not to follow these advice, it is more than
     # recommended to save the "baseline" at the end of this function with:
@@ -67,6 +68,7 @@ if __name__ == "__main__":
     try:
         from lightsim2grid.LightSimBackend import LightSimBackend
         backend = LightSimBackend()
+        raise RuntimeError("I don't want that atm")
     except:
         from grid2op.Backend import PandaPowerBackend
         backend = PandaPowerBackend()
@@ -114,13 +116,15 @@ if __name__ == "__main__":
         env.fast_forward_chronics = lambda x: None
         env.chronics_handler = env_init.chronics_handler
         env.current_obs = env_init.current_obs
+        env.set_ff()
 
     tp = TrainingParam()
-    tp.lr = 3e-4
+    tp.lr = 1e-4
     tp.lr_decay_steps = 30000
     tp.minibatch_size = 128
     tp.final_epsilon = 1./(7*288.)
     tp.buffer_size = 120000
+    tp.min_observation = 128
     kwargs_converters = {"all_actions": None, "set_line_status": False, "change_bus_vect": False}
     # kwargs_converters = {}
     nm_ = args.name if args.name is not None else DEFAULT_NAME

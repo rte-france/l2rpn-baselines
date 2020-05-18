@@ -96,12 +96,11 @@ class BaseDeepQ(object):
         targets[:, a_batch.flatten()] = r_batch
         targets[d_batch, a_batch[d_batch]] += self.training_param.decay_rate * np.max(fut_action[d_batch], axis=-1)
 
-        targets_ts = tf.convert_to_tensor(targets, dtype=tf.float32)
-        loss = self.train_on_batch(self.model, self.optimizer_model, s_batch, targets_ts)
+        loss = self.train_on_batch(self.model, self.optimizer_model, s_batch, targets)
         return loss
 
     def train_on_batch(self, model, optimizer_model, x, y_true):
-        loss = self.model.train_on_batch(x, y_true)
+        loss = model.train_on_batch(x, y_true)
         return loss
 
     @staticmethod

@@ -9,7 +9,6 @@
 import numpy as np
 from l2rpn_baselines.utils import DeepQAgent
 from l2rpn_baselines.DuelQLeapNet.DuelQLeapNet_NN import DuelQLeapNet_NN
-from l2rpn_baselines.DuelQLeapNet.DuelQLeapNet_NN import Ltau  # otherwise keras cannot reload the model
 
 DEFAULT_NAME = "DuelQLeapNet"
 
@@ -51,30 +50,34 @@ class DuelQLeapNet(DeepQAgent):
         """
         if self._tmp_obs is None:
             tmp = np.concatenate((observation.prod_p,
-                               observation.load_p,
-                               observation.rho,
-                               observation.timestep_overflow,
-                               observation.line_status,
-                               observation.topo_vect,
-                               observation.time_before_cooldown_line,
-                               observation.time_before_cooldown_sub,
-                               )).reshape(1, -1)
+                                  observation.load_p,
+                                  observation.actual_dispatch,
+                                  observation.target_dispatch,
+                                  observation.rho,
+                                  observation.timestep_overflow,
+                                  observation.line_status,
+                                  observation.topo_vect,
+                                  observation.time_before_cooldown_line,
+                                  observation.time_before_cooldown_sub,
+                                  )).reshape(1, -1)
 
             # i just want to use the topo_vect as the "tau" in the leap net
             self.tau_dim_start = observation.prod_p.shape[0] + observation.load_p.shape[0] + observation.rho.shape[0]
+            self.tau_dim_start += observation.actual_dispatch.shape[0] + observation.target_dispatch.shape[0]
             self.tau_dim_start += observation.timestep_overflow.shape[0] + observation.line_status.shape[0]
             self.tau_dim_end = self.tau_dim_start
             self.tau_dim_end += observation.topo_vect.shape[0]
-
             self._tmp_obs = np.zeros((1, tmp.shape[1]), dtype=np.float32)
         # TODO optimize that
-        self._tmp_obs[:] = np.concatenate((observation.prod_p,
-                               observation.load_p,
-                               observation.rho,
-                               observation.timestep_overflow,
-                               observation.line_status,
-                               observation.topo_vect,
-                               observation.time_before_cooldown_line,
-                               observation.time_before_cooldown_sub,
-                               )).reshape(1, -1)
+        self._tmp_obs[:] = np.concatenate((observation.prod_p / observation.gen_pmax,
+                                           observation.load_p / 10.,
+                                           observation.actual_dispatch / observation.gen_pmax,
+                                           observation.target_dispatch / observation.gen_pmax,
+                                           observation.rho,
+                                           observation.timestep_overflow,
+                                           observation.line_status,
+                                           observation.topo_vect,
+                                           observation.time_before_cooldown_line,
+                                           observation.time_before_cooldown_sub,
+                                           )).reshape(1, -1)
         return self._tmp_obs

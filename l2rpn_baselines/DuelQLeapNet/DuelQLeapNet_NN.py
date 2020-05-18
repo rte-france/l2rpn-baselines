@@ -33,7 +33,7 @@ except ImportError:
     # This file is part of leap_net, leap_net a keras implementation of the LEAP Net model.
     MSG_WARNING = "Leap net model is not installed on your system. Please visit \n" \
                   "https://github.com/BDonnot/leap_net \n" \
-                  "to ave the latest Leap net implementation."
+                  "to have the latest Leap net implementation."
     warnings.warn(MSG_WARNING)
 
     from tensorflow.keras.layers import Layer
@@ -91,6 +91,8 @@ except ImportError:
             res = tfk_add([x, tmp])
             return res
 
+import pdb
+
 
 class DuelQLeapNet_NN(BaseDeepQ):
     """Constructs the desired duelling deep q learning network"""
@@ -104,7 +106,8 @@ class DuelQLeapNet_NN(BaseDeepQ):
                  learning_rate_decay_steps=1000,
                  learning_rate_decay_rate=0.95,
                  training_param=None,
-                 max_grad=1e3,
+                 max_global_norm_grad=None,
+                 max_value_grad=None,
                  max_loss=1e3):
         if training_param is None:
             training_param = TrainingParam()
@@ -120,7 +123,8 @@ class DuelQLeapNet_NN(BaseDeepQ):
         self.add_tau = add_tau
         self.custom_objects = {"Ltau": Ltau}
         self.construct_q_network()
-        self.max_grad = max_grad
+        self.max_global_norm_grad = max_global_norm_grad
+        self.max_value_grad = max_value_grad
         self.max_loss = max_loss
 
     def construct_q_network(self):
@@ -129,8 +133,10 @@ class DuelQLeapNet_NN(BaseDeepQ):
         self.model = Sequential()
         input_x = Input(shape=(self.observation_size - (self.tau_dim_end-self.tau_dim_start),),
                         name="x")
-        input_tau = Input(shape=(self.tau_dim_end-self.tau_dim_start,),
-                            name="tau")
+        input_tau_topo = Input(shape=(self.tau_dim_end-self.tau_dim_start,),
+                               name="tau_topo")
+        input_tau_status = Input(shape=(self.tau_dim_end-self.tau_dim_start,),
+                                 name="tau_status")
 
         lay1 = Dense(self.observation_size)(input_x)
         lay1 = Activation('relu')(lay1)
@@ -141,11 +147,15 @@ class DuelQLeapNet_NN(BaseDeepQ):
         lay3 = Dense(2 * self.action_size)(lay2)  # put at self.action_size
         lay3 = Activation('relu')(lay3)
 
-        l_tau = Ltau()((lay3, input_tau))
+        l_tau1 = Ltau(name="encode_topo1")((lay3, input_tau_topo))
+        l_tau2 = Ltau(name="encode_topo2")((l_tau1, input_tau_topo))
+        l_tau3 = Ltau(name="encode_status1")((l_tau2, input_tau_status))
+        l_tau = Ltau(name="encode_status2")((l_tau3, input_tau_status))
 
         fc1 = Dense(self.action_size)(l_tau)
         advantage = Dense(self.action_size)(fc1)
-        fc2 = Dense(self.action_size)(lay3)
+
+        fc2 = Dense(self.action_size)(l_tau)
         value = Dense(1)(fc2)
 
         meaner = Lambda(lambda x: K.mean(x, axis=1))
@@ -153,11 +163,11 @@ class DuelQLeapNet_NN(BaseDeepQ):
         tmp = subtract([advantage, mn_])
         policy = add([tmp, value], name="policy")
 
-        self.model = Model(inputs=[input_x, input_tau], outputs=[policy])
+        self.model = Model(inputs=[input_x, input_tau_topo, input_tau_status], outputs=[policy])
         self.schedule_model, self.optimizer_model = self.make_optimiser()
         self.model.compile(loss='mse', optimizer=self.optimizer_model)
 
-        self.target_model = Model(inputs=[input_x, input_tau], outputs=[policy])
+        self.target_model = Model(inputs=[input_x, input_tau_topo, input_tau_status], outputs=[policy])
         print("Successfully constructed networks.")
 
     def _make_x_tau(self, data):
@@ -165,7 +175,11 @@ class DuelQLeapNet_NN(BaseDeepQ):
         data_x_2 = data[:, self.tau_dim_end:]
         data_x = np.concatenate((data_x_1, data_x_2), axis=1)
         data_tau = data[:, self.tau_dim_start:self.tau_dim_end] + self.add_tau
-        return data_x, data_tau
+        data_tau_topo = 1.0 * data_tau
+        data_tau_topo[data_tau_topo < 0.] = 1.0
+        data_tau_status = 0.0 * data_tau
+        data_tau_status[data_tau < 0.] = 1.0
+        return data_x, data_tau_topo, data_tau_status
 
     def predict_movement(self, data, epsilon, batch_size=None):
         """Predict movement of game controler where is epsilon
@@ -202,18 +216,23 @@ class DuelQLeapNet_NN(BaseDeepQ):
             batch_loss = self._clipped_batch_loss(y_true, y_pred)
             # Compute mean scalar loss
             loss = tf.math.reduce_mean(batch_loss)
+        loss_npy = loss.numpy()
 
         # Compute gradients
-        grads = tape.gradient(loss, self.model.trainable_variables)
+        grads = tape.gradient(loss, model.trainable_variables)
+
         # clip gradients
-        grads, _ = tf.clip_by_global_norm(grads, self.max_grad)
+        if self.max_global_norm_grad is not None:
+            grads, _ = tf.clip_by_global_norm(grads, self.max_global_norm_grad)
+        if self.max_value_grad is not None:
+            grads = [tf.clip_by_value(grad, -self.max_value_grad, self.max_value_grad) for grad in grads]
 
         # Apply gradients
         optimizer_model.apply_gradients(zip(grads, model.trainable_variables))
         # Store LR
-        self.train_lr = self.optimizer_model._decayed_lr('float32').numpy()
+        self.train_lr = optimizer_model._decayed_lr('float32').numpy()
         # Return loss scalar
-        return loss.numpy()
+        return loss_npy
 
     def _clipped_batch_loss(self, y_true, y_pred):
         sq_error = tf.math.square(y_true - y_pred, name="sq_error")

@@ -19,6 +19,8 @@ from grid2op.Action import *
 from l2rpn_baselines.utils.save_log_gif import save_log_gif
 from l2rpn_baselines.DuelQLeapNet.DuelQLeapNet import DuelQLeapNet, DEFAULT_NAME
 
+import pdb
+
 DEFAULT_LOGS_DIR = "./logs-eval/do-nothing-baseline"
 DEFAULT_NB_EPISODE = 1
 DEFAULT_NB_PROCESS = 1
@@ -51,6 +53,7 @@ def evaluate(env,
     # force creation of the neural networks
     obs = env.reset()
     _ = agent.act(obs, 0., False)
+    agent.dict_action = {}
 
     # Load weights from file
     agent.load(load_path)
