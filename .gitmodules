@@ -4,3 +4,6 @@
 [submodule "l2rpn_baselines/Geirina"]
 	path = l2rpn_baselines/Geirina
 	url = https://github.com/djmax008/GEIRINA_baseline
+[submodule "l2rpn_baselines/WolperGrid"]
+	path = l2rpn_baselines/WolperGrid
+	url = git@github.com:Tezirg/WolperGrid.git
