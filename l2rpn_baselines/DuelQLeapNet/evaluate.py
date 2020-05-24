@@ -50,6 +50,8 @@ def evaluate(env,
     agent = DuelQLeapNet(action_space=env.action_space,
                          name=name,
                          store_action=nb_process == 1)
+    agent.load_action_space(load_path)
+
     # force creation of the neural networks
     obs = env.reset()
     _ = agent.act(obs, 0., False)

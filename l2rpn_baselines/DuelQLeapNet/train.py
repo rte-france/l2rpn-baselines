@@ -65,10 +65,10 @@ if __name__ == "__main__":
     from grid2op.Parameters import Parameters
     from grid2op import make
     from grid2op.Reward import L2RPNReward
+    import re
     try:
         from lightsim2grid.LightSimBackend import LightSimBackend
         backend = LightSimBackend()
-        raise RuntimeError("I don't want that atm")
     except:
         from grid2op.Backend import PandaPowerBackend
         backend = PandaPowerBackend()
@@ -92,6 +92,8 @@ if __name__ == "__main__":
             else:
                 res = super().__call__(action, env, has_error, is_done, is_illegal, is_ambiguous)
                 res /= env.n_line
+                if not np.isfinite(res):
+                    res = self.reward_min
             return res
 
     # Use custom params
@@ -99,13 +101,18 @@ if __name__ == "__main__":
 
     # Create grid2op game environement
     env_init = None
+    from grid2op.Chronics import MultifolderWithCache
     env = make(args.env_name,
                param=params,
                reward_class=MyReward,
                backend=backend,
-               # action_class=PowerlineSetAndDispatchAction
+               chronics_class=MultifolderWithCache
                )
+    env.chronics_handler.set_max_iter(7*288)
+    env.chronics_handler.real_data.set_filter(lambda x: re.match(".*december.*", x) is not None)
+    env.chronics_handler.real_data.reset_cache()
 
+    # env.chronics_handler.real_data.
     if args.nb_env > 1:
         env_init = env
         from grid2op.Environment import MultiEnvironment
@@ -124,9 +131,12 @@ if __name__ == "__main__":
     tp.minibatch_size = 128
     tp.final_epsilon = 1./(7*288.)
     tp.buffer_size = 120000
-    tp.min_observation = 128
-    kwargs_converters = {"all_actions": None, "set_line_status": False, "change_bus_vect": False}
-    # kwargs_converters = {}
+    tp.min_observation = 5000
+    kwargs_converters = {"all_actions": None,
+                         "set_line_status": False,
+                         "change_bus_vect": False,
+                         "set_topo_vect": False
+                         }
     nm_ = args.name if args.name is not None else DEFAULT_NAME
     try:
         train(env,

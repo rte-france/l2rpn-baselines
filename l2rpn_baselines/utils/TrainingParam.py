@@ -16,7 +16,7 @@ class TrainingParam(object):
     of grid2op and put in this repository instead.
     """
     __int_attr = ["buffer_size", "minibatch_size", "step_for_final_epsilon",
-                  "min_observation", "last_step", "num_frames"]
+                  "min_observation", "last_step", "num_frames", "update_freq"]
     __float_attr = ["final_epsilon", "initial_epsilon", "lr", "lr_decay_steps", "lr_decay_rate",
                     "decay_rate", "tau"]
 
@@ -32,7 +32,8 @@ class TrainingParam(object):
                  lr_decay_rate=0.999,
                  num_frames=1,
                  decay_rate=0.9,
-                 tau=0.01
+                 tau=0.01,
+                 update_freq=256
                  ):
 
         # self.DECAY_RATE = DECAY_RATE
@@ -52,6 +53,7 @@ class TrainingParam(object):
         self.num_frames = int(num_frames)
         self.decay_rate = float(decay_rate)
         self.tau = float(tau)
+        self.update_freq = update_freq
 
         self._exp_facto = np.log(self.initial_epsilon/self.final_epsilon)
 
@@ -108,3 +110,6 @@ class TrainingParam(object):
         path_out = os.path.join(path, name)
         with open(path_out, "w", encoding="utf-8") as f:
             json.dump(res, fp=f, indent=4, sort_keys=True)
+
+    def do_train(self):
+        return self.last_step % self.update_freq == 0

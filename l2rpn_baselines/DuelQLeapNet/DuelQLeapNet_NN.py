@@ -138,25 +138,48 @@ class DuelQLeapNet_NN(BaseDeepQ):
         input_tau_status = Input(shape=(self.tau_dim_end-self.tau_dim_start,),
                                  name="tau_status")
 
-        lay1 = Dense(self.observation_size)(input_x)
+        # lay1 = Dense(self.observation_size)(input_x)
+        # lay1 = Activation('relu')(lay1)
+        #
+        # lay2 = Dense(self.observation_size)(lay1)
+        # lay2 = Activation('relu')(lay2)
+        #
+        # lay3 = Dense(2 * self.action_size)(lay2)  # put at self.action_size
+        # lay3 = Activation('relu')(lay3)
+        #
+        # l_tau1 = Ltau(name="encode_topo1")((lay3, input_tau_topo))
+        # l_tau2 = Ltau(name="encode_topo2")((l_tau1, input_tau_topo))
+        # l_tau3 = Ltau(name="encode_status1")((l_tau2, input_tau_status))
+        # l_tau = Ltau(name="encode_status2")((l_tau3, input_tau_status))
+
+        # fc1 = Dense(self.action_size)(l_tau)
+        # advantage = Dense(self.action_size)(fc1)
+        #
+        # fc2 = Dense(self.action_size)(l_tau)
+        # value = Dense(1)(fc2)
+
+        lay1 = Dense(4 * self.observation_size)(input_x)
         lay1 = Activation('relu')(lay1)
 
-        lay2 = Dense(self.observation_size)(lay1)
+        lay2 = Dense(4 * self.observation_size)(lay1)
         lay2 = Activation('relu')(lay2)
 
-        lay3 = Dense(2 * self.action_size)(lay2)  # put at self.action_size
+        lay3 = Dense(4 * self.observation_size)(lay2)
         lay3 = Activation('relu')(lay3)
 
-        l_tau1 = Ltau(name="encode_topo1")((lay3, input_tau_topo))
+        lay4 = Dense(2 * self.action_size)(lay3)  # put at self.action_size
+        lay4 = Activation('relu')(lay4)
+
+        lay5 = Dense(2 * self.action_size)(lay4)  # put at self.action_size
+        lay5 = Activation('relu')(lay5)
+
+        l_tau1 = Ltau(name="encode_topo1")((lay5, input_tau_topo))
         l_tau2 = Ltau(name="encode_topo2")((l_tau1, input_tau_topo))
         l_tau3 = Ltau(name="encode_status1")((l_tau2, input_tau_status))
         l_tau = Ltau(name="encode_status2")((l_tau3, input_tau_status))
 
-        fc1 = Dense(self.action_size)(l_tau)
-        advantage = Dense(self.action_size)(fc1)
-
-        fc2 = Dense(self.action_size)(l_tau)
-        value = Dense(1)(fc2)
+        advantage = Dense(self.action_size)(l_tau)
+        value = Dense(1)(l_tau)
 
         meaner = Lambda(lambda x: K.mean(x, axis=1))
         mn_ = meaner(advantage)

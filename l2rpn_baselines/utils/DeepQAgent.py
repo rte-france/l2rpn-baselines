@@ -69,27 +69,27 @@ class DeepQAgent(AgentWithConverter):
     def convert_obs(self, observation):
         if self._tmp_obs is None:
             tmp = np.concatenate((observation.prod_p,
-                               observation.load_p,
-                               observation.rho,
-                               observation.timestep_overflow,
-                               observation.line_status,
-                               observation.topo_vect,
-                               observation.time_before_cooldown_line,
-                               observation.time_before_cooldown_sub,
-                               )).reshape(1, -1)
+                                  observation.load_p,
+                                  observation.rho,
+                                  observation.timestep_overflow,
+                                  observation.line_status,
+                                  observation.topo_vect,
+                                  observation.time_before_cooldown_line,
+                                  observation.time_before_cooldown_sub,
+                                  )).reshape(1, -1)
 
             self._tmp_obs = np.zeros((1, tmp.shape[1]), dtype=np.float32)
 
         # TODO optimize that
         self._tmp_obs[:] = np.concatenate((observation.prod_p,
-                               observation.load_p,
-                               observation.rho,
-                               observation.timestep_overflow,
-                               observation.line_status,
-                               observation.topo_vect,
-                               observation.time_before_cooldown_line,
-                               observation.time_before_cooldown_sub,
-                               )).reshape(1, -1)
+                                           observation.load_p,
+                                           observation.rho,
+                                           observation.timestep_overflow,
+                                           observation.line_status,
+                                           observation.topo_vect,
+                                           observation.time_before_cooldown_line,
+                                           observation.time_before_cooldown_sub,
+                                           )).reshape(1, -1)
         return self._tmp_obs
 
     def my_act(self, transformed_observation, reward, done=False):
@@ -124,19 +124,27 @@ class DeepQAgent(AgentWithConverter):
             res.append(self.convert_act(act_id))
         return res
 
+    def load_action_space(self, path):
+        # not modified compare to original implementation
+        if not os.path.exists(path):
+            raise RuntimeError("The model should be stored in \"{}\". But this appears to be empty".format(path))
+        try:
+            self.action_space.init_converter(
+                all_actions=os.path.join(path, "{}_action_space.npy".format(self.name)))
+        except Exception as e:
+            raise RuntimeError("Impossible to reload converter action space with error \n{}".format(e))
+
     # baseline interface
     def load(self, path):
         # not modified compare to original implementation
         if not os.path.exists(path):
             raise RuntimeError("The model should be stored in \"{}\". But this appears to be empty".format(path))
+        self.load_action_space(path)
+
         try:
             self.deep_q.load_network(path, name=self.name)
         except Exception as e:
             raise RuntimeError("Impossible to load the model located at \"{}\" with error \n{}".format(path, e))
-        try:
-            self.action_space.init_converter(all_actions=os.path.join(path, "{}_action_space.npy".format(self.name)))
-        except Exception as e:
-            raise RuntimeError("Impossible to reload converter action space with error \n{}".format(e))
 
     def save(self, path):
         if path is not None:
@@ -220,6 +228,9 @@ class DeepQAgent(AgentWithConverter):
                     # yeah it's a pain
                     act = act[0]
 
+                    if env.done:
+                        pdb.set_trace()
+
                 temp_observation_obj, temp_reward, temp_done, info = env.step(act)
                 if self.__nb_env == 1:
                     # dirty hack to wrap them into list
@@ -228,8 +239,6 @@ class DeepQAgent(AgentWithConverter):
                     temp_done = np.array([temp_done], dtype=np.bool)
                     info = [info]
                 new_state = self.convert_obs_train(temp_observation_obj)
-                if np.any(~np.isfinite(temp_reward)):
-                    pdb.set_trace()
                 self._updage_illegal_ambiguous(training_step, info)
                 done, reward, total_reward, alive_frame, epoch_num \
                     = self._update_loop(done, temp_reward, temp_done, alive_frame, total_reward, reward, epoch_num)
@@ -259,7 +268,9 @@ class DeepQAgent(AgentWithConverter):
     # auxiliary functions
     def _train_model(self, training_step):
         self.training_param.tell_step(training_step)
-        if training_step > max(self.training_param.min_observation, self.training_param.minibatch_size):
+        if training_step > max(self.training_param.min_observation, self.training_param.minibatch_size) and \
+            self.training_param.do_train():
+            print("Training at step {}".format(training_step))
             # train the model
             s_batch, a_batch, r_batch, d_batch, s2_batch = self.replay_buffer.sample(self.training_param.minibatch_size)
             tf_writer = None
@@ -296,6 +307,7 @@ class DeepQAgent(AgentWithConverter):
         # /!\ DO NOT ATTEMPT TO MODIFY OTHERWISE IT WILL PROBABLY CRASH /!\
         # /!\ THIS WILL BE PART OF THE ENVIRONMENT IN FUTURE GRID2OP RELEASE (>= 0.9.0) /!\
         # AND OF COURSE USING THIS METHOD DURING THE EVALUATION IS COMPLETELY FORBIDDEN
+        return
         if self.__nb_env > 1:
             return
         env.current_obs = None
@@ -328,22 +340,26 @@ class DeepQAgent(AgentWithConverter):
             # in multi env this is automatically handled
             pass
         elif done[0]:
-            nb_ts_one_day = 24*60/5
-            # the 3-4 lines below allow to reuse the loaded dataset and continue further up in the
-            try:
-                self._reset_env_clean_state(env)
-                # random fast forward between now and next day
-                self._fast_forward_env(env, time=nb_ts_one_day)
-            except (StopIteration, Grid2OpException):
-                env.reset()
-                # random fast forward between now and next week
-                self._fast_forward_env(env, time=7*nb_ts_one_day)
-
-            obs = [env.current_obs]
+            obs = env.reset()
+            obs = [obs]
             new_state = self.convert_obs_train(obs)
-            if epoch_num % len(env.chronics_handler.real_data.subpaths) == 0:
-                # re shuffle the data
-                env.chronics_handler.shuffle(lambda x: x[np.random.choice(len(x), size=len(x), replace=False)])
+            if False:
+                nb_ts_one_day = 24*60/5
+                # the 3-4 lines below allow to reuse the loaded dataset and continue further up in the
+                try:
+                    self._reset_env_clean_state(env)
+                    # random fast forward between now and next day
+                    self._fast_forward_env(env, time=nb_ts_one_day)
+                except (StopIteration, Grid2OpException):
+                    env.reset()
+                    # random fast forward between now and next week
+                    self._fast_forward_env(env, time=7*nb_ts_one_day)
+
+                obs = [env.current_obs]
+                new_state = self.convert_obs_train(obs)
+                if epoch_num % len(env.chronics_handler.real_data.subpaths) == 0:
+                    # re shuffle the data
+                    env.chronics_handler.shuffle(lambda x: x[np.random.choice(len(x), size=len(x), replace=False)])
         return new_state
 
     def _init_replay_buffer(self):
