@@ -15,6 +15,7 @@ from grid2op.MakeEnv import make
 from grid2op.Runner import Runner
 from grid2op.Reward import *
 from grid2op.Action import *
+from grid2op.Episode import EpisodeData
 
 from l2rpn_baselines.utils.save_log_gif import save_log_gif
 from l2rpn_baselines.DuelQLeapNet.DuelQLeapNet import DuelQLeapNet, DEFAULT_NAME
@@ -94,6 +95,10 @@ def evaluate(env,
             print("Action with ID {} was played {} times".format(id_, nb))
             print("{}".format(act))
             print("-----------")
+
+    # if logs_path is not None:
+    #     for path_dhron, chron_name, cum_reward, nb_time_step, max_ts in res:
+    #         ep_data = EpisodeData.from_disk(logs_path, chron_name)
 
     if save_gif:
         print("Saving the gif of the episodes")

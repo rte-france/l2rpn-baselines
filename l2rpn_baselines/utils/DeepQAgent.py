@@ -19,7 +19,6 @@ from grid2op.Converter import IdToAct
 
 from l2rpn_baselines.utils.ReplayBuffer import ReplayBuffer
 from l2rpn_baselines.utils.TrainingParam import TrainingParam
-import pdb
 
 
 class DeepQAgent(AgentWithConverter):
@@ -29,7 +28,7 @@ class DeepQAgent(AgentWithConverter):
                  lr=1e-3,
                  learning_rate_decay_steps=3000,
                  learning_rate_decay_rate=0.99,
-                 store_action=False,
+                 store_action=True,
                  istraining=False,
                  nb_env=1,
                  **kwargs_converters):
@@ -60,6 +59,10 @@ class DeepQAgent(AgentWithConverter):
         self.obs_as_vect = None
         self._tmp_obs = None
         self.reset_num = None
+
+        self.max_iter_env_ = 1000000
+        self.curr_iter_env = 0
+        self.max_reward = 0.
 
     @abstractmethod
     def init_deep_q(self, transformed_observation):
@@ -114,14 +117,31 @@ class DeepQAgent(AgentWithConverter):
         if self.store_action:
             if action_int not in self.dict_action:
                 act = self.action_space.all_actions[action_int]
-                self.dict_action[action_int] = [0, act]
+                is_inj, is_volt, is_topo, is_line_status, is_redisp = act.get_types()
+                is_dn = (not is_inj) and (not is_volt) and (not is_topo) and (not is_line_status) and (not is_redisp)
+                self.dict_action[action_int] = [0, act, (is_inj, is_volt, is_topo, is_line_status, is_redisp, is_dn)]
             self.dict_action[action_int][0] += 1
+
+            (is_inj, is_volt, is_topo, is_line_status, is_redisp, is_dn) = self.dict_action[action_int][2]
+            if is_inj:
+                self.nb_injection += 1
+            if is_volt:
+                self.nb_voltage += 1
+            if is_topo:
+                self.nb_topology += 1
+            if is_line_status:
+                self.nb_line += 1
+            if is_redisp:
+                self.nb_redispatching += 1
+            if is_dn:
+                self.nb_do_nothing += 1
 
     def _convert_all_act(self, act_as_integer):
         # TODO optimize that !
         res = []
         for act_id in act_as_integer:
             res.append(self.convert_act(act_id))
+            self._store_action_played(act_id)
         return res
 
     def load_action_space(self, path):
@@ -205,6 +225,26 @@ class DeepQAgent(AgentWithConverter):
         total_rewards = np.zeros(iterations)
         new_state = None
         self.reset_num = 0
+        self.curr_iter_env = 0
+        self.max_reward = env.reward_range[1]
+
+        # action types
+        # injection, voltage, topology, line, redispatching = action.get_types()
+        self.nb_injection = 0
+        self.nb_voltage = 0
+        self.nb_topology = 0
+        self.nb_line = 0
+        self.nb_redispatching = 0
+        self.nb_do_nothing = 0
+
+        # for non uniform random sampling of the scenarios
+        self._prev_obs_num = 0
+        self._time_step_lived = np.zeros(env.chronics_handler.real_data.cache_size, dtype=np.int)  # number of time step lived per possible scenarios
+        self._nb_chosen = np.zeros(env.chronics_handler.real_data.cache_size, dtype=np.int)  # number of time a given scenario has been played
+        self._prev_id = 0
+        # this is for the "limit the episode length" depending on your previous success
+        self._total_sucesses = 0
+
         with tqdm(total=iterations) as pbar:
             while training_step < iterations:
                 # reset or build the environment
@@ -228,10 +268,8 @@ class DeepQAgent(AgentWithConverter):
                     # yeah it's a pain
                     act = act[0]
 
-                    if env.done:
-                        pdb.set_trace()
-
                 temp_observation_obj, temp_reward, temp_done, info = env.step(act)
+
                 if self.__nb_env == 1:
                     # dirty hack to wrap them into list
                     temp_observation_obj = [temp_observation_obj]
@@ -270,7 +308,6 @@ class DeepQAgent(AgentWithConverter):
         self.training_param.tell_step(training_step)
         if training_step > max(self.training_param.min_observation, self.training_param.minibatch_size) and \
             self.training_param.do_train():
-            print("Training at step {}".format(training_step))
             # train the model
             s_batch, a_batch, r_batch, d_batch, s2_batch = self.replay_buffer.sample(self.training_param.minibatch_size)
             tf_writer = None
@@ -298,7 +335,8 @@ class DeepQAgent(AgentWithConverter):
         self.actions_per_1000steps[which_row, action_id] += 1
 
     def _fast_forward_env(self, env, time=7*24*60/5):
-        env.fast_forward_chronics(np.random.randint(0, min(time, env.chronics_handler.max_timestep())))
+        my_int = np.random.randint(0, min(time, env.chronics_handler.max_timestep()))
+        env.fast_forward_chronics(my_int)
 
     def _reset_env_clean_state(self, env):
         """
@@ -307,7 +345,6 @@ class DeepQAgent(AgentWithConverter):
         # /!\ DO NOT ATTEMPT TO MODIFY OTHERWISE IT WILL PROBABLY CRASH /!\
         # /!\ THIS WILL BE PART OF THE ENVIRONMENT IN FUTURE GRID2OP RELEASE (>= 0.9.0) /!\
         # AND OF COURSE USING THIS METHOD DURING THE EVALUATION IS COMPLETELY FORBIDDEN
-        return
         if self.__nb_env > 1:
             return
         env.current_obs = None
@@ -329,6 +366,10 @@ class DeepQAgent(AgentWithConverter):
         env._reset_vectors_and_timings()
 
     def _need_reset(self, env, observation_num, epoch_num, done, new_state):
+        self.max_iter_env(min(max(self.training_param.min_iter,
+                                  self.training_param.max_iter_fun(self._total_sucesses)),
+                              self.training_param.max_iter))  # TODO
+        self.curr_iter_env += 1
         if new_state is None:
             # it's the first ever loop
             obs = env.reset()
@@ -340,11 +381,16 @@ class DeepQAgent(AgentWithConverter):
             # in multi env this is automatically handled
             pass
         elif done[0]:
-            obs = env.reset()
-            obs = [obs]
-            new_state = self.convert_obs_train(obs)
+            try:
+                obs = env.reset()
+            except Grid2OpException as exc:
+                print("Exception {} encounter while resetting, trying to recover.".format(exc))
+                obs = env.reset()
+            # obs = [obs]
+            # new_state = self.convert_obs_train(obs)
+
+            nb_ts_one_day = 24*60/5
             if False:
-                nb_ts_one_day = 24*60/5
                 # the 3-4 lines below allow to reuse the loaded dataset and continue further up in the
                 try:
                     self._reset_env_clean_state(env)
@@ -355,11 +401,28 @@ class DeepQAgent(AgentWithConverter):
                     # random fast forward between now and next week
                     self._fast_forward_env(env, time=7*nb_ts_one_day)
 
-                obs = [env.current_obs]
-                new_state = self.convert_obs_train(obs)
-                if epoch_num % len(env.chronics_handler.real_data.subpaths) == 0:
-                    # re shuffle the data
-                    env.chronics_handler.shuffle(lambda x: x[np.random.choice(len(x), size=len(x), replace=False)])
+            # update the number of time steps it has live
+            ts_lived = observation_num - self._prev_obs_num
+            self._time_step_lived[self._prev_id] += ts_lived
+            self._prev_obs_num = observation_num
+            proba = 1. / (self._time_step_lived + 1)
+
+            # proba = np.sqrt(1. / (self._time_step_lived +1))
+            # # over sampling some kind of "UCB like" stuff
+            # # https://banditalgs.com/2016/09/18/the-upper-confidence-bound-algorithm/
+            self._prev_id = env.chronics_handler.real_data.sample_next_chronics(proba)
+            env.reset()
+            self._nb_chosen[self._prev_id] += 1
+            # print("\tselected id: {} (associated proba was: {:.3f}, max was {:.3f})".format(self._prev_id, proba[self._prev_id], np.max(proba)))
+
+            # random fast forward between now and next week
+            self._fast_forward_env(env, time=7*nb_ts_one_day)
+            self.curr_iter_env = 0
+            obs = [env.current_obs]
+            new_state = self.convert_obs_train(obs)
+            if epoch_num % len(env.chronics_handler.real_data.subpaths) == 0:
+                # re shuffle the data
+                env.chronics_handler.shuffle(lambda x: x[np.random.choice(len(x), size=len(x), replace=False)])
         return new_state
 
     def _init_replay_buffer(self):
@@ -374,6 +437,9 @@ class DeepQAgent(AgentWithConverter):
                                    done,
                                    new_state)
 
+    def max_iter_env(self, new_max_iter):
+        self.max_iter_env_ = new_max_iter
+
     def _next_move(self, curr_state, epsilon):
         pm_i, pq_v = self.deep_q.predict_movement(curr_state, epsilon)
         act = self._convert_all_act(pm_i)
@@ -385,6 +451,14 @@ class DeepQAgent(AgentWithConverter):
         return alive_frame, total_reward
 
     def _update_loop(self, done, temp_reward, temp_done, alive_frame, total_reward, reward, epoch_num):
+        if self.__nb_env == 1:
+            # force end of episode at early stage of learning
+            if self.curr_iter_env >= self.max_iter_env_:
+                temp_done[0] = True
+                temp_reward[0] = self.max_reward
+                self._total_sucesses += 1
+                # print("I made it to the end with {} ts (max was {})".format(self.curr_iter_env, self.max_iter_env_))
+
         done = temp_done
         alive_frame[done] = 0
         total_reward[done] = 0.
@@ -394,6 +468,7 @@ class DeepQAgent(AgentWithConverter):
             # all environments are "done"
             epoch_num += 1
             self.reset_num = 0
+
         total_reward[~done] += temp_reward[~done]
         alive_frame[~done] += 1
         return done, temp_reward, total_reward, alive_frame, epoch_num
@@ -410,6 +485,11 @@ class DeepQAgent(AgentWithConverter):
 
         # Log some useful metrics every even updates
         if step % UPDATE_FREQ == 0 and epoch_num > 0:
+            if step % (100 * UPDATE_FREQ) == 0:
+                # print the top 5 scenarios the "hardest" (ie chosen the most number of times
+                array_ = np.argsort(-self._nb_chosen)[:10]
+                print("hardest scenario\n{}".format(array_))
+                print("They have been chosen respectively\n{}".format(self._nb_chosen[array_]))
             with self.tf_writer.as_default():
                 last_alive = epoch_alive[(epoch_num-1)]
                 last_reward = epoch_rewards[(epoch_num-1)]
@@ -463,3 +543,22 @@ class DeepQAgent(AgentWithConverter):
 
                 tf.summary.scalar("z_lr", self.train_lr, step_tb)
                 tf.summary.scalar("z_epsilon", self.epsilon, step_tb)
+                tf.summary.scalar("z_max_iter", self.max_iter_env_, step_tb)
+                tf.summary.scalar("z_total_episode", epoch_num, step_tb)
+
+                if self.store_action:
+                    tf.summary.scalar("zz_freq_inj", self.nb_injection / step, step_tb)
+                    tf.summary.scalar("zz_freq_voltage", self.nb_voltage / step, step_tb)
+                    tf.summary.scalar("z_freq_topo", self.nb_topology / step, step_tb)
+                    tf.summary.scalar("z_freq_line_status", self.nb_line / step, step_tb)
+                    tf.summary.scalar("z_freq_redisp", self.nb_redispatching / step, step_tb)
+                    tf.summary.scalar("z_freq_do_nothing", self.nb_do_nothing / step, step_tb)
+
+                tf.summary.histogram(
+                    "timestep_lived", self._time_step_lived, step=step_tb, buckets=None,
+                    description="number of time steps lived for all scenarios"
+                )
+                tf.summary.histogram(
+                    "nb_chosen", self._nb_chosen, step=step_tb, buckets=None,
+                    description="number of times this scenarios has been played"
+                )

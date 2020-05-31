@@ -14,11 +14,67 @@ class TrainingParam(object):
     """
     A class to store the training parameters of the models. It was hard coded in the getting_started/notebook 3
     of grid2op and put in this repository instead.
+
+    Attributes
+    ----------
+    buffer_size: ``int``
+        Size of the replay buffer
+    minibatch_size: ``int``
+        Size of the training minibatch
+    update_freq: ``int``
+        Frequency at which the model is trained. Model is trained once every `update_freq` steps using `minibatch_size`
+        from an experience replay buffer.
+
+    final_epsilon: ``float``
+        value for the final epsilon (for the e-greedy)
+    initial_epsilon: ``float``
+        value for the initial epsilon (for the e-greedy)
+    step_for_final_epsilon: ``int``
+        number of step at which the final epsilon (for the epsilon greedy exploration) will be reached
+
+    min_observation: ``int``
+        number of observations before starting to train the neural nets. Before this number of iterations, the agent
+        will simply interact with the environment.
+
+    lr: ``float``
+        The initial learning rate
+    lr_decay_steps: ``int``
+        The learning rate decay step
+    lr_decay_rate: ``float``
+        The learning rate decay rate
+
+    num_frames: ``int``
+        Currently not used
+
+    discount_factor: ``float``
+        The discount factor (a high discount factor is in favor of longer episode, a small one not really). This is
+        often called "gamma" in some RL paper. It's the gamma in: "RL wants to minize the sum of the dicounted reward,
+        which are sum_{t >= t_0} \gamma^{t - t_0} r_t
+
+    tau: ``float``
+        Update the target model. Target model is updated according to
+        $target_model_weights[i] = self.training_param.tau * model_weights[i] + (1 - self.training_param.tau) * \
+                                              target_model_weights[i]$
+
+    min_iter: ``int``
+        It is possible in the training schedule to limit the number of time steps an episode can last. This is mainly
+        useful at beginning of training, to not get in a state where the grid has been modified so much the agent
+        will never get into a state resembling this one ever again). Stopping the episode before this happens can
+        help the learning.
+
+    max_iter: ``int``
+        Just like "min_iter" but instead of being the minimum number of iteration, it's the maximum.
+
+    max_iter_fun: ``function``
+        A function that return the maximum number of steps an episode can count as for the current epoch. For example
+        it can be `max_iter_fun = lambda epoch_num : np.sqrt(50 * epoch_num)`
+
     """
-    __int_attr = ["buffer_size", "minibatch_size", "step_for_final_epsilon",
-                  "min_observation", "last_step", "num_frames", "update_freq"]
-    __float_attr = ["final_epsilon", "initial_epsilon", "lr", "lr_decay_steps", "lr_decay_rate",
-                    "decay_rate", "tau"]
+    _int_attr = ["buffer_size", "minibatch_size", "step_for_final_epsilon",
+                  "min_observation", "last_step", "num_frames", "update_freq",
+                 "min_iter", "max_iter"]
+    _float_attr = ["final_epsilon", "initial_epsilon", "lr", "lr_decay_steps", "lr_decay_rate",
+                    "discount_factor", "tau"]
 
     def __init__(self,
                  buffer_size=40000,
@@ -31,31 +87,40 @@ class TrainingParam(object):
                  lr_decay_steps=10000,
                  lr_decay_rate=0.999,
                  num_frames=1,
-                 decay_rate=0.9,
-                 tau=0.01,
-                 update_freq=256
+                 discount_factor=0.99,
+                 tau=0.1,
+                 update_freq=256,
+                 min_iter=50,
+                 max_iter=8064,  # 1 month
                  ):
 
-        # self.DECAY_RATE = DECAY_RATE
         self.buffer_size = buffer_size
         self.minibatch_size = minibatch_size
         self.min_observation = min_observation  # 5000
         self.final_epsilon = float(final_epsilon)  # have on average 1 random action per day of approx 288 timesteps at the end (never kill completely the exploration)
         self.initial_epsilon = float(initial_epsilon)
         self.step_for_final_epsilon = float(step_for_final_epsilon)
-        # self.TAU = TAU
-        # self.NUM_FRAMES = NUM_FRAMES
-        # self.ALPHA = ALPHA
         self.lr = lr
         self.lr_decay_steps = float(lr_decay_steps)
         self.lr_decay_rate = float(lr_decay_rate)
         self.last_step = 0
         self.num_frames = int(num_frames)
-        self.decay_rate = float(decay_rate)
+        self.discount_factor = float(discount_factor)
         self.tau = float(tau)
         self.update_freq = update_freq
+        self.min_iter = min_iter
+        self.max_iter = max_iter
 
-        self._exp_facto = np.log(self.initial_epsilon/self.final_epsilon)
+        if self.final_epsilon > 0:
+            self._exp_facto = np.log(self.initial_epsilon/self.final_epsilon)
+        else:
+            # TODO
+            self._exp_facto = 1
+
+        self.max_iter_fun = self.default_max_iter_fun
+
+    def default_max_iter_fun(self, nb_success):
+        return int(nb_success * 0.1)  # each time i do 10 episode till the end, i allow the game to continue one more steps
 
     def tell_step(self, current_step):
         self.last_step = current_step
@@ -71,24 +136,28 @@ class TrainingParam(object):
 
     def to_dict(self):
         res = {}
-        for attr_nm in self.__int_attr:
+        for attr_nm in self._int_attr:
             res[attr_nm] = int(getattr(self, attr_nm))
-        for attr_nm in self.__float_attr:
+        for attr_nm in self._float_attr:
             res[attr_nm] = float(getattr(self, attr_nm))
         return res
 
     @staticmethod
     def from_dict(tmp):
         res = TrainingParam()
-        for attr_nm in TrainingParam.__int_attr:
+        for attr_nm in TrainingParam._int_attr:
             if attr_nm in tmp:
                 setattr(res, attr_nm, int(tmp[attr_nm]))
 
-        for attr_nm in TrainingParam.__float_attr:
+        for attr_nm in TrainingParam._float_attr:
             if attr_nm in tmp:
                 setattr(res, attr_nm, float(tmp[attr_nm]))
 
-        res._exp_facto = np.log(res.initial_epsilon / res.final_epsilon)
+        if res.final_epsilon > 0:
+            res._exp_facto = np.log(res.initial_epsilon/res.final_epsilon)
+        else:
+            # TODO
+            res._exp_facto = 1
         return res
 
     @staticmethod

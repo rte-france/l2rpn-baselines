@@ -20,7 +20,7 @@ class DuelQLeapNet(DeepQAgent):
                  lr=1e-3,
                  learning_rate_decay_steps=3000,
                  learning_rate_decay_rate=0.99,
-                 store_action=False,
+                 store_action=True,
                  istraining=False,
                  nb_env=1,
                  **kwargs_converters):
@@ -49,35 +49,46 @@ class DuelQLeapNet(DeepQAgent):
         too
         """
         if self._tmp_obs is None:
-            tmp = np.concatenate((observation.prod_p,
-                                  observation.load_p,
-                                  observation.actual_dispatch,
-                                  observation.target_dispatch,
-                                  observation.rho,
-                                  observation.timestep_overflow,
-                                  observation.line_status,
-                                  observation.topo_vect,
-                                  observation.time_before_cooldown_line,
-                                  observation.time_before_cooldown_sub,
-                                  )).reshape(1, -1)
-
-            # i just want to use the topo_vect as the "tau" in the leap net
-            self.tau_dim_start = observation.prod_p.shape[0] + observation.load_p.shape[0] + observation.rho.shape[0]
-            self.tau_dim_start += observation.actual_dispatch.shape[0] + observation.target_dispatch.shape[0]
-            self.tau_dim_start += observation.timestep_overflow.shape[0] + observation.line_status.shape[0]
-            self.tau_dim_end = self.tau_dim_start
-            self.tau_dim_end += observation.topo_vect.shape[0]
-            self._tmp_obs = np.zeros((1, tmp.shape[1]), dtype=np.float32)
-        # TODO optimize that
-        self._tmp_obs[:] = np.concatenate((observation.prod_p / observation.gen_pmax,
+            tmp = np.concatenate(((observation.day_of_week / 7., ),
+                                  (observation.hour_of_day / 24., ),
+                                  (observation.minute_of_hour / 60., ),
+                                           observation.prod_p / observation.gen_pmax,
+                                           observation.prod_v / observation.gen_pmax,
                                            observation.load_p / 10.,
+                                           observation.load_q / 10.,
                                            observation.actual_dispatch / observation.gen_pmax,
                                            observation.target_dispatch / observation.gen_pmax,
                                            observation.rho,
                                            observation.timestep_overflow,
                                            observation.line_status,
                                            observation.topo_vect,
-                                           observation.time_before_cooldown_line,
-                                           observation.time_before_cooldown_sub,
+                                           observation.time_before_cooldown_line / 10.,
+                                           observation.time_before_cooldown_sub / 10.,
+                                           )).reshape(1, -1)
+
+            # i just want to use the topo_vect as the "tau" in the leap net
+            self.tau_dim_start = 3 + observation.prod_p.shape[0] + observation.prod_v.shape[0] + observation.load_p.shape[0]
+            self.tau_dim_start = observation.load_q.shape[0] + observation.rho.shape[0]
+            self.tau_dim_start += observation.actual_dispatch.shape[0] + observation.target_dispatch.shape[0]
+            self.tau_dim_start += observation.timestep_overflow.shape[0] + observation.line_status.shape[0]
+            self.tau_dim_end = self.tau_dim_start
+            self.tau_dim_end += observation.topo_vect.shape[0]
+            self._tmp_obs = np.zeros((1, tmp.shape[1]), dtype=np.float32)
+        # TODO optimize that
+        self._tmp_obs[:] = np.concatenate(((observation.day_of_week / 7., ),
+                                           (observation.hour_of_day / 24., ),
+                                           (observation.minute_of_hour / 60., ),
+                                           observation.prod_p / observation.gen_pmax,
+                                           observation.prod_v / observation.gen_pmax,
+                                           observation.load_p / 10.,
+                                           observation.load_q / 10.,
+                                           observation.actual_dispatch / observation.gen_pmax,
+                                           observation.target_dispatch / observation.gen_pmax,
+                                           observation.rho,
+                                           observation.timestep_overflow,
+                                           observation.line_status,
+                                           observation.topo_vect,
+                                           observation.time_before_cooldown_line / 10.,
+                                           observation.time_before_cooldown_sub / 10.,
                                            )).reshape(1, -1)
         return self._tmp_obs

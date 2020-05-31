@@ -12,7 +12,7 @@ import tensorflow as tf
 
 from l2rpn_baselines.utils import cli_train
 from l2rpn_baselines.DuelQLeapNet.DuelQLeapNet import DuelQLeapNet, DEFAULT_NAME
-from l2rpn_baselines.utils import TrainingParam
+from l2rpn_baselines.DuelQLeapNet.LeapNetParam import LeapNetParam
 
 import pdb
 
@@ -33,7 +33,7 @@ def train(env,
         tf.config.experimental.set_memory_growth(physical_devices[0], True)
 
     if training_param is None:
-        training_param = TrainingParam()
+        training_param = LeapNetParam()
 
     baseline = DuelQLeapNet(env.action_space,
                             name=name,
@@ -97,19 +97,21 @@ if __name__ == "__main__":
             return res
 
     # Use custom params
-    params = Parameters()
 
     # Create grid2op game environement
     env_init = None
     from grid2op.Chronics import MultifolderWithCache
+    game_param = Parameters()
+    game_param.NB_TIMESTEP_COOLDOWN_SUB = 2
+    game_param.NB_TIMESTEP_COOLDOWN_LINE = 2
     env = make(args.env_name,
-               param=params,
+               param=game_param,
                reward_class=MyReward,
                backend=backend,
                chronics_class=MultifolderWithCache
                )
-    env.chronics_handler.set_max_iter(7*288)
-    env.chronics_handler.real_data.set_filter(lambda x: re.match(".*december.*", x) is not None)
+    # env.chronics_handler.set_max_iter(7*288)
+    env.chronics_handler.real_data.set_filter(lambda x: re.match(".*0[0-6][0-9]{2}$", x) is not None)
     env.chronics_handler.real_data.reset_cache()
 
     # env.chronics_handler.real_data.
@@ -125,16 +127,21 @@ if __name__ == "__main__":
         env.current_obs = env_init.current_obs
         env.set_ff()
 
-    tp = TrainingParam()
-    tp.lr = 1e-4
+    tp = LeapNetParam()
+    tp.lr = 1e-3
     tp.lr_decay_steps = 30000
-    tp.minibatch_size = 128
-    tp.final_epsilon = 1./(7*288.)
-    tp.buffer_size = 120000
-    tp.min_observation = 5000
+    tp.minibatch_size = 512
+    tp.update_freq = 256
+    tp.min_iter = 10
+    # tp.final_epsilon = 1./(7*288.)
+    tp.buffer_size = 1000000
+    tp.min_observation = 10000
+    tp.initial_epsilon = 0.4
+    tp.final_epsilon = 1./(2*7*288.)
+    tp.step_for_final_epsilon = int(1e5)
     kwargs_converters = {"all_actions": None,
                          "set_line_status": False,
-                         "change_bus_vect": False,
+                         "change_bus_vect": True,
                          "set_topo_vect": False
                          }
     nm_ = args.name if args.name is not None else DEFAULT_NAME

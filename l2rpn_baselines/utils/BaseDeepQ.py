@@ -94,7 +94,7 @@ class BaseDeepQ(object):
         fut_action = self.target_model.predict(s2_batch, batch_size=batch_size)
 
         targets[:, a_batch.flatten()] = r_batch
-        targets[d_batch, a_batch[d_batch]] += self.training_param.decay_rate * np.max(fut_action[d_batch], axis=-1)
+        targets[d_batch, a_batch[d_batch]] += self.training_param.discount_factor * np.max(fut_action[d_batch], axis=-1)
 
         loss = self.train_on_batch(self.model, self.optimizer_model, s_batch, targets)
         return loss
