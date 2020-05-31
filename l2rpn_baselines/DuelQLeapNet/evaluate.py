@@ -91,7 +91,7 @@ def evaluate(env,
     if len(agent.dict_action):
         # I output some of the actions played
         print("The agent played {} different action".format(len(agent.dict_action)))
-        for id_, (nb, act) in agent.dict_action.items():
+        for id_, (nb, act, types) in agent.dict_action.items():
             print("Action with ID {} was played {} times".format(id_, nb))
             print("{}".format(act))
             print("-----------")

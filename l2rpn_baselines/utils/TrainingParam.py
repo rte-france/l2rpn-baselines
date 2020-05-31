@@ -69,10 +69,16 @@ class TrainingParam(object):
         A function that return the maximum number of steps an episode can count as for the current epoch. For example
         it can be `max_iter_fun = lambda epoch_num : np.sqrt(50 * epoch_num)`
 
+    update_tensorboard_freq: ``int``
+        Frequency at which tensorboard is refresh (tensorboard summaries are saved every update_tensorboard_freq
+        steps)
+
+    save_model_each: ``int``
+        Frequency at which the model is saved (it is saved every "save_model_each" steps)
     """
     _int_attr = ["buffer_size", "minibatch_size", "step_for_final_epsilon",
                   "min_observation", "last_step", "num_frames", "update_freq",
-                 "min_iter", "max_iter"]
+                 "min_iter", "max_iter", "update_tensorboard_freq", "save_model_each"]
     _float_attr = ["final_epsilon", "initial_epsilon", "lr", "lr_decay_steps", "lr_decay_rate",
                     "discount_factor", "tau"]
 
@@ -92,6 +98,8 @@ class TrainingParam(object):
                  update_freq=256,
                  min_iter=50,
                  max_iter=8064,  # 1 month
+                 update_tensorboard_freq=1000,  # update tensorboard every "update_tensorboard_freq" steps
+                 save_model_each=10000  # save the model every "update_tensorboard_freq" steps
                  ):
 
         self.buffer_size = buffer_size
@@ -118,6 +126,9 @@ class TrainingParam(object):
             self._exp_facto = 1
 
         self.max_iter_fun = self.default_max_iter_fun
+
+        self.update_tensorboard_freq = update_tensorboard_freq
+        self.save_model_each = save_model_each
 
     def default_max_iter_fun(self, nb_success):
         return int(nb_success * 0.1)  # each time i do 10 episode till the end, i allow the game to continue one more steps

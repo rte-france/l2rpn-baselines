@@ -64,6 +64,22 @@ class DeepQAgent(AgentWithConverter):
         self.curr_iter_env = 0
         self.max_reward = 0.
 
+        # action type
+        self.nb_injection = 0
+        self.nb_voltage = 0
+        self.nb_topology = 0
+        self.nb_line = 0
+        self.nb_redispatching = 0
+        self.nb_do_nothing = 0
+
+        # for over sampling the hard scenarios
+        self._prev_obs_num = 0
+        self._time_step_lived = None
+        self._nb_chosen = None
+        self._prev_id = 0
+        # this is for the "limit the episode length" depending on your previous success
+        self._total_sucesses = 0
+
     @abstractmethod
     def init_deep_q(self, transformed_observation):
         pass
@@ -207,8 +223,8 @@ class DeepQAgent(AgentWithConverter):
         else:
             logpath = None
             self.tf_writer = None
-        UPDATE_FREQ = 100  # update tensorboard every "UPDATE_FREQ" steps
-        SAVING_NUM = 1000
+        UPDATE_FREQ = training_param.update_tensorboard_freq  # update tensorboard every "UPDATE_FREQ" steps
+        SAVING_NUM = training_param.save_each
 
         training_step = 0
 
@@ -322,7 +338,7 @@ class DeepQAgent(AgentWithConverter):
                 # if the loss is not finite i stop the learning
                 return False
             self.deep_q.target_train()
-            self.losses[training_step] = np.sum(loss)
+            self.losses[training_step:] = np.sum(loss)
         return True
 
     def _updage_illegal_ambiguous(self, curr_step, info):
@@ -490,6 +506,7 @@ class DeepQAgent(AgentWithConverter):
                 array_ = np.argsort(-self._nb_chosen)[:10]
                 print("hardest scenario\n{}".format(array_))
                 print("They have been chosen respectively\n{}".format(self._nb_chosen[array_]))
+                print("The number of timesteps played is\n{}".format(self._time_step_lived[array_]))
             with self.tf_writer.as_default():
                 last_alive = epoch_alive[(epoch_num-1)]
                 last_reward = epoch_rewards[(epoch_num-1)]
@@ -547,12 +564,21 @@ class DeepQAgent(AgentWithConverter):
                 tf.summary.scalar("z_total_episode", epoch_num, step_tb)
 
                 if self.store_action:
-                    tf.summary.scalar("zz_freq_inj", self.nb_injection / step, step_tb)
-                    tf.summary.scalar("zz_freq_voltage", self.nb_voltage / step, step_tb)
-                    tf.summary.scalar("z_freq_topo", self.nb_topology / step, step_tb)
-                    tf.summary.scalar("z_freq_line_status", self.nb_line / step, step_tb)
-                    tf.summary.scalar("z_freq_redisp", self.nb_redispatching / step, step_tb)
-                    tf.summary.scalar("z_freq_do_nothing", self.nb_do_nothing / step, step_tb)
+                    nb_ = 10  # reset the frequencies every nb_ saving
+                    tf.summary.scalar("zz_freq_inj", self.nb_injection / (nb_ * UPDATE_FREQ), step_tb)
+                    tf.summary.scalar("zz_freq_voltage", self.nb_voltage / (nb_ * UPDATE_FREQ), step_tb)
+                    tf.summary.scalar("z_freq_topo", self.nb_topology / (nb_ * UPDATE_FREQ), step_tb)
+                    tf.summary.scalar("z_freq_line_status", self.nb_line / (nb_ * UPDATE_FREQ), step_tb)
+                    tf.summary.scalar("z_freq_redisp", self.nb_redispatching / (nb_ * UPDATE_FREQ), step_tb)
+                    tf.summary.scalar("z_freq_do_nothing", self.nb_do_nothing / (nb_ * UPDATE_FREQ), step_tb)
+                    if step % (nb_ * UPDATE_FREQ) == 0:
+                        self.nb_injection = 0
+                        self.nb_voltage = 0
+                        self.nb_topology = 0
+                        self.nb_line = 0
+                        self.nb_redispatching = 0
+                        self.nb_do_nothing = 0
+
 
                 tf.summary.histogram(
                     "timestep_lived", self._time_step_lived, step=step_tb, buckets=None,
