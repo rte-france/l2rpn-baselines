@@ -80,6 +80,9 @@ class DeepQAgent(AgentWithConverter):
         # this is for the "limit the episode length" depending on your previous success
         self._total_sucesses = 0
 
+        # update frequency of action types
+        self.nb_updated_act_tensorboard = None
+
     @abstractmethod
     def init_deep_q(self, transformed_observation):
         pass
@@ -224,7 +227,7 @@ class DeepQAgent(AgentWithConverter):
             logpath = None
             self.tf_writer = None
         UPDATE_FREQ = training_param.update_tensorboard_freq  # update tensorboard every "UPDATE_FREQ" steps
-        SAVING_NUM = training_param.save_each
+        SAVING_NUM = training_param.save_model_each
 
         training_step = 0
 
@@ -260,6 +263,9 @@ class DeepQAgent(AgentWithConverter):
         self._prev_id = 0
         # this is for the "limit the episode length" depending on your previous success
         self._total_sucesses = 0
+
+        # update the frequency of action types
+        self.nb_updated_act_tensorboard = 0
 
         with tqdm(total=iterations) as pbar:
             while training_step < iterations:
@@ -501,10 +507,11 @@ class DeepQAgent(AgentWithConverter):
 
         # Log some useful metrics every even updates
         if step % UPDATE_FREQ == 0 and epoch_num > 0:
-            if step % (100 * UPDATE_FREQ) == 0:
-                # print the top 5 scenarios the "hardest" (ie chosen the most number of times
-                array_ = np.argsort(-self._nb_chosen)[:10]
-                print("hardest scenario\n{}".format(array_))
+            if step % (10 * UPDATE_FREQ) == 0:
+                # print the top k scenarios the "hardest" (ie chosen the most number of times
+                top_k = 10
+                array_ = np.argsort(-self._nb_chosen)[:top_k]
+                print("hardest scenarios\n{}".format(array_))
                 print("They have been chosen respectively\n{}".format(self._nb_chosen[array_]))
                 print("The number of timesteps played is\n{}".format(self._time_step_lived[array_]))
             with self.tf_writer.as_default():
@@ -565,12 +572,13 @@ class DeepQAgent(AgentWithConverter):
 
                 if self.store_action:
                     nb_ = 10  # reset the frequencies every nb_ saving
-                    tf.summary.scalar("zz_freq_inj", self.nb_injection / (nb_ * UPDATE_FREQ), step_tb)
-                    tf.summary.scalar("zz_freq_voltage", self.nb_voltage / (nb_ * UPDATE_FREQ), step_tb)
-                    tf.summary.scalar("z_freq_topo", self.nb_topology / (nb_ * UPDATE_FREQ), step_tb)
-                    tf.summary.scalar("z_freq_line_status", self.nb_line / (nb_ * UPDATE_FREQ), step_tb)
-                    tf.summary.scalar("z_freq_redisp", self.nb_redispatching / (nb_ * UPDATE_FREQ), step_tb)
-                    tf.summary.scalar("z_freq_do_nothing", self.nb_do_nothing / (nb_ * UPDATE_FREQ), step_tb)
+                    self.nb_updated_act_tensorboard += UPDATE_FREQ
+                    tf.summary.scalar("zz_freq_inj", self.nb_injection / self.nb_updated_act_tensorboard, step_tb)
+                    tf.summary.scalar("zz_freq_voltage", self.nb_voltage / self.nb_updated_act_tensorboard, step_tb)
+                    tf.summary.scalar("z_freq_topo", self.nb_topology / self.nb_updated_act_tensorboard, step_tb)
+                    tf.summary.scalar("z_freq_line_status", self.nb_line / self.nb_updated_act_tensorboard, step_tb)
+                    tf.summary.scalar("z_freq_redisp", self.nb_redispatching / self.nb_updated_act_tensorboard, step_tb)
+                    tf.summary.scalar("z_freq_do_nothing", self.nb_do_nothing / self.nb_updated_act_tensorboard, step_tb)
                     if step % (nb_ * UPDATE_FREQ) == 0:
                         self.nb_injection = 0
                         self.nb_voltage = 0
@@ -578,6 +586,7 @@ class DeepQAgent(AgentWithConverter):
                         self.nb_line = 0
                         self.nb_redispatching = 0
                         self.nb_do_nothing = 0
+                        self.nb_updated_act_tensorboard = 0
 
 
                 tf.summary.histogram(
