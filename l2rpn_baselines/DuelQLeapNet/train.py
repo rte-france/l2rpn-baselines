@@ -12,7 +12,7 @@ import tensorflow as tf
 
 from l2rpn_baselines.utils import cli_train
 from l2rpn_baselines.DuelQLeapNet.DuelQLeapNet import DuelQLeapNet, DEFAULT_NAME
-from l2rpn_baselines.DuelQLeapNet.LeapNetParam import LeapNetParam
+from l2rpn_baselines.utils import TrainingParam
 
 import pdb
 
@@ -33,7 +33,7 @@ def train(env,
         tf.config.experimental.set_memory_growth(physical_devices[0], True)
 
     if training_param is None:
-        training_param = LeapNetParam()
+        training_param = TrainingParam()
 
     baseline = DuelQLeapNet(env.action_space,
                             name=name,
@@ -127,13 +127,12 @@ if __name__ == "__main__":
         env.current_obs = env_init.current_obs
         env.set_ff()
 
-    tp = LeapNetParam()
+    tp = TrainingParam()
     tp.lr = 1e-3
     tp.lr_decay_steps = 30000
-    tp.minibatch_size = 512
-    tp.update_freq = 256
+    tp.minibatch_size = 256
+    tp.update_freq = 128
     tp.min_iter = 10
-    # tp.final_epsilon = 1./(7*288.)
     tp.buffer_size = 1000000
     tp.min_observation = 10000
     tp.initial_epsilon = 0.4
