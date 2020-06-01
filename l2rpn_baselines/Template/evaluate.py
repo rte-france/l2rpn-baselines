@@ -96,8 +96,7 @@ def evaluate(env,
         print(msg_tmp)
 
     if save_gif:
-        save_log_gif(load_path, res)
-
+        save_log_gif(logs_path, res)
 
 if __name__ == "__main__":
     """

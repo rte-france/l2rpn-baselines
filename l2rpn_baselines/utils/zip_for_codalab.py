@@ -16,7 +16,8 @@ import grid2op
 
 
 def zip_for_codalab(path_agent, dest="."):
-
+    warnings.warn("This is a deprecated version of the zip file. Please avoid using it and use the one given in the "
+                  "starting kit of the competition.")
     folder = os.path.abspath(path_agent)
     if not os.path.exists(folder):
         raise RuntimeError("The folder \"{}\" is empty and cannot be send to codalab to serve as a submitted agent.")
@@ -80,3 +81,7 @@ def zip_for_codalab(path_agent, dest="."):
                            arcname=arc_path)
     print(f"The zip file \"{zip_file_name}\" has been created with your submission in it.")
     return zip_file_name
+
+
+if __name__ == "__main__":
+    pass

@@ -12,17 +12,19 @@ import os
 import argparse
 import tensorflow as tf
 
-from grid2op.MakeEnv import make2
+from grid2op.MakeEnv import make
 from grid2op.Runner import Runner
 from grid2op.Reward import *
 from grid2op.Action import *
 
 from l2rpn_baselines.DoubleDuelingRDQN.DoubleDuelingRDQN import DoubleDuelingRDQN as RDQNAgent
+from l2rpn_baselines.utils.save_log_gif import save_log_gif
 
 DEFAULT_LOGS_DIR = "./logs-eval"
 DEFAULT_NB_EPISODE = 1
 DEFAULT_NB_PROCESS = 1
 DEFAULT_MAX_STEPS = -1
+
 
 def cli():
     parser = argparse.ArgumentParser(description="Eval baseline DDDQN")
@@ -32,7 +34,7 @@ def cli():
                         help="The path to the model [.h5]")
     parser.add_argument("--logs_dir", required=False,
                         default=DEFAULT_LOGS_DIR, type=str,
-                        help="Path to output logs directory") 
+                        help="Path to output logs directory")
     parser.add_argument("--nb_episode", required=False,
                         default=DEFAULT_NB_EPISODE, type=int,
                         help="Number of episodes to evaluate")
@@ -101,19 +103,22 @@ def evaluate(env,
         msg_tmp += "\ttime steps: {:.0f}/{:.0f}".format(nb_time_step, max_ts)
         print(msg_tmp)
 
+    if save_gif:
+        save_log_gif(logs_path, res)
+
 
 if __name__ == "__main__":
     # Parse command line
     args = cli()
     # Create dataset env
-    env = make2(args.data_dir,
-                reward_class=RedispReward,
-                action_class=TopologyChangeAction,
-                other_rewards={
-                    "bridge": BridgeReward,
-                    "overflow": CloseToOverflowReward,
-                    "distance": DistanceReward
-                })
+    env = make(args.data_dir,
+               reward_class=RedispReward,
+               action_class=TopologyChangeAndDispatchAction,
+               other_rewards={
+                   "bridge": BridgeReward,
+                   "overflow": CloseToOverflowReward,
+                   "distance": DistanceReward
+               })
     # Call evaluation interface
     evaluate(env,
              load_path=args.load_file,

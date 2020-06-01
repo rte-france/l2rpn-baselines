@@ -11,7 +11,7 @@
 import argparse
 import tensorflow as tf
 
-from grid2op.MakeEnv import make2
+from grid2op.MakeEnv import make
 from grid2op.Reward import *
 from grid2op.Action import *
 
@@ -31,9 +31,9 @@ def cli():
     parser = argparse.ArgumentParser(description="Train baseline DDQN")
 
     # Paths
-    parser.add_argument("--name", required=True,
+    parser.add_argument("--name", default=DEFAULT_NAME,
                         help="The name of the model")
-    parser.add_argument("--data_dir", required=True,
+    parser.add_argument("--data_dir", default="rte_case14_realistic",
                         help="Path to the dataset root directory")
     parser.add_argument("--save_dir", required=False,
                         default=DEFAULT_SAVE_DIR, type=str,
@@ -76,7 +76,8 @@ def train(env,
 
     # Limit gpu usage
     physical_devices = tf.config.list_physical_devices('GPU')
-    tf.config.experimental.set_memory_growth(physical_devices[0], True)
+    if len(physical_devices) > 0:
+        tf.config.experimental.set_memory_growth(physical_devices[0], True)
 
     agent = RDQNAgent(env.observation_space,
                       env.action_space,
@@ -99,17 +100,17 @@ def train(env,
 if __name__ == "__main__":
     args = cli()
     # Create grid2op game environement
-    env = make2(args.data_dir,
-                action_class=TopologyChangeAction,
-                reward_class=CombinedReward)
+    env = make(args.data_dir,
+               action_class=TopologyChangeAndDispatchAction,
+               reward_class=CombinedScaledReward)
 
     # Register custom reward for training
     cr = env.reward_helper.template_reward
-    cr.addReward("bridge", BridgeReward(), 5.0)
-    cr.addReward("distance", DistanceReward(), 5.0)
-    cr.addReward("overflow", CloseToOverflowReward(), 10.0)
-    cr.addReward("game", GameplayReward(), 10.0)
-    #cr.addReward("redisp", RedispReward(), 1e-3)
+    cr.addReward("reco", LinesReconnectedReward(), 50.0)
+    cr.addReward("overflow", CloseToOverflowReward(), 50.0)
+    cr.addReward("game", GameplayReward(), 100.0)
+    cr.addReward("redisp", RedispReward(), 1e-3)
+    cr.set_range(-10.0, 10.0)
     # Initialize custom rewards
     cr.initialize(env)
 

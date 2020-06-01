@@ -11,12 +11,7 @@
 import argparse
 import tensorflow as tf
 
-from grid2op.MakeEnv import make2
-from grid2op.Reward import *
-from grid2op.Action import *
-
 from l2rpn_baselines.DoubleDuelingDQN.DoubleDuelingDQN import DoubleDuelingDQN as DDDQNAgent
-# from l2rpn_baselines.DoubleDuelingDQN.LinesReconnectedReward import LinesReconnectedReward
 
 DEFAULT_NAME = "DoubleDuelingDQN"
 DEFAULT_SAVE_DIR = "./models"
@@ -25,16 +20,15 @@ DEFAULT_PRE_STEPS = 256
 DEFAULT_TRAIN_STEPS = 1024
 DEFAULT_N_FRAMES = 4
 DEFAULT_BATCH_SIZE = 32
-DEFAULT_LR = 2e-5
+DEFAULT_LR = 1e-5
 
 
 def cli():
     parser = argparse.ArgumentParser(description="Train baseline DDQN")
-
     # Paths
-    parser.add_argument("--name", required=True,
+    parser.add_argument("--name", default=DEFAULT_NAME,
                         help="The name of the model")
-    parser.add_argument("--data_dir", required=True,
+    parser.add_argument("--data_dir", default="rte_case14_realistic",
                         help="Path to the dataset root directory")
     parser.add_argument("--save_dir", required=False,
                         default=DEFAULT_SAVE_DIR, type=str,
@@ -60,8 +54,8 @@ def cli():
     parser.add_argument("--learning_rate", required=False,
                         default=DEFAULT_LR, type=float,
                         help="Learning rate for the Adam optimizer")
-
     return parser.parse_args()
+
 
 def train(env,
           name = DEFAULT_NAME,
@@ -76,7 +70,8 @@ def train(env,
 
     # Limit gpu usage
     physical_devices = tf.config.list_physical_devices('GPU')
-    tf.config.experimental.set_memory_growth(physical_devices[0], True)
+    if len(physical_devices) > 0:
+        tf.config.experimental.set_memory_growth(physical_devices[0], True)
 
     agent = DDDQNAgent(env.observation_space,
                        env.action_space,
@@ -97,22 +92,35 @@ def train(env,
 
 
 if __name__ == "__main__":
+    from grid2op.MakeEnv import make
+    from grid2op.Reward import *
+    from grid2op.Action import *
+    from grid2op.Parameters import Parameters
+    import sys
+
     args = cli()
+    # Use custom params
+    params = Parameters()
+    params.MAX_SUB_CHANGED = 2
+
     # Create grid2op game environement
-    env = make2(args.data_dir,
-                action_class=TopologyChangeAndDispatchAction,
-                reward_class=CombinedReward)
+    env = make(args.data_dir,
+               param=params,
+               action_class=TopologyChangeAndDispatchAction,
+               reward_class=CombinedScaledReward)
+
+    # Only load 128 steps in ram
+    env.chronics_handler.set_chunk_size(128)
 
     # Register custom reward for training
     cr = env.reward_helper.template_reward
-    #cr.addReward("bridge", BridgeReward(), 25.0)
     cr.addReward("overflow", CloseToOverflowReward(), 50.0)
-    #cr.addReward("distance", DistanceReward(), 50.0)
-    cr.addReward("game", GameplayReward(), 100.0)
-    # cr.addReward("recolines", LinesReconnectedReward(), 50.0)
-    #cr.addReward("redisp", RedispReward(), 1e-3)
+    cr.addReward("game", GameplayReward(), 200.0)
+    cr.addReward("recolines", LinesReconnectedReward(), 50.0)
     # Initialize custom rewards
     cr.initialize(env)
+    # Set reward range to something managable
+    cr.set_range(-10.0, 10.0)
 
     train(env,
           name = args.name,

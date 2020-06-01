@@ -24,6 +24,6 @@ rm -rf ./logs-train/$RDQN_NAME
 rm -rf ./logs-eval/$RDQN_NAME
 ./evaluate.py \
     --data_dir $RDQN_DATA \
-    --load_file ./models/$RDQN_NAME.h5 \
+    --load_file ./models/$RDQN_NAME.tf \
     --logs_dir ./logs-eval/$RDQN_NAME \
     --nb_episode 10

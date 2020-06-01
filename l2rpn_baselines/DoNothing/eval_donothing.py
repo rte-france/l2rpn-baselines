@@ -1,13 +1,23 @@
 #!/usr/bin/env python3
 
+# Copyright (c) 2020, RTE (https://www.rte-france.com)
+# See AUTHORS.txt
+# This Source Code Form is subject to the terms of the Mozilla Public License, version 2.0.
+# If a copy of the Mozilla Public License, version 2.0 was not distributed with this file,
+# you can obtain one at http://mozilla.org/MPL/2.0/.
+# SPDX-License-Identifier: MPL-2.0
+# This file is part of L2RPN Baselines, L2RPN Baselines a repository to host baselines for l2rpn competitions.
+
 import os
 import argparse
 
-from grid2op.MakeEnv import make2
+from grid2op.MakeEnv import make
 from grid2op.Runner import Runner
 from grid2op.Reward import *
 from grid2op.Action import *
 from grid2op.Agent import DoNothingAgent
+
+from l2rpn_baselines.utils.save_log_gif import save_log_gif
 
 DEFAULT_LOGS_DIR = "./logs-eval/do-nothing-baseline"
 DEFAULT_NB_EPISODE = 1
@@ -20,7 +30,7 @@ def cli():
                         help="Path to the dataset root directory")
     parser.add_argument("--logs_dir", required=False,
                         default=DEFAULT_LOGS_DIR, type=str,
-                        help="Path to output logs directory") 
+                        help="Path to output logs directory")
     parser.add_argument("--nb_episode", required=False,
                         default=DEFAULT_NB_EPISODE, type=int,
                         help="Number of episodes to evaluate")
@@ -68,19 +78,21 @@ def evaluate(env,
         msg_tmp += "\ttime steps: {:.0f}/{:.0f}".format(nb_time_step, max_ts)
         print(msg_tmp)
 
+    if save_gif:
+        save_log_gif(logs_path, res)
 
 if __name__ == "__main__":
     # Parse command line
     args = cli()
     # Create dataset env
-    env = make2(args.data_dir,
-                reward_class=RedispReward,
-                action_class=TopologyChangeAction,
-                other_rewards={
-                    "bridge": BridgeReward,
-                    "overflow": CloseToOverflowReward,
-                    "distance": DistanceReward
-                })
+    env = make(args.data_dir,
+               reward_class=RedispReward,
+               action_class=TopologyChangeAction,
+               other_rewards={
+                   "bridge": BridgeReward,
+                   "overflow": CloseToOverflowReward,
+                   "distance": DistanceReward
+               })
     # Call evaluation interface
     evaluate(env,
              logs_path=args.logs_dir,

@@ -17,11 +17,11 @@ from grid2op.Converter import IdToAct
 from l2rpn_baselines.DoubleDuelingDQN.DoubleDuelingDQN_NN import DoubleDuelingDQN_NN
 from l2rpn_baselines.DoubleDuelingDQN.prioritized_replay_buffer import PrioritizedReplayBuffer
 
-LR_DECAY_STEPS = 1024*16
+LR_DECAY_STEPS = 1024*32
 LR_DECAY_RATE = 0.95
-INITIAL_EPSILON = 0.9
+INITIAL_EPSILON = 0.99
 FINAL_EPSILON = 0.001
-DECAY_EPSILON = 1024*16
+DECAY_EPSILON = 1024*32
 DISCOUNT_FACTOR = 0.99
 PER_CAPACITY = 1024*64
 PER_ALPHA = 0.7
@@ -29,6 +29,7 @@ PER_BETA = 0.5
 UPDATE_FREQ = 64
 UPDATE_TARGET_HARD_FREQ = 16
 UPDATE_TARGET_SOFT_TAU = -1
+
 
 class DoubleDuelingDQN(AgentWithConverter):
     def __init__(self,
@@ -73,10 +74,10 @@ class DoubleDuelingDQN(AgentWithConverter):
         # Load network graph
         self.Qmain = DoubleDuelingDQN_NN(self.action_size,
                                          self.observation_size,
-                                         num_frames = self.num_frames,
-                                         learning_rate = self.lr,
-                                         learning_rate_decay_steps = LR_DECAY_STEPS,
-                                         learning_rate_decay_rate = LR_DECAY_RATE)
+                                         num_frames=self.num_frames,
+                                         learning_rate=self.lr,
+                                         learning_rate_decay_steps=LR_DECAY_STEPS,
+                                         learning_rate_decay_rate=LR_DECAY_RATE)
         # Setup training vars if needed
         if self.is_training:
             self._init_training()
@@ -115,7 +116,8 @@ class DoubleDuelingDQN(AgentWithConverter):
 
     def _adaptive_epsilon_decay(self, step):
         ada_div = DECAY_EPSILON / 10.0
-        ada_eps = 1.0 - math.log10((step + 1) / ada_div)
+        step_off = step + ada_div
+        ada_eps = INITIAL_EPSILON * -math.log10((step_off + 1) / (DECAY_EPSILON + ada_div))
         ada_eps_up_clip = min(INITIAL_EPSILON, ada_eps)
         ada_eps_low_clip = max(FINAL_EPSILON, ada_eps_up_clip)
         return ada_eps_low_clip
@@ -148,14 +150,12 @@ class DoubleDuelingDQN(AgentWithConverter):
 
     ## Agent Interface
     def convert_obs(self, observation):
-        # Made a custom version to normalize per attribute
-        #return observation.to_vect()
         li_vect=  []
         for el in observation.attr_list_vect:
-            v = observation._get_array_from_attr_name(el).astype(np.float)
+            v = observation._get_array_from_attr_name(el).astype(np.float32)
             v_fix = np.nan_to_num(v)
             v_norm = np.linalg.norm(v_fix)
-            if v_norm > 1e8:
+            if v_norm > 1e6:
                 v_res = (v_fix / v_norm) * 10.0
             else:
                 v_res = v_fix
@@ -192,7 +192,7 @@ class DoubleDuelingDQN(AgentWithConverter):
     def train(self, env,
               iterations,
               save_path,
-              num_pre_training_steps = 0,
+              num_pre_training_steps=0,
               logdir = "logs-train"):
         # Make sure we can fill the experience buffer
         if num_pre_training_steps < self.batch_size * self.num_frames:
@@ -219,6 +219,11 @@ class DoubleDuelingDQN(AgentWithConverter):
             # Init first time or new episode
             if self.done:
                 new_obs = env.reset() # This shouldn't raise
+                # Random fast forward somewhere in the day
+                #ff_rand = np.random.randint(0, 12*24) 
+                #env.fast_forward_chronics(ff_rand)
+                # Reset internal state
+                #new_obs = env.current_obs
                 self.reset(new_obs)
             if step % 1000 == 0:
                 print("Step [{}] -- Random [{}]".format(step, self.epsilon))
@@ -331,8 +336,8 @@ class DoubleDuelingDQN(AgentWithConverter):
                 tf.summary.trace_export(self.name + "-graph", step)
 
         # T+1 batch predict
-        Q1 = self.Qmain.model.predict(input_t_1, batch_size = self.batch_size)
-        Q2 = self.Qtarget.model.predict(input_t_1, batch_size = self.batch_size)
+        Q1 = self.Qmain.model.predict(input_t_1, batch_size=self.batch_size)
+        Q2 = self.Qtarget.model.predict(input_t_1, batch_size=self.batch_size)
 
         # Compute batch Qtarget using Double DQN
         for i in range(self.batch_size):
@@ -351,7 +356,7 @@ class DoubleDuelingDQN(AgentWithConverter):
         self.per_buffer.update_priorities(idx_batch, priorities)
 
         # Log some useful metrics every even updates
-        if step % (2 * UPDATE_FREQ) == 0:
+        if step % (UPDATE_FREQ * 2) == 0:
             with self.tf_writer.as_default():
                 mean_reward = np.mean(self.epoch_rewards)
                 mean_alive = np.mean(self.epoch_alive)
