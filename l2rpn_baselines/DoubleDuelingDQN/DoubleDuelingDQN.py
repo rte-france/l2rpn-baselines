@@ -44,6 +44,11 @@ class DoubleDuelingDQN(AgentWithConverter):
         AgentWithConverter.__init__(self, action_space,
                                     action_space_converter=IdToAct)
         self.obs_space = observation_space
+
+        # Filter
+        print("Actions filtering...")
+        self.action_space.filter_action(self._filter_action)
+        print("..Done")
         
         # Store constructor params
         self.name = name
@@ -82,6 +87,22 @@ class DoubleDuelingDQN(AgentWithConverter):
         if self.is_training:
             self._init_training()
 
+    def _filter_action(self, action):
+        MAX_ELEM = 2
+        act_dict = action.impact_on_objects()
+        elem = 0
+        elem += act_dict["force_line"]["reconnections"]["count"]
+        elem += act_dict["force_line"]["disconnections"]["count"]
+        elem += act_dict["switch_line"]["count"]
+        elem += len(act_dict["topology"]["bus_switch"])
+        elem += len(act_dict["topology"]["assigned_bus"])
+        elem += len(act_dict["topology"]["disconnect_bus"])
+        elem += len(act_dict["redispatch"]["generators"])
+
+        if elem <= MAX_ELEM:
+            return True
+        return False
+            
     def _init_training(self):
         self.epsilon = INITIAL_EPSILON
         self.frames2 = []
