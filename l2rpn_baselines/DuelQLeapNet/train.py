@@ -111,7 +111,7 @@ if __name__ == "__main__":
                chronics_class=MultifolderWithCache
                )
     # env.chronics_handler.set_max_iter(7*288)
-    env.chronics_handler.real_data.set_filter(lambda x: re.match(".*0[0-6][0-9]{2}$", x) is not None)
+    env.chronics_handler.real_data.set_filter(lambda x: re.match(".*0[0-1][0-9]{2}$", x) is not None)
     env.chronics_handler.real_data.reset_cache()
 
     # env.chronics_handler.real_data.
@@ -128,16 +128,38 @@ if __name__ == "__main__":
         env.set_ff()
 
     tp = TrainingParam()
-    tp.lr = 1e-3
+
+    # NN training
+    tp.lr = 1e-4
     tp.lr_decay_steps = 30000
     tp.minibatch_size = 256
     tp.update_freq = 128
+
+    # limit the number of time steps played per scenarios
+    tp.step_increase_nb_iter = 2
     tp.min_iter = 10
+    tp.update_nb_iter(2)
+
+    # oversampling hard scenarios
+    tp.oversampling_rate = None
+
+    # experience replay
     tp.buffer_size = 1000000
+
+    # e greedy
     tp.min_observation = 10000
     tp.initial_epsilon = 0.4
     tp.final_epsilon = 1./(2*7*288.)
     tp.step_for_final_epsilon = int(1e5)
+
+    # don't start always at the same hour (if not None) otherwise random sampling, see docs
+    tp.random_sample_datetime_start = None
+
+    # saving, logging etc.
+    tp.save_model_each = 10000
+    tp.update_tensorboard_freq = 256
+
+    # which actions i keep
     kwargs_converters = {"all_actions": None,
                          "set_line_status": False,
                          "change_bus_vect": True,

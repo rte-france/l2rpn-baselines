@@ -65,9 +65,29 @@ class TrainingParam(object):
     max_iter: ``int``
         Just like "min_iter" but instead of being the minimum number of iteration, it's the maximum.
 
+    update_nb_iter: ``int``
+        If max_iter_fun is the default one, this numer give the number of time we need to succeed a scenario before
+        having to increase the maximum number of timestep allowed
+
+    step_increase_nb_iter: ``int`` or  ``None``
+        Of how many timestep we increase the maximum number of timesteps allowed per episode. Set it to O to deactivate
+        this.
+
     max_iter_fun: ``function``
         A function that return the maximum number of steps an episode can count as for the current epoch. For example
         it can be `max_iter_fun = lambda epoch_num : np.sqrt(50 * epoch_num)`
+        [default lambda x: x / self.update_nb_iter]
+
+    oversampling_rate: ``float`` or ``None``
+        Set it to None to deactivate the oversampling of hard scenarios. Otherwise, this oversampling is done
+        with something like `proba = 1. / (time_step_lived**oversampling_rate + 1)` where `proba` is the probability
+        to be selected at the next call to "reset" and `time_step_lived` is the number of time steps
+
+    random_sample_datetime_start: ``int`` or ``None``
+        If ``None`` during training the chronics will always start at the datetime the chronics start.
+        Otherwise, the training scheme will skip a number of time steps between 0 and  `random_sample_datetime_start`
+        when loading the next chronics. This is particularly useful when you want your agent to learn to operate
+        the grid regardless of the hour of day or day of the week.
 
     update_tensorboard_freq: ``int``
         Frequency at which tensorboard is refresh (tensorboard summaries are saved every update_tensorboard_freq
@@ -78,9 +98,10 @@ class TrainingParam(object):
     """
     _int_attr = ["buffer_size", "minibatch_size", "step_for_final_epsilon",
                   "min_observation", "last_step", "num_frames", "update_freq",
-                 "min_iter", "max_iter", "update_tensorboard_freq", "save_model_each"]
+                 "min_iter", "max_iter", "update_tensorboard_freq", "save_model_each", "update_nb_iter_",
+                 "step_increase_nb_iter"]
     _float_attr = ["final_epsilon", "initial_epsilon", "lr", "lr_decay_steps", "lr_decay_rate",
-                    "discount_factor", "tau"]
+                    "discount_factor", "tau", "oversampling_rate"]
 
     def __init__(self,
                  buffer_size=40000,
@@ -98,9 +119,15 @@ class TrainingParam(object):
                  update_freq=256,
                  min_iter=50,
                  max_iter=8064,  # 1 month
+                 update_nb_iter=10,
+                 step_increase_nb_iter=0,  # by default no oversampling / under sampling based on difficulty
                  update_tensorboard_freq=1000,  # update tensorboard every "update_tensorboard_freq" steps
-                 save_model_each=10000  # save the model every "update_tensorboard_freq" steps
+                 save_model_each=10000,  # save the model every "update_tensorboard_freq" steps
+                 random_sample_datetime_start=None,
+                 oversampling_rate=None,
                  ):
+
+        self.random_sample_datetime_start = random_sample_datetime_start
 
         self.buffer_size = buffer_size
         self.minibatch_size = minibatch_size
@@ -118,6 +145,14 @@ class TrainingParam(object):
         self.update_freq = update_freq
         self.min_iter = min_iter
         self.max_iter = max_iter
+        self.update_nb_iter_ = update_nb_iter
+        if step_increase_nb_iter is None:
+            # 0 and None have the same effect: it disable the feature
+            step_increase_nb_iter = 0
+        self.step_increase_nb_iter = step_increase_nb_iter
+
+        if oversampling_rate is not None:
+            self.oversampling_rate = float(oversampling_rate)
 
         if self.final_epsilon > 0:
             self._exp_facto = np.log(self.initial_epsilon/self.final_epsilon)
@@ -125,13 +160,25 @@ class TrainingParam(object):
             # TODO
             self._exp_facto = 1
 
+        if self.update_nb_iter_ > 0:
+            self._1_update_nb_iter = 1.0 / self.update_nb_iter_
+        else:
+            self._1_update_nb_iter = 1.0
+
         self.max_iter_fun = self.default_max_iter_fun
 
         self.update_tensorboard_freq = update_tensorboard_freq
         self.save_model_each = save_model_each
 
+    def update_nb_iter(self, update_nb_iter):
+        self.update_nb_iter_ = update_nb_iter
+        if self.update_nb_iter_ > 0:
+            self._1_update_nb_iter = 1.0 / self.update_nb_iter_
+        else:
+            self._1_update_nb_iter = 1.0
+
     def default_max_iter_fun(self, nb_success):
-        return int(nb_success * 0.1)  # each time i do 10 episode till the end, i allow the game to continue one more steps
+        return self.step_increase_nb_iter * int(nb_success * self._1_update_nb_iter)
 
     def tell_step(self, current_step):
         self.last_step = current_step
@@ -148,9 +195,17 @@ class TrainingParam(object):
     def to_dict(self):
         res = {}
         for attr_nm in self._int_attr:
-            res[attr_nm] = int(getattr(self, attr_nm))
+            tmp = getattr(self, attr_nm)
+            if tmp is not None:
+                res[attr_nm] = int(tmp)
+            else:
+                res[attr_nm] = None
         for attr_nm in self._float_attr:
-            res[attr_nm] = float(getattr(self, attr_nm))
+            tmp = getattr(self, attr_nm)
+            if tmp is not None:
+                res[attr_nm] = float(tmp)
+            else:
+                res[attr_nm] = None
         return res
 
     @staticmethod
@@ -158,17 +213,27 @@ class TrainingParam(object):
         res = TrainingParam()
         for attr_nm in TrainingParam._int_attr:
             if attr_nm in tmp:
-                setattr(res, attr_nm, int(tmp[attr_nm]))
+                tmp_ = tmp[attr_nm]
+                if tmp_ is not None:
+                    setattr(res, attr_nm, int(tmp_))
+                else:
+                    setattr(res, attr_nm, None)
 
         for attr_nm in TrainingParam._float_attr:
             if attr_nm in tmp:
-                setattr(res, attr_nm, float(tmp[attr_nm]))
+                tmp_ = tmp[attr_nm]
+                if tmp_ is not None:
+                    setattr(res, attr_nm, float(tmp_))
+                else:
+                    setattr(res, attr_nm, None)
 
         if res.final_epsilon > 0:
             res._exp_facto = np.log(res.initial_epsilon/res.final_epsilon)
         else:
             # TODO
             res._exp_facto = 1
+        res.update_nb_iter(res.update_nb_iter_)
+
         return res
 
     @staticmethod

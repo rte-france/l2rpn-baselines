@@ -76,6 +76,7 @@ class DeepQAgent(AgentWithConverter):
         self._prev_obs_num = 0
         self._time_step_lived = None
         self._nb_chosen = None
+        self._proba = None
         self._prev_id = 0
         # this is for the "limit the episode length" depending on your previous success
         self._total_sucesses = 0
@@ -193,6 +194,7 @@ class DeepQAgent(AgentWithConverter):
                 self.action_space.save(path=path, name=nm_conv)
             self.training_param.save_as_json(path, name="{}_training_params.json".format(self.name))
             self.deep_q.save_network(path, name=self.name)
+            # TODO save the "oversampling" part
 
     # utilities for data reading
     def set_chunk(self, env, nb):
@@ -258,8 +260,9 @@ class DeepQAgent(AgentWithConverter):
 
         # for non uniform random sampling of the scenarios
         self._prev_obs_num = 0
-        self._time_step_lived = np.zeros(env.chronics_handler.real_data.cache_size, dtype=np.int)  # number of time step lived per possible scenarios
-        self._nb_chosen = np.zeros(env.chronics_handler.real_data.cache_size, dtype=np.int)  # number of time a given scenario has been played
+        self._time_step_lived = np.zeros(env.chronics_handler.real_data.cache_size, dtype=np.uint64)  # number of time step lived per possible scenarios
+        self._nb_chosen = np.zeros(env.chronics_handler.real_data.cache_size, dtype=np.uint)  # number of time a given scenario has been played
+        self._proba = np.ones(env.chronics_handler.real_data.cache_size, dtype=np.float64)  # number of time a given scenario has been played
         self._prev_id = 0
         # this is for the "limit the episode length" depending on your previous success
         self._total_sucesses = 0
@@ -365,7 +368,7 @@ class DeepQAgent(AgentWithConverter):
 
         """
         # /!\ DO NOT ATTEMPT TO MODIFY OTHERWISE IT WILL PROBABLY CRASH /!\
-        # /!\ THIS WILL BE PART OF THE ENVIRONMENT IN FUTURE GRID2OP RELEASE (>= 0.9.0) /!\
+        # /!\ THIS WILL BE PART OF THE ENVIRONMENT IN FUTURE GRID2OP RELEASE (>= 1.0.0) /!\
         # AND OF COURSE USING THIS METHOD DURING THE EVALUATION IS COMPLETELY FORBIDDEN
         if self.__nb_env > 1:
             return
@@ -388,9 +391,11 @@ class DeepQAgent(AgentWithConverter):
         env._reset_vectors_and_timings()
 
     def _need_reset(self, env, observation_num, epoch_num, done, new_state):
-        self.max_iter_env(min(max(self.training_param.min_iter,
-                                  self.training_param.max_iter_fun(self._total_sucesses)),
-                              self.training_param.max_iter))  # TODO
+
+        if self.training_param.step_increase_nb_iter > 0:
+            self.max_iter_env(min(max(self.training_param.min_iter,
+                                      self.training_param.max_iter_fun(self._total_sucesses)),
+                                  self.training_param.max_iter))  # TODO
         self.curr_iter_env += 1
         if new_state is None:
             # it's the first ever loop
@@ -403,14 +408,6 @@ class DeepQAgent(AgentWithConverter):
             # in multi env this is automatically handled
             pass
         elif done[0]:
-            try:
-                obs = env.reset()
-            except Grid2OpException as exc:
-                print("Exception {} encounter while resetting, trying to recover.".format(exc))
-                obs = env.reset()
-            # obs = [obs]
-            # new_state = self.convert_obs_train(obs)
-
             nb_ts_one_day = 24*60/5
             if False:
                 # the 3-4 lines below allow to reuse the loaded dataset and continue further up in the
@@ -427,18 +424,24 @@ class DeepQAgent(AgentWithConverter):
             ts_lived = observation_num - self._prev_obs_num
             self._time_step_lived[self._prev_id] += ts_lived
             self._prev_obs_num = observation_num
-            proba = 1. / (self._time_step_lived + 1)
+            if self.training_param.oversampling_rate is not None:
+                # proba = np.sqrt(1. / (self._time_step_lived +1))
+                # # over sampling some kind of "UCB like" stuff
+                # # https://banditalgs.com/2016/09/18/the-upper-confidence-bound-algorithm/
 
-            # proba = np.sqrt(1. / (self._time_step_lived +1))
-            # # over sampling some kind of "UCB like" stuff
-            # # https://banditalgs.com/2016/09/18/the-upper-confidence-bound-algorithm/
-            self._prev_id = env.chronics_handler.real_data.sample_next_chronics(proba)
+                # proba = 1. / (self._time_step_lived + 1)
+                self._proba[:] = 1. / (self._time_step_lived**self.training_param.oversampling_rate + 1)
+                self._proba /= np.sum(self._proba)
+
+            self._prev_id = env.chronics_handler.real_data.sample_next_chronics(self._proba)
+            # print("selected id in the training scheme: {}".format(self._prev_id))
             env.reset()
             self._nb_chosen[self._prev_id] += 1
-            # print("\tselected id: {} (associated proba was: {:.3f}, max was {:.3f})".format(self._prev_id, proba[self._prev_id], np.max(proba)))
 
             # random fast forward between now and next week
-            self._fast_forward_env(env, time=7*nb_ts_one_day)
+            if self.training_param.random_sample_datetime_start is not None:
+                self._fast_forward_env(env, time=self.training_param.random_sample_datetime_start)
+
             self.curr_iter_env = 0
             obs = [env.current_obs]
             new_state = self.convert_obs_train(obs)
@@ -510,10 +513,17 @@ class DeepQAgent(AgentWithConverter):
             if step % (10 * UPDATE_FREQ) == 0:
                 # print the top k scenarios the "hardest" (ie chosen the most number of times
                 top_k = 10
-                array_ = np.argsort(-self._nb_chosen)[:top_k]
+                array_ = np.argsort(self._nb_chosen)[-top_k:][::-1]
                 print("hardest scenarios\n{}".format(array_))
                 print("They have been chosen respectively\n{}".format(self._nb_chosen[array_]))
+                # print("Associated proba are\n{}".format(self._proba[array_]))
                 print("The number of timesteps played is\n{}".format(self._time_step_lived[array_]))
+                print("avg (accross all scenarios) number of timsteps played {}"
+                      "".format(np.mean(self._time_step_lived)))
+                print("Time alive: {}".format(self._time_step_lived[array_] / (self._nb_chosen[array_] + 1)))
+                print("Avg time alive: {}".format(np.mean(self._time_step_lived / (self._nb_chosen + 1 ))))
+                # print("avg (accross all scenarios) proba {}"
+                #       "".format(np.mean(self._proba)))
             with self.tf_writer.as_default():
                 last_alive = epoch_alive[(epoch_num-1)]
                 last_reward = epoch_rewards[(epoch_num-1)]
@@ -547,28 +557,45 @@ class DeepQAgent(AgentWithConverter):
                 # because it lasts the same number of "real" steps
 
                 # show first the Mean reward and mine time alive (hence the upper case)
-                tf.summary.scalar("Mean_alive_30", mean_alive_30, step_tb)
-                tf.summary.scalar("Mean_reward_30", mean_reward_30, step_tb)
-                # then it's alpha numerical order, hence the "z_" in front of some information
-                tf.summary.scalar("loss", self.losses[step], step_tb)
+                tf.summary.scalar("Mean_alive_30", mean_alive_30, step_tb,
+                                  description="Mean reward over the last 30 epochs")
+                tf.summary.scalar("Mean_reward_30", mean_reward_30, step_tb,
+                                  description="Mean number of timesteps sucessfully manage the last 30 epochs")
 
-                tf.summary.scalar("last_alive", last_alive, step_tb)
-                tf.summary.scalar("last_reward", last_reward, step_tb)
+                # then it's alpha numerical order, hence the "z_" in front of some information
+                tf.summary.scalar("loss", self.losses[step], step_tb,
+                                  description="last training loss")
+
+                tf.summary.scalar("last_alive", last_alive, step_tb,
+                                  description="last number of timestep during which the agent stayed alive")
+                tf.summary.scalar("last_reward", last_reward, step_tb,
+                                  description="last reward get by the agent")
 
                 tf.summary.scalar("mean_reward", mean_reward, step_tb)
                 tf.summary.scalar("mean_alive", mean_alive, step_tb)
 
-                tf.summary.scalar("mean_reward_100", mean_reward_100, step_tb)
-                tf.summary.scalar("mean_alive_100", mean_alive_100, step_tb)
+                tf.summary.scalar("mean_reward_100", mean_reward_100, step_tb,
+                                  description="Mean reward over the last 100 epochs")
+                tf.summary.scalar("mean_alive_100", mean_alive_100, step_tb,
+                                  description="Mean number of timesteps sucessfully manage the last 100 epochs")
 
-                tf.summary.scalar("nb_differentaction_taken_1000", nb_action_taken_last_1000_step, step_tb)
-                tf.summary.scalar("nb_illegal_act", nb_illegal_act, step_tb)
-                tf.summary.scalar("nb_ambiguous_act", nb_ambiguous_act, step_tb)
+                tf.summary.scalar("nb_differentaction_taken_1000", nb_action_taken_last_1000_step, step_tb,
+                                  description="Number of different actions played the past 1000 steps")
+                tf.summary.scalar("nb_illegal_act", nb_illegal_act, step_tb,
+                                  description="Number of illegal actions played the past 1000 steps")
+                tf.summary.scalar("nb_ambiguous_act", nb_ambiguous_act, step_tb,
+                                  description="Number of ambiguous actions played the past 1000 steps")
+                tf.summary.scalar("nb_total_success", self._total_sucesses, step_tb,
+                                  description="Number of times I reach the end of scenario (no game over)")
 
-                tf.summary.scalar("z_lr", self.train_lr, step_tb)
-                tf.summary.scalar("z_epsilon", self.epsilon, step_tb)
-                tf.summary.scalar("z_max_iter", self.max_iter_env_, step_tb)
-                tf.summary.scalar("z_total_episode", epoch_num, step_tb)
+                tf.summary.scalar("z_lr", self.train_lr, step_tb,
+                                  description="current learning rate")
+                tf.summary.scalar("z_epsilon", self.epsilon, step_tb,
+                                  description="current epsilon (of the epsilon greedy)")
+                tf.summary.scalar("z_max_iter", self.max_iter_env_, step_tb,
+                                  description="maximum number of time steps before deciding a scenario is over (=win)")
+                tf.summary.scalar("z_total_episode", epoch_num, step_tb,
+                                  description="total number of episode played (~number of \"reset\")")
 
                 if self.store_action:
                     nb_ = 10  # reset the frequencies every nb_ saving
