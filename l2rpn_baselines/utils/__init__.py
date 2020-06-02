@@ -14,6 +14,7 @@ __all__ = [
            "zip_for_codalab",
            "train_generic",
            "TrainingParam",
+           "NNParam",
            "ReplayBuffer",
            "BaseDeepQ",
            "DeepQAgent"
@@ -27,6 +28,7 @@ from l2rpn_baselines.utils.zip_for_codalab import zip_for_codalab
 from l2rpn_baselines.utils.train_generic import train_generic
 
 from l2rpn_baselines.utils.TrainingParam import TrainingParam
+from l2rpn_baselines.utils.NNParam import NNParam
 from l2rpn_baselines.utils.ReplayBuffer import ReplayBuffer
 from l2rpn_baselines.utils.BaseDeepQ import BaseDeepQ
 from l2rpn_baselines.utils.DeepQAgent import DeepQAgent

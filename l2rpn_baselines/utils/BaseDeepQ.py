@@ -7,6 +7,7 @@
 # This file is part of L2RPN Baselines, L2RPN Baselines a repository to host baselines for l2rpn competitions.
 
 import os
+from abc import ABC, abstractmethod
 import numpy as np
 import tensorflow as tf
 import tensorflow.keras.optimizers as tfko
@@ -18,7 +19,7 @@ import pdb
 
 
 # refactorization of the code in a base class to avoid copy paste.
-class BaseDeepQ(object):
+class BaseDeepQ(ABC):
     """
     This class aims at representing the Q value (or more in case of SAC) parametrization by
     a neural network.
@@ -32,23 +33,21 @@ class BaseDeepQ(object):
     """
 
     def __init__(self,
-                 action_size,
-                 observation_size,
-                 lr=1e-5,
-                 learning_rate_decay_steps=1000,
-                 learning_rate_decay_rate=0.95,
+                 nn_params,
                  training_param=None):
         # TODO add more flexibilities when building the deep Q networks, with a "NNParam" for example.
-        self.action_size = action_size
-        self.observation_size = observation_size
-        self.lr = lr
-        self.lr_decay_steps = learning_rate_decay_steps
-        self.lr_decay_rate = learning_rate_decay_rate
-        self.qvalue_evolution = np.zeros((0,))
+        self.action_size = nn_params.action_size
+        self.observation_size = nn_params.observation_size
+        self.nn_archi = nn_params
+
         if training_param is None:
             self.training_param = TrainingParam()
         else:
             self.training_param = training_param
+
+        self.lr = training_param.lr
+        self.lr_decay_steps = training_param.lr_decay_steps
+        self.lr_decay_rate = training_param.lr_decay_rate
 
         self.model = None
         self.target_model = None
@@ -60,6 +59,7 @@ class BaseDeepQ(object):
         schedule = tfko.schedules.InverseTimeDecay(self.lr, self.lr_decay_steps, self.lr_decay_rate)
         return schedule, tfko.Adam(learning_rate=schedule)
 
+    @abstractmethod
     def construct_q_network(self):
         raise NotImplementedError("Not implemented")
 
@@ -74,8 +74,6 @@ class BaseDeepQ(object):
 
         opt_policy = np.argmax(np.abs(q_actions), axis=-1)
         opt_policy[rand_val < epsilon] = np.random.randint(0, self.action_size, size=(np.sum(rand_val < epsilon)))
-
-        self.qvalue_evolution = np.concatenate((self.qvalue_evolution, q_actions[0, opt_policy]))
         return opt_policy, q_actions[0, opt_policy]
 
     def train(self, s_batch, a_batch, r_batch, d_batch, s2_batch, tf_writer=None, batch_size=None):
@@ -104,7 +102,7 @@ class BaseDeepQ(object):
         return loss
 
     @staticmethod
-    def _get_path_model(path, name=None):
+    def get_path_model(path, name=None):
         if name is None:
             path_model = path
         else:
@@ -115,13 +113,14 @@ class BaseDeepQ(object):
     def save_network(self, path, name=None, ext="h5"):
         # Saves model at specified path as h5 file
         # nothing has changed
-        path_model, path_target_model = self._get_path_model(path, name)
+        path_model, path_target_model = self.get_path_model(path, name)
+        # self.nn_archi.save_as_json(path_model, "nn_architecture.json")
         self.model.save('{}.{}'.format(path_model, ext))
         self.target_model.save('{}.{}'.format(path_target_model, ext))
 
     def load_network(self, path, name=None, ext="h5"):
         # nothing has changed
-        path_model, path_target_model = self._get_path_model(path, name)
+        path_model, path_target_model = self.get_path_model(path, name)
         self.model = load_model('{}.{}'.format(path_model, ext), custom_objects=self.custom_objects)
         self.target_model = load_model('{}.{}'.format(path_target_model, ext), custom_objects=self.custom_objects)
         print("Succesfully loaded network.")

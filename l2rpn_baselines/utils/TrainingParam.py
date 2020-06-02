@@ -101,7 +101,8 @@ class TrainingParam(object):
                  "min_iter", "max_iter", "update_tensorboard_freq", "save_model_each", "update_nb_iter_",
                  "step_increase_nb_iter"]
     _float_attr = ["final_epsilon", "initial_epsilon", "lr", "lr_decay_steps", "lr_decay_rate",
-                    "discount_factor", "tau", "oversampling_rate"]
+                    "discount_factor", "tau", "oversampling_rate",
+                   "max_global_norm_grad", "max_value_grad", "max_loss"]
 
     def __init__(self,
                  buffer_size=40000,
@@ -125,6 +126,9 @@ class TrainingParam(object):
                  save_model_each=10000,  # save the model every "update_tensorboard_freq" steps
                  random_sample_datetime_start=None,
                  oversampling_rate=None,
+                 max_global_norm_grad=None,
+                 max_value_grad=None,
+                 max_loss=1e3
                  ):
 
         self.random_sample_datetime_start = random_sample_datetime_start
@@ -138,6 +142,12 @@ class TrainingParam(object):
         self.lr = lr
         self.lr_decay_steps = float(lr_decay_steps)
         self.lr_decay_rate = float(lr_decay_rate)
+
+        # gradient clipping (if supported)
+        self.max_global_norm_grad = max_global_norm_grad
+        self.max_value_grad = max_value_grad
+        self.max_loss = max_loss
+
         self.last_step = 0
         self.num_frames = int(num_frames)
         self.discount_factor = float(discount_factor)
@@ -153,6 +163,11 @@ class TrainingParam(object):
 
         if oversampling_rate is not None:
             self.oversampling_rate = float(oversampling_rate)
+        else:
+            self.oversampling_rate = None
+
+        self.update_tensorboard_freq = update_tensorboard_freq
+        self.save_model_each = save_model_each
 
         if self.final_epsilon > 0:
             self._exp_facto = np.log(self.initial_epsilon/self.final_epsilon)
@@ -166,9 +181,6 @@ class TrainingParam(object):
             self._1_update_nb_iter = 1.0
 
         self.max_iter_fun = self.default_max_iter_fun
-
-        self.update_tensorboard_freq = update_tensorboard_freq
-        self.save_model_each = save_model_each
 
     def update_nb_iter(self, update_nb_iter):
         self.update_nb_iter_ = update_nb_iter
@@ -210,6 +222,8 @@ class TrainingParam(object):
 
     @staticmethod
     def from_dict(tmp):
+        if not isinstance(tmp, dict):
+            raise RuntimeError("TrainingParam from dict must be called with a dictionnary, and not {}".format(tmp))
         res = TrainingParam()
         for attr_nm in TrainingParam._int_attr:
             if attr_nm in tmp:

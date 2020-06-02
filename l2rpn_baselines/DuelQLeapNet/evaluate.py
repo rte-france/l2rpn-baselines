@@ -19,6 +19,8 @@ from grid2op.Episode import EpisodeData
 
 from l2rpn_baselines.utils.save_log_gif import save_log_gif
 from l2rpn_baselines.DuelQLeapNet.DuelQLeapNet import DuelQLeapNet, DEFAULT_NAME
+from l2rpn_baselines.DuelQLeapNet.LeapNet_NNParam import LeapNet_NNParam
+from l2rpn_baselines.DuelQLeapNet.DuelQLeapNet_NN import DuelQLeapNet_NN
 
 import pdb
 
@@ -46,20 +48,21 @@ def evaluate(env,
     runner_params = env.get_params_for_runner()
     runner_params["verbose"] = args.verbose
 
+    if load_path is  None:
+        raise RuntimeError("Cannot evaluate a model if there is nothing to be loaded.")
+    path_model, path_target_model = DuelQLeapNet_NN.get_path_model(load_path, name)
+    nn_archi = LeapNet_NNParam.from_json(os.path.join(path_model, "nn_architecture.json"))
+
     # Run
     # Create agent
     agent = DuelQLeapNet(action_space=env.action_space,
                          name=name,
-                         store_action=nb_process == 1)
-    agent.load_action_space(load_path)
-
-    # force creation of the neural networks
-    obs = env.reset()
-    _ = agent.act(obs, 0., False)
-    agent.dict_action = {}
+                         store_action=nb_process == 1,
+                         nn_archi=nn_archi)
 
     # Load weights from file
     agent.load(load_path)
+    agent.init_obs_extraction(env)
 
     # Build runner
     runner = Runner(**runner_params,

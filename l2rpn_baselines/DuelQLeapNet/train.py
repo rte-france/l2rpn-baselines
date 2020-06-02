@@ -8,12 +8,14 @@
 # SPDX-License-Identifier: MPL-2.0
 # This file is part of L2RPN Baselines, L2RPN Baselines a repository to host baselines for l2rpn competitions.
 
+import os
 import tensorflow as tf
 
 from l2rpn_baselines.utils import cli_train
 from l2rpn_baselines.DuelQLeapNet.DuelQLeapNet import DuelQLeapNet, DEFAULT_NAME
+from l2rpn_baselines.DuelQLeapNet.DuelQLeapNet_NN import DuelQLeapNet_NN
 from l2rpn_baselines.utils import TrainingParam
-
+from l2rpn_baselines.DuelQLeapNet.LeapNet_NNParam import LeapNet_NNParam
 import pdb
 
 
@@ -25,7 +27,8 @@ def train(env,
           logs_dir=None,
           nb_env=1,
           training_param=None,
-          **kwargs_converters):
+          kwargs_converters={},
+          kwargs_archi={}):
 
     # Limit gpu usage
     physical_devices = tf.config.list_physical_devices('GPU')
@@ -35,18 +38,26 @@ def train(env,
     if training_param is None:
         training_param = TrainingParam()
 
-    baseline = DuelQLeapNet(env.action_space,
+    if load_path is not None:
+        # TODO test that
+        path_model, path_target_model = DuelQLeapNet_NN.get_path_model(load_path, name)
+        print("INFO: Reloading a model, the architecture parameters will be ignored")
+        nn_archi = LeapNet_NNParam.from_json(os.path.join(path_model, "nn_architecture.json"))
+    else:
+        nn_archi = LeapNet_NNParam(**kwargs_archi)
+
+    baseline = DuelQLeapNet(action_space=env.action_space,
+                            nn_archi=nn_archi,
                             name=name,
                             istraining=True,
                             nb_env=nb_env,
-                            lr=training_param.lr,
-                            learning_rate_decay_steps=training_param.lr_decay_steps,
-                            learning_rate_decay_rate=training_param.lr_decay_rate,
                             **kwargs_converters
                             )
 
     if load_path is not None:
+        print("INFO: Reloading a model, training parameters will be ignored")
         baseline.load(load_path)
+        training_param = baseline.training_param
 
     baseline.train(env,
                    iterations,
@@ -111,12 +122,12 @@ if __name__ == "__main__":
                chronics_class=MultifolderWithCache
                )
     # env.chronics_handler.set_max_iter(7*288)
-    env.chronics_handler.real_data.set_filter(lambda x: re.match(".*0[0-1][0-9]{2}$", x) is not None)
+    env.chronics_handler.real_data.set_filter(lambda x: re.match(".*0[0-0][0-1]{2}$", x) is not None)
     env.chronics_handler.real_data.reset_cache()
 
     # env.chronics_handler.real_data.
+    env_init = env
     if args.nb_env > 1:
-        env_init = env
         from grid2op.Environment import MultiEnvironment
         env = MultiEnvironment(int(args.nb_env), env)
         # TODO hack i'll fix in 0.9.0
@@ -141,7 +152,7 @@ if __name__ == "__main__":
     tp.update_nb_iter(2)
 
     # oversampling hard scenarios
-    tp.oversampling_rate = None
+    tp.oversampling_rate = 3
 
     # experience replay
     tp.buffer_size = 1000000
@@ -159,6 +170,41 @@ if __name__ == "__main__":
     tp.save_model_each = 10000
     tp.update_tensorboard_freq = 256
 
+    # observation.day_of_week / 7., ),
+    # (observation.hour_of_day / 24.,),
+    # (observation.minute_of_hour / 60.,),
+    # observation.prod_p / observation.gen_pmax,
+    # observation.prod_v / observation.gen_pmax,
+    # observation.load_p / 10.,
+    # observation.load_q / 10.,
+    # observation.actual_dispatch / observation.gen_pmax,
+    # observation.target_dispatch / observation.gen_pmax,
+    # observation.rho,
+    # observation.timestep_overflow,
+    # observation.line_status,
+    # observation.topo_vect,
+    # observation.time_before_cooldown_line / 10.,
+    # observation.time_before_cooldown_sub / 10.,
+
+    li_attr_obs_X = ["day_of_week", "hour_of_day", "minute_of_hour", "prod_p", "prod_v", "load_p", "load_q",
+                     "actual_dispatch", "target_dispatch", "topo_vect", "time_before_cooldown_line",
+                     "time_before_cooldown_sub"]
+    li_attr_obs_Tau = ["rho", "timestep_overflow", "line_status"]
+
+    # nn architecture
+    tau_dim_start = LeapNet_NNParam.get_obs_size(env_init, li_attr_obs_X)
+    tau_dim_end = LeapNet_NNParam.get_obs_size(env_init, li_attr_obs_Tau)
+
+    kwargs_archi = {'action_size': 247,
+                    'observation_size': tau_dim_start + tau_dim_end,
+                    'sizes': [800, 800, 800, 494, 494, 494],
+                    'activs': ["relu" for _ in range(6)],
+                    'tau_dim_start': tau_dim_start,
+                    'tau_dim_end': tau_dim_start + tau_dim_end,
+                    'add_tau': 0.0,
+                    "list_attr_obs": li_attr_obs_X,
+                    "list_attr_obs_tau": li_attr_obs_Tau}
+
     # which actions i keep
     kwargs_converters = {"all_actions": None,
                          "set_line_status": False,
@@ -175,7 +221,8 @@ if __name__ == "__main__":
               logs_dir=args.logs_dir,
               nb_env=args.nb_env,
               training_param=tp,
-              **kwargs_converters)
+              kwargs_converters=kwargs_converters,
+              kwargs_archi=kwargs_archi)
     finally:
         env.close()
         if args.nb_env > 1:

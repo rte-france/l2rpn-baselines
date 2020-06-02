@@ -10,9 +10,10 @@ import os
 import numpy as np
 from abc import abstractmethod
 from tqdm import tqdm
+import json
 import tensorflow as tf
 
-import grid2op
+
 from grid2op.Exceptions import Grid2OpException
 from grid2op.Agent import AgentWithConverter
 from grid2op.Converter import IdToAct
@@ -24,10 +25,8 @@ from l2rpn_baselines.utils.TrainingParam import TrainingParam
 class DeepQAgent(AgentWithConverter):
     def __init__(self,
                  action_space,
+                 nn_archi,
                  name="DeepQAgent",
-                 lr=1e-3,
-                 learning_rate_decay_steps=3000,
-                 learning_rate_decay_rate=0.99,
                  store_action=True,
                  istraining=False,
                  nb_env=1,
@@ -44,20 +43,17 @@ class DeepQAgent(AgentWithConverter):
         self.name = name
         self.losses = None
         self.graph_saved = False
-        self.lr = lr
-        self.learning_rate_decay_steps = learning_rate_decay_steps
-        self.learning_rate_decay_rate = learning_rate_decay_rate
         self.store_action = store_action
         self.dict_action = {}
         self.istraining = istraining
         self.actions_per_1000steps = np.zeros((1000, self.action_space.size()), dtype=np.int)
         self.illegal_actions_per_1000steps = np.zeros(1000, dtype=np.int)
         self.ambiguous_actions_per_1000steps = np.zeros(1000, dtype=np.int)
-        self.train_lr = lr
         self.epsilon = 1.0
 
-        self.obs_as_vect = None
-        self._tmp_obs = None
+        # for tensorbaord
+        self._train_lr = None
+
         self.reset_num = None
 
         self.max_iter_env_ = 1000000
@@ -84,40 +80,34 @@ class DeepQAgent(AgentWithConverter):
         # update frequency of action types
         self.nb_updated_act_tensorboard = None
 
+        # neural network architecture
+        self.nn_archi = nn_archi
+
+        # observation tranformers
+        self.obs_as_vect = None
+        self._tmp_obs = None
+        self._indx_obs = None
+
     @abstractmethod
-    def init_deep_q(self, transformed_observation):
+    def init_deep_q(self, training_param):
         pass
+
+    def init_obs_extraction(self, env):
+        tmp = np.zeros(0, dtype=np.uint)  # TODO platform independant
+        for obs_attr_name in self.nn_archi.get_obs_attr():
+            beg_, end_, dtype_ = env.observation_space.get_indx_extract(obs_attr_name)
+            tmp = np.concatenate((tmp, np.arange(beg_, end_, dtype=np.uint)))
+        self._indx_obs = tmp
+        self._tmp_obs = np.zeros((1, tmp.shape[0]), dtype=np.float32)
 
     # grid2op.Agent interface
     def convert_obs(self, observation):
-        if self._tmp_obs is None:
-            tmp = np.concatenate((observation.prod_p,
-                                  observation.load_p,
-                                  observation.rho,
-                                  observation.timestep_overflow,
-                                  observation.line_status,
-                                  observation.topo_vect,
-                                  observation.time_before_cooldown_line,
-                                  observation.time_before_cooldown_sub,
-                                  )).reshape(1, -1)
-
-            self._tmp_obs = np.zeros((1, tmp.shape[1]), dtype=np.float32)
-
+        obs_as_vect = observation.to_vect()
         # TODO optimize that
-        self._tmp_obs[:] = np.concatenate((observation.prod_p,
-                                           observation.load_p,
-                                           observation.rho,
-                                           observation.timestep_overflow,
-                                           observation.line_status,
-                                           observation.topo_vect,
-                                           observation.time_before_cooldown_line,
-                                           observation.time_before_cooldown_sub,
-                                           )).reshape(1, -1)
+        self._tmp_obs[:] = obs_as_vect[self._indx_obs]
         return self._tmp_obs
 
     def my_act(self, transformed_observation, reward, done=False):
-        if self.deep_q is None:
-            self.init_deep_q(transformed_observation)
         predict_movement_int, *_ = self.deep_q.predict_movement(transformed_observation, epsilon=0.0)
         res = int(predict_movement_int)
         self._store_action_played(res)
@@ -170,31 +160,51 @@ class DeepQAgent(AgentWithConverter):
             raise RuntimeError("The model should be stored in \"{}\". But this appears to be empty".format(path))
         try:
             self.action_space.init_converter(
-                all_actions=os.path.join(path, "{}_action_space.npy".format(self.name)))
+                all_actions=os.path.join(path, "action_space.npy".format(self.name)))
         except Exception as e:
             raise RuntimeError("Impossible to reload converter action space with error \n{}".format(e))
 
     # baseline interface
     def load(self, path):
         # not modified compare to original implementation
-        if not os.path.exists(path):
-            raise RuntimeError("The model should be stored in \"{}\". But this appears to be empty".format(path))
-        self.load_action_space(path)
+        tmp_me = os.path.join(path, self.name)
+        if not os.path.exists(tmp_me):
+            raise RuntimeError("The model should be stored in \"{}\". But this appears to be empty".format(tmp_me))
+        self.load_action_space(tmp_me)
 
+        # TODO handle case where training param class has been overidden
+        self.training_param = TrainingParam.from_json(os.path.join(tmp_me, "training_params.json".format(self.name)))
+        self.deep_q = self.nn_archi.make_nn(self.training_param )
         try:
-            self.deep_q.load_network(path, name=self.name)
+            self.deep_q.load_network(tmp_me, name=self.name)
         except Exception as e:
             raise RuntimeError("Impossible to load the model located at \"{}\" with error \n{}".format(path, e))
 
+        for nm_attr in ["_time_step_lived", "_nb_chosen", "_proba"]:
+            conv_path = os.path.join(tmp_me, "{}.npy".format(nm_attr))
+            if os.path.exists(conv_path):
+                setattr(self, nm_attr, np.load(file=conv_path))
+            else:
+                raise RuntimeError("Impossible to find the data \"{}.npy\" at \"{}\"".format(nm_attr, tmp_me))
+
     def save(self, path):
         if path is not None:
-            nm_conv = "{}_action_space.npy".format(self.name)
-            conv_path = os.path.join(path, nm_conv)
+            tmp_me = os.path.join(path, self.name)
+            if not os.path.exists(tmp_me):
+                os.mkdir(tmp_me)
+            nm_conv = "action_space.npy"
+            conv_path = os.path.join(tmp_me, nm_conv)
             if not os.path.exists(conv_path):
-                self.action_space.save(path=path, name=nm_conv)
-            self.training_param.save_as_json(path, name="{}_training_params.json".format(self.name))
-            self.deep_q.save_network(path, name=self.name)
-            # TODO save the "oversampling" part
+                self.action_space.save(path=tmp_me, name=nm_conv)
+
+            self.training_param.save_as_json(tmp_me, name="training_params.json")
+            self.nn_archi.save_as_json(tmp_me, "nn_architecture.json")
+            self.deep_q.save_network(tmp_me, name=self.name)
+
+            # TODO save the "oversampling" part, and all the other info
+            for nm_attr in ["_time_step_lived", "_nb_chosen", "_proba"]:
+                conv_path = os.path.join(tmp_me, "{}.npy".format(nm_attr))
+                np.save(arr=getattr(self, nm_attr), file=conv_path)
 
     # utilities for data reading
     def set_chunk(self, env, nb):
@@ -210,7 +220,14 @@ class DeepQAgent(AgentWithConverter):
         if training_param is None:
             training_param = TrainingParam()
 
-        self.training_param = training_param
+        self._train_lr = training_param.lr
+
+        if self.training_param is None:
+            self.training_param = training_param
+        else:
+            training_param = self.training_param
+        self.init_deep_q(self.training_param)
+
         self._init_replay_buffer()
 
         # efficient reading of the data (read them by chunk of roughly 1 day
@@ -231,7 +248,9 @@ class DeepQAgent(AgentWithConverter):
         UPDATE_FREQ = training_param.update_tensorboard_freq  # update tensorboard every "UPDATE_FREQ" steps
         SAVING_NUM = training_param.save_model_each
 
-        training_step = 0
+        self.init_obs_extraction(env)
+
+        training_step = self.training_param.last_step
 
         # some parameters have been move to a class named "training_param" for convenience
         self.epsilon = self.training_param.initial_epsilon
@@ -260,17 +279,19 @@ class DeepQAgent(AgentWithConverter):
 
         # for non uniform random sampling of the scenarios
         self._prev_obs_num = 0
-        self._time_step_lived = np.zeros(env.chronics_handler.real_data.cache_size, dtype=np.uint64)  # number of time step lived per possible scenarios
-        self._nb_chosen = np.zeros(env.chronics_handler.real_data.cache_size, dtype=np.uint)  # number of time a given scenario has been played
-        self._proba = np.ones(env.chronics_handler.real_data.cache_size, dtype=np.float64)  # number of time a given scenario has been played
+        if self._time_step_lived is None:
+            self._time_step_lived = np.zeros(env.chronics_handler.real_data.cache_size, dtype=np.uint64)  # number of time step lived per possible scenarios
+        if self._nb_chosen is None:
+            self._nb_chosen = np.zeros(env.chronics_handler.real_data.cache_size, dtype=np.uint)  # number of time a given scenario has been played
+        if self._proba is None:
+            self._proba = np.ones(env.chronics_handler.real_data.cache_size, dtype=np.float64)  # number of time a given scenario has been played
         self._prev_id = 0
         # this is for the "limit the episode length" depending on your previous success
         self._total_sucesses = 0
-
         # update the frequency of action types
         self.nb_updated_act_tensorboard = 0
 
-        with tqdm(total=iterations) as pbar:
+        with tqdm(total=iterations - training_step) as pbar:
             while training_step < iterations:
                 # reset or build the environment
                 initial_state = self._need_reset(env, training_step, epoch_num, done, new_state)
@@ -278,10 +299,6 @@ class DeepQAgent(AgentWithConverter):
                 # Slowly decay the exploration parameter epsilon
                 # if self.epsilon > training_param.FINAL_EPSILON:
                 self.epsilon = self.training_param.get_next_epsilon(current_step=training_step)
-
-                if training_step == 0:
-                    # we initialize the NN with the proper shape
-                    self.init_deep_q(initial_state)
 
                 # then we need to predict the next moves. Agents have been adapted to predict a batch of data
                 pm_i, pq_v, act = self._next_move(initial_state, self.epsilon)
@@ -328,6 +345,8 @@ class DeepQAgent(AgentWithConverter):
                 training_step += 1
                 pbar.update(1)
 
+        self.save(save_path)
+
     # auxiliary functions
     def _train_model(self, training_step):
         self.training_param.tell_step(training_step)
@@ -341,7 +360,7 @@ class DeepQAgent(AgentWithConverter):
             loss = self.deep_q.train(s_batch, a_batch, r_batch, d_batch, s2_batch,
                                      tf_writer)
             # save learning rate for later
-            self.train_lr = self.deep_q.optimizer_model._decayed_lr('float32').numpy()
+            self._train_lr = self.deep_q.optimizer_model._decayed_lr('float32').numpy()
             self.graph_saved = True
             if not np.all(np.isfinite(loss)):
                 # if the loss is not finite i stop the learning
@@ -588,7 +607,7 @@ class DeepQAgent(AgentWithConverter):
                 tf.summary.scalar("nb_total_success", self._total_sucesses, step_tb,
                                   description="Number of times I reach the end of scenario (no game over)")
 
-                tf.summary.scalar("z_lr", self.train_lr, step_tb,
+                tf.summary.scalar("z_lr", self._train_lr, step_tb,
                                   description="current learning rate")
                 tf.summary.scalar("z_epsilon", self.epsilon, step_tb,
                                   description="current epsilon (of the epsilon greedy)")

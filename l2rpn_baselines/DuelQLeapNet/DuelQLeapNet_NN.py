@@ -97,60 +97,46 @@ import pdb
 class DuelQLeapNet_NN(BaseDeepQ):
     """Constructs the desired duelling deep q learning network"""
     def __init__(self,
-                 action_size,
-                 observation_size,
-                 tau_dim_start,
-                 tau_dim_end,
-                 add_tau,
-                 lr=0.00001,
-                 learning_rate_decay_steps=1000,
-                 learning_rate_decay_rate=0.95,
-                 training_param=None,
-                 max_global_norm_grad=None,
-                 max_value_grad=None,
-                 max_loss=1e3):
+                 nn_params,
+                 training_param=None):
         if training_param is None:
             training_param = TrainingParam()
         BaseDeepQ.__init__(self,
-                           action_size,
-                           observation_size,
-                           lr,
-                           learning_rate_decay_steps=learning_rate_decay_steps,
-                           learning_rate_decay_rate=learning_rate_decay_rate,
-                           training_param=training_param)
-        self.tau_dim_start = tau_dim_start
-        self.tau_dim_end = tau_dim_end
-        self.add_tau = add_tau
+                           nn_params,
+                           training_param)
+        # self.tau_dim_start = nn_params.tau_dim_start
+        # self.tau_dim_end = nn_params.tau_dim_end
+        # self.add_tau = nn_params.add_tau
         self.custom_objects = {"Ltau": Ltau}
         self.construct_q_network()
-        self.max_global_norm_grad = max_global_norm_grad
-        self.max_value_grad = max_value_grad
-        self.max_loss = max_loss
+        self.max_global_norm_grad = training_param.max_global_norm_grad
+        self.max_value_grad = training_param.max_value_grad
+        self.max_loss = training_param.max_loss
 
     def construct_q_network(self):
         # Uses the network architecture found in DeepMind paper
         # The inputs and outputs size have changed, as well as replacing the convolution by dense layers.
         self.model = Sequential()
-        input_x = Input(shape=(self.observation_size - (self.tau_dim_end-self.tau_dim_start),),
+        input_x = Input(shape=(self.observation_size - (self.nn_archi.tau_dim_end-self.nn_archi.tau_dim_start),),
                         name="x")
-        input_tau_topo = Input(shape=(self.tau_dim_end-self.tau_dim_start,),
-                               name="tau_topo")
-        input_tau_status = Input(shape=(self.tau_dim_end-self.tau_dim_start,),
-                                 name="tau_status")
+        input_tau = Input(shape=(self.nn_archi.tau_dim_end-self.nn_archi.tau_dim_start,),
+                          name="tau")
+        # input_tau_status = Input(shape=(self.nn_archi.tau_dim_end-self.nn_archi.tau_dim_start,),
+        #                          name="tau_status")
 
-        # lay1 = Dense(self.observation_size)(input_x)
-        # lay1 = Activation('relu')(lay1)
-        #
-        # lay2 = Dense(self.observation_size)(lay1)
-        # lay2 = Activation('relu')(lay2)
-        #
-        # lay3 = Dense(2 * self.action_size)(lay2)  # put at self.action_size
-        # lay3 = Activation('relu')(lay3)
-        #
-        # l_tau1 = Ltau(name="encode_topo1")((lay3, input_tau_topo))
-        # l_tau2 = Ltau(name="encode_topo2")((l_tau1, input_tau_topo))
-        # l_tau3 = Ltau(name="encode_status1")((l_tau2, input_tau_status))
-        # l_tau = Ltau(name="encode_status2")((l_tau3, input_tau_status))
+        # # lay1 = Dense(self.observation_size)(input_x)
+        ## lay1 = Activation('relu')(lay1)
+        ##
+        ## lay2 = Dense(self.observation_size)(lay1)
+        ## lay2 = Activation('relu')(lay2)
+        ##
+        ## lay3 = Dense(2 * self.action_size)(lay2)  # put at self.action_size
+        ## lay3 = Activation('relu')(lay3)
+        ##
+        ## l_tau1 = Ltau(name="encode_topo1")((lay3, input_tau_topo))
+        ## l_tau2 = Ltau(name="encode_topo2")((l_tau1, input_tau_topo))
+        ## l_tau3 = Ltau(name="encode_status1")((l_tau2, input_tau_status))
+        ## l_tau = Ltau(name="encode_status2")((l_tau3, input_tau_status))
 
         # fc1 = Dense(self.action_size)(l_tau)
         # advantage = Dense(self.action_size)(fc1)
@@ -158,25 +144,31 @@ class DuelQLeapNet_NN(BaseDeepQ):
         # fc2 = Dense(self.action_size)(l_tau)
         # value = Dense(1)(fc2)
 
-        lay1 = Dense(4 * self.observation_size)(input_x)
-        lay1 = Activation('relu')(lay1)
+        # lay1 = Dense(4 * self.observation_size)(input_x)
+        # lay1 = Activation('relu')(lay1)
+        #
+        # lay2 = Dense(4 * self.observation_size)(lay1)
+        # lay2 = Activation('relu')(lay2)
+        #
+        # lay3 = Dense(4 * self.observation_size)(lay2)
+        # lay3 = Activation('relu')(lay3)
+        #
+        # lay4 = Dense(2 * self.action_size)(lay3)  # put at self.action_size
+        # lay4 = Activation('relu')(lay4)
+        #
+        # lay5 = Dense(2 * self.action_size)(lay4)  # put at self.action_size
+        # lay5 = Activation('relu')(lay5)
 
-        lay2 = Dense(4 * self.observation_size)(lay1)
-        lay2 = Activation('relu')(lay2)
+        lay = input_x
+        for (size, act) in zip(self.nn_archi.sizes, self.nn_archi.activs):
+            lay = Dense(size)(lay)  # put at self.action_size
+            lay = Activation(act)(lay)
 
-        lay3 = Dense(4 * self.observation_size)(lay2)
-        lay3 = Activation('relu')(lay3)
-
-        lay4 = Dense(2 * self.action_size)(lay3)  # put at self.action_size
-        lay4 = Activation('relu')(lay4)
-
-        lay5 = Dense(2 * self.action_size)(lay4)  # put at self.action_size
-        lay5 = Activation('relu')(lay5)
-
-        l_tau1 = Ltau(name="encode_topo1")((lay5, input_tau_topo))
-        l_tau2 = Ltau(name="encode_topo2")((l_tau1, input_tau_topo))
-        l_tau3 = Ltau(name="encode_status1")((l_tau2, input_tau_status))
-        l_tau = Ltau(name="encode_status2")((l_tau3, input_tau_status))
+        # TODO
+        l_tau = Ltau(name="tau1")((lay, input_tau))
+        l_tau = Ltau(name="tau2")((l_tau, input_tau))
+        # l_tau3 = Ltau(name="encode_status1")((l_tau2, input_tau_status))
+        # l_tau = Ltau(name="encode_status2")((l_tau3, input_tau_status))
 
         advantage = Dense(self.action_size)(l_tau)
         value = Dense(1)(l_tau)
@@ -186,23 +178,26 @@ class DuelQLeapNet_NN(BaseDeepQ):
         tmp = subtract([advantage, mn_])
         policy = add([tmp, value], name="policy")
 
-        self.model = Model(inputs=[input_x, input_tau_topo, input_tau_status], outputs=[policy])
+        self.model = Model(inputs=[input_x, input_tau], outputs=[policy])
         self.schedule_model, self.optimizer_model = self.make_optimiser()
         self.model.compile(loss='mse', optimizer=self.optimizer_model)
 
-        self.target_model = Model(inputs=[input_x, input_tau_topo, input_tau_status], outputs=[policy])
+        self.target_model = Model(inputs=[input_x, input_tau], outputs=[policy])
         print("Successfully constructed networks.")
 
     def _make_x_tau(self, data):
-        data_x_1 = data[:, :self.tau_dim_start]
-        data_x_2 = data[:, self.tau_dim_end:]
+        data_x_1 = data[:, :self.nn_archi.tau_dim_start]
+        data_x_2 = data[:, self.nn_archi.tau_dim_end:]
         data_x = np.concatenate((data_x_1, data_x_2), axis=1)
-        data_tau = data[:, self.tau_dim_start:self.tau_dim_end] + self.add_tau
-        data_tau_topo = 1.0 * data_tau
-        data_tau_topo[data_tau_topo < 0.] = 1.0
-        data_tau_status = 0.0 * data_tau
-        data_tau_status[data_tau < 0.] = 1.0
-        return data_x, data_tau_topo, data_tau_status
+
+        # for the taus
+
+        data_tau = data[:, self.nn_archi.tau_dim_start:self.nn_archi.tau_dim_end] + self.nn_archi.add_tau
+        # data_tau_topo = 1.0 * data_tau
+        # data_tau_topo[data_tau_topo < 0.] = 1.0
+        # data_tau_status = 0.0 * data_tau
+        # data_tau_status[data_tau < 0.] = 1.0
+        return data_x, data_tau
 
     def predict_movement(self, data, epsilon, batch_size=None):
         """Predict movement of game controler where is epsilon
