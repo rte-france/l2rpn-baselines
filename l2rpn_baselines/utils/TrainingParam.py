@@ -116,7 +116,7 @@ class TrainingParam(object):
                  lr_decay_rate=0.999,
                  num_frames=1,
                  discount_factor=0.99,
-                 tau=0.1,
+                 tau=0.01,
                  update_freq=256,
                  min_iter=50,
                  max_iter=8064,  # 1 month

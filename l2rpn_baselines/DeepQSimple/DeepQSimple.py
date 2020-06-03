@@ -7,14 +7,10 @@
 # This file is part of L2RPN Baselines, L2RPN Baselines a repository to host baselines for l2rpn competitions.
 
 from l2rpn_baselines.utils import DeepQAgent
-from l2rpn_baselines.DeepQSimple.DeepQ_NN import DeepQ_NN
 DEFAULT_NAME = "DeepQSimple"
 
 
 class DeepQSimple(DeepQAgent):
-    def init_deep_q(self, transformed_observation):
-        self.deep_q = DeepQ_NN(self.action_space.size(),
-                               observation_size=transformed_observation.shape[-1],
-                               lr=self.lr,
-                               learning_rate_decay_rate=self.learning_rate_decay_rate,
-                               learning_rate_decay_steps=self.learning_rate_decay_steps)
+    def init_deep_q(self, training_param):
+        if self.deep_q is None:
+            self.deep_q = self.nn_archi.make_nn(training_param)

@@ -12,9 +12,4 @@ DEFAULT_NAME = "SAC"
 
 
 class SAC(DeepQAgent):
-    def init_deep_q(self, transformed_observation):
-        self.deep_q = SAC_NN(self.action_space.size(),
-                             observation_size=transformed_observation.shape[-1],
-                             lr=self.lr,
-                             learning_rate_decay_rate=self.learning_rate_decay_rate,
-                             learning_rate_decay_steps=self.learning_rate_decay_steps)
+    pass

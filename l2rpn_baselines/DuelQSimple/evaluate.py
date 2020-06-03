@@ -18,6 +18,10 @@ from grid2op.Action import *
 
 from l2rpn_baselines.utils.save_log_gif import save_log_gif
 from l2rpn_baselines.DuelQSimple.DuelQSimple import DuelQSimple, DEFAULT_NAME
+from l2rpn_baselines.DuelQSimple.DuelQ_NNParam import DuelQ_NNParam
+from l2rpn_baselines.DuelQSimple.DuelQ_NN import DuelQ_NN
+
+import pdb
 
 DEFAULT_LOGS_DIR = "./logs-eval/do-nothing-baseline"
 DEFAULT_NB_EPISODE = 1
@@ -43,17 +47,21 @@ def evaluate(env,
     runner_params = env.get_params_for_runner()
     runner_params["verbose"] = args.verbose
 
+    if load_path is  None:
+        raise RuntimeError("Cannot evaluate a model if there is nothing to be loaded.")
+    path_model, path_target_model = DuelQ_NN.get_path_model(load_path, name)
+    nn_archi = DuelQ_NNParam.from_json(os.path.join(path_model, "nn_architecture.json"))
+
     # Run
     # Create agent
     agent = DuelQSimple(action_space=env.action_space,
-                        name=name,
-                        store_action=nb_process == 1)
-    # force creation of the neural networks
-    obs = env.reset()
-    _ = agent.act(obs, 0., False)
+                         name=name,
+                         store_action=nb_process == 1,
+                         nn_archi=nn_archi)
 
     # Load weights from file
     agent.load(load_path)
+    agent.init_obs_extraction(env)
 
     # Build runner
     runner = Runner(**runner_params,
@@ -85,10 +93,14 @@ def evaluate(env,
     if len(agent.dict_action):
         # I output some of the actions played
         print("The agent played {} different action".format(len(agent.dict_action)))
-        for id_, (nb, act) in agent.dict_action.items():
+        for id_, (nb, act, types) in agent.dict_action.items():
             print("Action with ID {} was played {} times".format(id_, nb))
             print("{}".format(act))
             print("-----------")
+
+    # if logs_path is not None:
+    #     for path_dhron, chron_name, cum_reward, nb_time_step, max_ts in res:
+    #         ep_data = EpisodeData.from_disk(logs_path, chron_name)
 
     if save_gif:
         print("Saving the gif of the episodes")

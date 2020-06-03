@@ -2,10 +2,14 @@ Change Log
 ===========
 [TODO]
 --------
-- remove the "set" / "change" aciton in the baselines with `utils/DeepQAgent`
 - stack multiple states in `utils/DeepQAgent`
-- TrainingParam as json
-- save / load also this action space vector in default DeepQAgent.
+
+[0.4.0] - 2020-06-xx
+--------------------
+- [ADDED] convenience way to modify the architecture of the neural networks
+- [ADDED] serialize / de serialize TrainingParams and NNArchi as json
+- [ADDED] possibility get the proper observation from their attribute name
+- [ADDED] action space is now serializable / de serializable
 
 [0.3.0] - 2020-05-13
 --------------------

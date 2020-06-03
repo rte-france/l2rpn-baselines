@@ -12,7 +12,6 @@ import warnings
 with warnings.catch_warnings():
     warnings.filterwarnings("ignore", category=FutureWarning)
     from tensorflow.keras.models import Sequential, Model
-    from tensorflow.keras.optimizers import Adam
     from tensorflow.keras.layers import Activation, Dense
     from tensorflow.keras.layers import Input
 
@@ -23,15 +22,14 @@ class DeepQ_NN(BaseDeepQ):
     """Constructs the desired deep q learning network"""
 
     def __init__(self,
-                 action_size,
-                 observation_size,
-                 lr=1e-5,
-                 learning_rate_decay_steps=1000,
-                 learning_rate_decay_rate=0.95,
-                 training_param=TrainingParam()):
-        BaseDeepQ.__init__(self, action_size, observation_size,
-                           lr, learning_rate_decay_steps, learning_rate_decay_rate,
+                 nn_params,
+                 training_param=None):
+        if training_param is None:
+            training_param = TrainingParam()
+        BaseDeepQ.__init__(self,
+                           nn_params,
                            training_param)
+        self.schedule_lr_model = None
         self.construct_q_network()
 
     def construct_q_network(self):
@@ -39,17 +37,14 @@ class DeepQ_NN(BaseDeepQ):
 
         # Uses the network architecture found in DeepMind paper
         self.model = Sequential()
-        input_layer = Input(shape=(self.observation_size * self.training_param.NUM_FRAMES,),
+        input_layer = Input(shape=(self.nn_archi.observation_size,),
                             name="state")
-        layer1 = Dense(self.observation_size * self.training_param.NUM_FRAMES)(input_layer)
-        layer1 = Activation('relu')(layer1)
-        layer2 = Dense(self.observation_size)(layer1)
-        layer2 = Activation('relu')(layer2)
-        layer3 = Dense(self.observation_size)(layer2)
-        layer3 = Activation('relu')(layer3)
-        layer4 = Dense(2 * self.action_size)(layer3)
-        layer4 = Activation('relu')(layer4)
-        output = Dense(self.action_size, name="output")(layer4)
+        lay = input_layer
+        for lay_num, (size, act) in enumerate(zip(self.nn_archi.sizes, self.nn_archi.activs)):
+            lay = Dense(size, name="layer_{}".format(lay_num))(lay)  # put at self.action_size
+            lay = Activation(act)(lay)
+
+        output = Dense(self.action_size, name="output")(lay)
 
         self.model = Model(inputs=[input_layer], outputs=[output])
         self.schedule_lr_model, self.optimizer_model = self.make_optimiser()

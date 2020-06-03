@@ -8,9 +8,15 @@
 # SPDX-License-Identifier: MPL-2.0
 # This file is part of L2RPN Baselines, L2RPN Baselines a repository to host baselines for l2rpn competitions.
 
+import os
 import tensorflow as tf
-from l2rpn_baselines.utils import cli_train as cli
+
+from l2rpn_baselines.utils import cli_train
 from l2rpn_baselines.DeepQSimple.DeepQSimple import DeepQSimple, DEFAULT_NAME
+from l2rpn_baselines.DeepQSimple.DeepQ_NNParam import DeepQ_NNParam
+from l2rpn_baselines.DeepQSimple.DeepQ_NN import DeepQ_NN
+from l2rpn_baselines.utils import TrainingParam
+import pdb
 
 
 def train(env,
@@ -19,25 +25,45 @@ def train(env,
           save_path=None,
           load_path=None,
           logs_dir=None,
-          nb_env=1):
+          nb_env=1,
+          training_param=None,
+          kwargs_converters={},
+          kwargs_archi={}):
 
     # Limit gpu usage
     physical_devices = tf.config.list_physical_devices('GPU')
     if len(physical_devices) > 0:
         tf.config.experimental.set_memory_growth(physical_devices[0], True)
 
-    baseline = DeepQSimple(env.action_space,
-                           name=name,
-                           istraining=True,
-                           nb_env=nb_env)
+    if training_param is None:
+        training_param = TrainingParam()
 
     if load_path is not None:
+        # TODO test that
+        path_model, path_target_model = DeepQ_NN.get_path_model(load_path, name)
+        print("INFO: Reloading a model, the architecture parameters will be ignored")
+        nn_archi = DeepQ_NNParam.from_json(os.path.join(path_model, "nn_architecture.json"))
+    else:
+        nn_archi = DeepQ_NNParam(**kwargs_archi)
+
+    baseline = DeepQSimple(action_space=env.action_space,
+                            nn_archi=nn_archi,
+                            name=name,
+                            istraining=True,
+                            nb_env=nb_env,
+                            **kwargs_converters
+                            )
+
+    if load_path is not None:
+        print("INFO: Reloading a model, training parameters will be ignored")
         baseline.load(load_path)
+        training_param = baseline.training_param
 
     baseline.train(env,
                    iterations,
                    save_path=save_path,
-                   logdir=logs_dir)
+                   logdir=logs_dir,
+                   training_param=training_param)
     # as in our example (and in our explanation) we recommend to save the mode regurlarly in the "train" function
     # it is not necessary to save it again here. But if you chose not to follow these advice, it is more than
     # recommended to save the "baseline" at the end of this function with:
@@ -45,17 +71,20 @@ def train(env,
 
 
 if __name__ == "__main__":
+    # import grid2op
+    import numpy as np
     from grid2op.Parameters import Parameters
     from grid2op import make
     from grid2op.Reward import L2RPNReward
-    args = cli().parse_args()
-
+    import re
     try:
         from lightsim2grid.LightSimBackend import LightSimBackend
         backend = LightSimBackend()
     except:
         from grid2op.Backend import PandaPowerBackend
         backend = PandaPowerBackend()
+
+    args = cli_train().parse_args()
 
     # is it highly recommended to modify the reward depening on the algorithm.
     # for example here i will push my algorithm to learn that plyaing illegal or ambiguous action is bad
@@ -74,20 +103,30 @@ if __name__ == "__main__":
             else:
                 res = super().__call__(action, env, has_error, is_done, is_illegal, is_ambiguous)
                 res /= env.n_line
+                if not np.isfinite(res):
+                    res = self.reward_min
             return res
 
     # Use custom params
-    params = Parameters()
 
     # Create grid2op game environement
     env_init = None
+    from grid2op.Chronics import MultifolderWithCache
+    game_param = Parameters()
+    game_param.NB_TIMESTEP_COOLDOWN_SUB = 2
+    game_param.NB_TIMESTEP_COOLDOWN_LINE = 2
     env = make(args.env_name,
-               param=params,
+               param=game_param,
                reward_class=MyReward,
-               backend=backend)
-
+               backend=backend,
+               chronics_class=MultifolderWithCache
+               )
+    # env.chronics_handler.set_max_iter(7*288)
+    env.chronics_handler.real_data.set_filter(lambda x: re.match(".*((0003)|(0072)|(0057))$", x) is not None)
+    env.chronics_handler.real_data.reset_cache()
+    # env.chronics_handler.real_data.
+    env_init = env
     if args.nb_env > 1:
-        env_init = env
         from grid2op.Environment import MultiEnvironment
         env = MultiEnvironment(int(args.nb_env), env)
         # TODO hack i'll fix in 0.9.0
@@ -96,7 +135,59 @@ if __name__ == "__main__":
         env.fast_forward_chronics = lambda x: None
         env.chronics_handler = env_init.chronics_handler
         env.current_obs = env_init.current_obs
+        env.set_ff()
 
+    tp = TrainingParam()
+
+    # NN training
+    tp.lr = 1e-4
+    tp.lr_decay_steps = 30000
+    tp.minibatch_size = 256
+    tp.update_freq = 128
+
+    # limit the number of time steps played per scenarios
+    tp.step_increase_nb_iter = 2
+    tp.min_iter = 10
+    tp.update_nb_iter(2)
+
+    # oversampling hard scenarios
+    tp.oversampling_rate = 3
+
+    # experience replay
+    tp.buffer_size = 1000000
+
+    # e greedy
+    tp.min_observation = 10000
+    tp.initial_epsilon = 0.4
+    tp.final_epsilon = 1./(2*7*288.)
+    tp.step_for_final_epsilon = int(1e5)
+
+    # don't start always at the same hour (if not None) otherwise random sampling, see docs
+    tp.random_sample_datetime_start = None
+
+    # saving, logging etc.
+    tp.save_model_each = 10000
+    tp.update_tensorboard_freq = 256
+
+    li_attr_obs_X = ["day_of_week", "hour_of_day", "minute_of_hour", "prod_p", "prod_v", "load_p", "load_q",
+                     "actual_dispatch", "target_dispatch", "topo_vect", "time_before_cooldown_line",
+                     "time_before_cooldown_sub", "rho", "timestep_overflow", "line_status"]
+
+    # nn architecture
+    observation_size = DeepQ_NNParam.get_obs_size(env_init, li_attr_obs_X)
+
+    kwargs_archi = {'action_size': 247,
+                    'observation_size': observation_size,
+                    'sizes': [800, 800, 800, 494, 494, 494],
+                    'activs': ["relu" for _ in range(6)],
+                    "list_attr_obs": li_attr_obs_X}
+
+    # which actions i keep
+    kwargs_converters = {"all_actions": None,
+                         "set_line_status": False,
+                         "change_bus_vect": True,
+                         "set_topo_vect": False
+                         }
     nm_ = args.name if args.name is not None else DEFAULT_NAME
     try:
         train(env,
@@ -105,9 +196,11 @@ if __name__ == "__main__":
               save_path=args.save_path,
               load_path=args.load_path,
               logs_dir=args.logs_dir,
-              nb_env=args.nb_env)
+              nb_env=args.nb_env,
+              training_param=tp,
+              kwargs_converters=kwargs_converters,
+              kwargs_archi=kwargs_archi)
     finally:
         env.close()
         if args.nb_env > 1:
             env_init.close()
-

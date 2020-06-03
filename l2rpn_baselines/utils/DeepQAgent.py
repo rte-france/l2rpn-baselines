@@ -8,11 +8,8 @@
 
 import os
 import numpy as np
-from abc import abstractmethod
 from tqdm import tqdm
-import json
 import tensorflow as tf
-
 
 from grid2op.Exceptions import Grid2OpException
 from grid2op.Agent import AgentWithConverter
@@ -88,9 +85,9 @@ class DeepQAgent(AgentWithConverter):
         self._tmp_obs = None
         self._indx_obs = None
 
-    @abstractmethod
     def init_deep_q(self, training_param):
-        pass
+        if self.deep_q is None:
+            self.deep_q = self.nn_archi.make_nn(training_param)
 
     def init_obs_extraction(self, env):
         tmp = np.zeros(0, dtype=np.uint)  # TODO platform independant
