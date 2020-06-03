@@ -128,7 +128,7 @@ class TrainingParam(object):
                  oversampling_rate=None,
                  max_global_norm_grad=None,
                  max_value_grad=None,
-                 max_loss=1e3
+                 max_loss=None
                  ):
 
         self.random_sample_datetime_start = random_sample_datetime_start

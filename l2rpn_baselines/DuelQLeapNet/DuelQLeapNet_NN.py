@@ -255,4 +255,8 @@ class DuelQLeapNet_NN(BaseDeepQ):
     def _clipped_batch_loss(self, y_true, y_pred):
         sq_error = tf.math.square(y_true - y_pred, name="sq_error")
         batch_sq_error = tf.math.reduce_sum(sq_error, axis=1, name="batch_sq_error")
-        return tf.clip_by_value(batch_sq_error, 0.0, self.max_loss, name="batch_sq_error_clip")
+        if self.max_loss is not None:
+            res = tf.clip_by_value(batch_sq_error, 0.0, self.max_loss, name="batch_sq_error_clip")
+        else:
+            res = batch_sq_error
+        return res

@@ -112,6 +112,7 @@ if __name__ == "__main__":
     # Create grid2op game environement
     env_init = None
     from grid2op.Chronics import MultifolderWithCache
+    from grid2op.Chronics import GridStateFromFileWithForecasts
     game_param = Parameters()
     game_param.NB_TIMESTEP_COOLDOWN_SUB = 2
     game_param.NB_TIMESTEP_COOLDOWN_LINE = 2
@@ -122,9 +123,8 @@ if __name__ == "__main__":
                chronics_class=MultifolderWithCache
                )
     # env.chronics_handler.set_max_iter(7*288)
-    env.chronics_handler.real_data.set_filter(lambda x: re.match(".*0[0-0][0-1]{2}$", x) is not None)
+    env.chronics_handler.real_data.set_filter(lambda x: re.match(".*((0003)|(0072)|(0057))$", x) is not None)
     env.chronics_handler.real_data.reset_cache()
-
     # env.chronics_handler.real_data.
     env_init = env
     if args.nb_env > 1:
@@ -169,22 +169,6 @@ if __name__ == "__main__":
     # saving, logging etc.
     tp.save_model_each = 10000
     tp.update_tensorboard_freq = 256
-
-    # observation.day_of_week / 7., ),
-    # (observation.hour_of_day / 24.,),
-    # (observation.minute_of_hour / 60.,),
-    # observation.prod_p / observation.gen_pmax,
-    # observation.prod_v / observation.gen_pmax,
-    # observation.load_p / 10.,
-    # observation.load_q / 10.,
-    # observation.actual_dispatch / observation.gen_pmax,
-    # observation.target_dispatch / observation.gen_pmax,
-    # observation.rho,
-    # observation.timestep_overflow,
-    # observation.line_status,
-    # observation.topo_vect,
-    # observation.time_before_cooldown_line / 10.,
-    # observation.time_before_cooldown_sub / 10.,
 
     li_attr_obs_X = ["day_of_week", "hour_of_day", "minute_of_hour", "prod_p", "prod_v", "load_p", "load_q",
                      "actual_dispatch", "target_dispatch", "topo_vect", "time_before_cooldown_line",
