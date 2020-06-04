@@ -17,18 +17,18 @@ from grid2op.Converter import IdToAct
 from l2rpn_baselines.DoubleDuelingDQN.DoubleDuelingDQN_NN import DoubleDuelingDQN_NN
 from l2rpn_baselines.DoubleDuelingDQN.prioritized_replay_buffer import PrioritizedReplayBuffer
 
-LR_DECAY_STEPS = 1024*32
+LR_DECAY_STEPS = 1024*64
 LR_DECAY_RATE = 0.95
 INITIAL_EPSILON = 0.99
 FINAL_EPSILON = 0.001
-DECAY_EPSILON = 1024*32
-DISCOUNT_FACTOR = 0.99
+DECAY_EPSILON = 1024*64
+DISCOUNT_FACTOR = 0.98
 PER_CAPACITY = 1024*64
 PER_ALPHA = 0.7
 PER_BETA = 0.5
-UPDATE_FREQ = 64
-UPDATE_TARGET_HARD_FREQ = 16
-UPDATE_TARGET_SOFT_TAU = -1
+UPDATE_FREQ = 28
+UPDATE_TARGET_HARD_FREQ = -1
+UPDATE_TARGET_SOFT_TAU = 1e-3
 
 
 class DoubleDuelingDQN(AgentWithConverter):

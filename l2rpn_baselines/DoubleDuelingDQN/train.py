@@ -99,13 +99,9 @@ if __name__ == "__main__":
     import sys
 
     args = cli()
-    # Use custom params
-    params = Parameters()
-    params.MAX_SUB_CHANGED = 2
 
     # Create grid2op game environement
     env = make(args.data_dir,
-               param=params,
                action_class=TopologyChangeAndDispatchAction,
                reward_class=CombinedScaledReward)
 
@@ -114,13 +110,13 @@ if __name__ == "__main__":
 
     # Register custom reward for training
     cr = env.reward_helper.template_reward
-    cr.addReward("overflow", CloseToOverflowReward(), 50.0)
-    cr.addReward("game", GameplayReward(), 200.0)
-    cr.addReward("recolines", LinesReconnectedReward(), 50.0)
+    cr.addReward("overflow", CloseToOverflowReward(), 1.0)
+    cr.addReward("game", GameplayReward(), 2.0)
+    cr.addReward("recolines", LinesReconnectedReward(), 1.0)
     # Initialize custom rewards
     cr.initialize(env)
     # Set reward range to something managable
-    cr.set_range(-10.0, 10.0)
+    cr.set_range(-1.0, 1.0)
 
     train(env,
           name = args.name,
