@@ -12,6 +12,11 @@ from l2rpn_baselines.DeepQSimple.DeepQ_NN import DeepQ_NN
 
 
 class DeepQ_NNParam(NNParam):
+    """
+    This defined the specific parameters for the DeepQ network. Nothing really different compared to the base class
+    except that :attr:`l2rpn_baselines.NNParam.nn_class` is :class:`DeepQ_NN`
+
+    """
     _int_attr = NNParam._int_attr
     _float_attr = NNParam._float_attr
     _str_attr = NNParam._str_attr

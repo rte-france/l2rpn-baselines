@@ -49,7 +49,6 @@ class LtauBis(Layer):
 
     This kind of leap net layer computes, from their input `x`: `d.(e.x * tau)` where `.` denotes the
     matrix multiplication and `*` the elementwise multiplication.
-
     """
 
     def __init__(self, initializer='glorot_uniform', use_bias=True, trainable=True, name=None, **kwargs):
@@ -95,7 +94,10 @@ class LtauBis(Layer):
 
 
 class DuelQLeapNet_NN(BaseDeepQ):
-    """Constructs the desired duelling deep q learning network"""
+    """
+    Constructs the desired duelling deep q learning network with a leap neural network as a modeling
+    of the q function
+    """
     def __init__(self,
                  nn_params,
                  training_param=None):
@@ -111,6 +113,13 @@ class DuelQLeapNet_NN(BaseDeepQ):
         self.max_loss = training_param.max_loss
 
     def construct_q_network(self):
+        """
+        First the :attr:`l2rpn_baselines.BaseDeepQ.nn_archi` parameters are used to create a neural network
+        to 'encode' the data. Then the leaps occur.
+
+        Afterward the model is split into value an advantage, and treated as usually in any D3QN.
+
+        """
         # Uses the network architecture found in DeepMind paper
         # The inputs and outputs size have changed, as well as replacing the convolution by dense layers.
         self.model = Sequential()

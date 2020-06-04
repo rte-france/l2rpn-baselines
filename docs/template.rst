@@ -1,5 +1,5 @@
-How to contribute to l2rpn baselines
-=====================================
+Template: How to contribute to l2rpn baselines
+==============================================
 
 Description
 -----------

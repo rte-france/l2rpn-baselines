@@ -13,6 +13,33 @@ from l2rpn_baselines.DuelQLeapNet.DuelQLeapNet_NN import DuelQLeapNet_NN
 
 
 class LeapNet_NNParam(NNParam):
+    """
+    This class implements the type of parameters used by the DuelQLeapNet model.
+
+    More information on the leap net can be found at `Leap Net on Github <https://github.com/BDonnot/leap_net>`_
+
+    Attributes
+    -----------
+    x_dim: ``int``
+        Dimension of the input `x`
+
+    list_attr_obs_tau: ``str``
+        List of the name of the observation variable that will be used as vector tau to performs the leaps.
+
+    tau_dims: ``list``
+        List of ``int``. For each variable considered as a `tau` specify its dimension here.
+
+    tau_adds: ``list``
+        List of ``float`` if you want to add something to the value of the observation you receive. For example if you
+        know the observation you will receive is either 1 or 2 but prefer these number to be 0 and 1, you can set
+        the relevant `tau_adds` to "-1"
+
+    tau_mults: ``list``
+        List of ``float``. Same as above if for multiplicative term. If you want to multiply the number you get by a
+        specific number (for example if you have numbers in the range 0,10 but would rather have numbers in the range
+        0,1, you can set the `tau_mults` number to `0.1`
+
+    """
     _int_attr = NNParam._int_attr
     _float_attr = NNParam._float_attr
     _str_attr = NNParam._str_attr

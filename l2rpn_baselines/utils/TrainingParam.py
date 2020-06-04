@@ -95,6 +95,18 @@ class TrainingParam(object):
 
     save_model_each: ``int``
         Frequency at which the model is saved (it is saved every "save_model_each" steps)
+
+    max_global_norm_grad: ``float``
+        Maximum gradient norm allowed (can make the training more stable) default to None if deactivated.
+        Not all baselines are compatible.
+
+    max_value_grad: ``float``
+        Maximum value the gradient can take. Assign it to ``None`` to deactivate it. This can make the training
+        more stable in some cases, but can slow down the training process too. Not all baselines are compatible.
+
+    max_loss: ``float``
+        Clip the value of the loss function. Set it to ``None`` to deactivate it. Again, this can make the training
+        more stable but possibly slower. Not all baselines are compatible.
     """
     _int_attr = ["buffer_size", "minibatch_size", "step_for_final_epsilon",
                   "min_observation", "last_step", "num_frames", "update_freq",

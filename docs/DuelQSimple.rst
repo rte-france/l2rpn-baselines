@@ -1,5 +1,5 @@
-D3QN: Double Duelling Deep Q Learning
-======================================================
+DuelQSimple: Double Duelling Deep Q Learning
+=============================================
 
 TODO reference the original paper
 

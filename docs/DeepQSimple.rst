@@ -1,5 +1,5 @@
-A simple implementation of the Deep Q Learning
-===============================================
+DeepQSimple: A simple implementation of the Deep Q Learning
+===========================================================
 
 Description
 -----------

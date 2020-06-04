@@ -38,7 +38,7 @@ More advanced baselines
    DuelQLeapNet
 
 
-Contribution
+Contributions
 -------------
 
 TODO

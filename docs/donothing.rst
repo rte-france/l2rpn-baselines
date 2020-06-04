@@ -1,5 +1,5 @@
-An example: the "do nothing" Agent
-====================================
+Do Nothing: a more concrete example the "do nothing" Baseline
+=============================================================
 
 Description
 -----------

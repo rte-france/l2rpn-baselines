@@ -1,8 +1,8 @@
 SAC: Soft Actor Critic
-======================================================
+=========================
 
-TODO reference the original paper better
-https://arxiv.org/abs/1801.01290
+This baseline comes from the paper:
+`Soft Actor-Critic: Off-Policy Maximum Entropy Deep Reinforcement Learning with a Stochastic Actor <https://arxiv.org/abs/1801.01290>`_
 
 
 Description

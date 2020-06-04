@@ -1,7 +1,32 @@
 .. currentmodule:: l2rpn_baselines.utils
 
-Some utilitary functions and classes
-====================================
+.. _lr: ./utils.html#l2rpn_baselines.utils.TrainingParam.lr
+.. _lr_decay_steps: ./utils.html#l2rpn_baselines.utils.TrainingParam.lr_decay_steps
+.. _lr_decay_rate: ./utils.html#l2rpn_baselines.utils.TrainingParam.lr_decay_rate
+.. _minibatch_size: ./utils.html#l2rpn_baselines.utils.TrainingParam.minibatch_size
+.. _update_freq: ./utils.html#l2rpn_baselines.utils.TrainingParam.update_freq
+.. _final_epsilon: ./utils.html#l2rpn_baselines.utils.TrainingParam.final_epsilon
+.. _step_for_final_epsilon: ./utils.html#l2rpn_baselines.utils.TrainingParam.step_for_final_epsilon
+.. _initial_epsilon: ./utils.html#l2rpn_baselines.utils.TrainingParam.initial_epsilon
+.. _min_observation: ./utils.html#l2rpn_baselines.utils.TrainingParam.min_observation
+.. _discount_factor: ./utils.html#l2rpn_baselines.utils.TrainingParam.discount_factor
+.. _tau: ./utils.html#l2rpn_baselines.utils.TrainingParam.tau
+.. _min_iter: ./utils.html#l2rpn_baselines.utils.TrainingParam.min_iter
+.. _max_iter: ./utils.html#l2rpn_baselines.utils.TrainingParam.max_iter
+.. _update_nb_iter: ./utils.html#l2rpn_baselines.utils.TrainingParam.update_nb_iter
+.. _step_increase_nb_iter: ./utils.html#l2rpn_baselines.utils.TrainingParam.step_increase_nb_iter
+.. _max_iter_fun: ./utils.html#l2rpn_baselines.utils.TrainingParam.max_iter_fun
+.. _random_sample_datetime_start: ./utils.html#l2rpn_baselines.utils.TrainingParam.random_sample_datetime_start
+.. _oversampling_rate: ./utils.html#l2rpn_baselines.utils.TrainingParam.oversampling_rate
+.. _update_tensorboard_freq: ./utils.html#l2rpn_baselines.utils.TrainingParam.update_tensorboard_freq
+.. _save_model_each: ./utils.html#l2rpn_baselines.utils.TrainingParam.save_model_each
+.. _max_loss: ./utils.html#l2rpn_baselines.utils.TrainingParam.max_loss
+.. _max_value_grad: ./utils.html#l2rpn_baselines.utils.TrainingParam.max_value_grad
+.. _max_global_norm_grad: ./utils.html#l2rpn_baselines.utils.TrainingParam.max_global_norm_grad
+
+
+utils: Some utility functions and classes
+==========================================
 
 Description
 -----------
@@ -30,14 +55,31 @@ The main tools are:
 
 Focus on the training parameters
 --------------------------------
-TODO
+The class :class:`TrainingParam` regroup a certain number of attributes with different roles. In the table below
+we tried to list all the attributes and group them into attributes serving the same purpose.
 
+=========================== ===========================================================================================
+Utility                      Attribute names
+=========================== ===========================================================================================
+exploration                 `initial_epsilon`_, `step_for_final_epsilon`_, `final_epsilon`_
+neural network learning     `minibatch_size`_, `update_freq`_, `min_observation`_
+RL meta parameters          `discount_factor`_, `tau`_
+limit duration of episode   `step_increase_nb_iter`_ \* , `min_iter`_, `max_iter`_, `update_nb_iter`_, `max_iter_fun`_
+start an episode at random  `random_sample_datetime_start`_ \*
+oversampling hard scenarios `oversampling_rate`_ \*
+optimizer                   `lr`_, `lr_decay_steps`_, `lr_decay_rate`_, `max_global_norm_grad`_, `max_value_grad`_, `max_loss`_
+saving / logging            `update_tensorboard_freq`_, `save_model_each`_
+=========================== ===========================================================================================
+
+\* when a "star" is present it means this parameters deactivate the whole utility. For example, setting
+`step_increase_nb_iter`_ to ``None`` will deactivate the functionality "limit duration of episode"
 
 .. _nn_param:
 
 Focus on the architecture
 --------------------------
 TODO
+
 
 Implementation Details
 -----------------------
