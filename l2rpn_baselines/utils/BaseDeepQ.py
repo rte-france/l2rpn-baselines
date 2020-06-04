@@ -25,6 +25,7 @@ class BaseDeepQ(ABC):
     a neural network.
 
     It is composed of 2 different networks:
+
     - model: which is the main model
     - target_model: which has the same architecture and same initial weights as "model" but is updated less frequently
       to stabilize training

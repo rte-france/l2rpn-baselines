@@ -12,4 +12,7 @@ DEFAULT_NAME = "SAC"
 
 
 class SAC(DeepQAgent):
+    """
+    This is the :class:`l2rpn_baselines.utils` agent representing the SAC agent. This does nothing in particular.
+    """
     pass

@@ -11,6 +11,12 @@ DEFAULT_NAME = "DuelQSimple"
 
 
 class DuelQSimple(DeepQAgent):
+    """
+    Inheriting from :class:`l2rpn_baselines.DeepQAgent` this class implements the  particular agent used for the
+    Double Duelling Deep Q network baseline.
+
+    It does nothing in particular.
+    """
     def init_deep_q(self, training_param):
         if self.deep_q is None:
             self.deep_q = self.nn_archi.make_nn(training_param)

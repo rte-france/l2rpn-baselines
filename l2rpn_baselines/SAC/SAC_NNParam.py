@@ -12,6 +12,23 @@ from l2rpn_baselines.SAC.SAC_NN import SAC_NN
 
 
 class SAC_NNParam(NNParam):
+    """
+
+    Attributes
+    ----------
+    sizes_value: ``list``
+        List of integer, each one representing the size of the hidden layer for the "value" neural network.
+
+    activs_value: ``list``
+        List of ``str`` for each hidden layer of the "value" neural network, indicates which hidden layer to use
+
+    sizes_policy: ``list``
+        List of integers, each reprenseting the size of the hidden layer for the "policy" network.
+
+    activs_policy: ``list``
+        List of ``str``: The activation functions (for each layer) of the policy network
+
+    """
     _int_attr = NNParam._int_attr
     _float_attr = NNParam._float_attr
     _str_attr = NNParam._str_attr
@@ -25,7 +42,6 @@ class SAC_NNParam(NNParam):
     _list_int += ["sizes_value", "sizes_policy"]
 
     nn_class = SAC_NN
-
     def __init__(self,
                  action_size,
                  observation_size,  # TODO this might not be usefull

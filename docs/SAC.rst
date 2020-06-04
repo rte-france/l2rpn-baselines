@@ -1,0 +1,40 @@
+SAC: Soft Actor Critic
+======================================================
+
+TODO reference the original paper better
+https://arxiv.org/abs/1801.01290
+
+
+Description
+-----------
+This module proposes an implementation of the SAC algorithm.
+
+
+Exported class
+--------------
+You can use this class with:
+
+.. code-block:: python
+
+    from l2rpn_baselines.SAC import train, evaluate, SAC
+
+.. automodule:: l2rpn_baselines.SAC
+    :members:
+    :autosummary:
+
+Other non exported class
+------------------------
+These classes need to be imported, if you want to import them with (non exhaustive list):
+.. code-block:: python
+
+    from l2rpn_baselines.SAC.SAC_NN import SAC_NN
+    from l2rpn_baselines.SAC.SAC_NNParam import SAC_NNParam
+
+
+.. autoclass:: l2rpn_baselines.SAC.SAC_NN.SAC_NN
+    :members:
+    :autosummary:
+
+.. autoclass:: l2rpn_baselines.SAC.SAC_NNParam.SAC_NNParam
+    :members:
+    :autosummary:

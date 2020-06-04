@@ -27,8 +27,12 @@ class DeepQAgent(AgentWithConverter):
                  store_action=True,
                  istraining=False,
                  nb_env=1,
+                 filter_action_fun=None,
                  **kwargs_converters):
         AgentWithConverter.__init__(self, action_space, action_space_converter=IdToAct, **kwargs_converters)
+        self.filter_action_fun = filter_action_fun
+        if self.filter_action_fun is not None:
+            self.action_space.filter_action(self.filter_action_fun)
 
         # and now back to the origin implementation
         self.replay_buffer = None
@@ -88,6 +92,14 @@ class DeepQAgent(AgentWithConverter):
     def init_deep_q(self, training_param):
         if self.deep_q is None:
             self.deep_q = self.nn_archi.make_nn(training_param)
+
+    @staticmethod
+    def get_action_size(action_space, filter_fun, kwargs_converters):
+        converter = IdToAct(action_space)
+        converter.init_converter(**kwargs_converters)
+        if filter_fun is not None:
+            converter.filter_action(filter_fun)
+        return converter.n
 
     def init_obs_extraction(self, env):
         tmp = np.zeros(0, dtype=np.uint)  # TODO platform independant
@@ -275,13 +287,18 @@ class DeepQAgent(AgentWithConverter):
         self.nb_do_nothing = 0
 
         # for non uniform random sampling of the scenarios
+        th_size = env.chronics_handler.real_data.cache_size
         self._prev_obs_num = 0
-        if self._time_step_lived is None:
-            self._time_step_lived = np.zeros(env.chronics_handler.real_data.cache_size, dtype=np.uint64)  # number of time step lived per possible scenarios
-        if self._nb_chosen is None:
-            self._nb_chosen = np.zeros(env.chronics_handler.real_data.cache_size, dtype=np.uint)  # number of time a given scenario has been played
-        if self._proba is None:
-            self._proba = np.ones(env.chronics_handler.real_data.cache_size, dtype=np.float64)  # number of time a given scenario has been played
+        # number of time step lived per possible scenarios
+        if self._time_step_lived is None or self._time_step_lived.shape[0] != th_size:
+            self._time_step_lived = np.zeros(env.chronics_handler.real_data.cache_size, dtype=np.uint64)
+        # number of time a given scenario has been played
+        if self._nb_chosen is None or self._nb_chosen.shape[0] != th_size:
+            self._nb_chosen = np.zeros(env.chronics_handler.real_data.cache_size, dtype=np.uint)
+        # number of time a given scenario has been played
+        if self._proba is None or self._proba.shape[0] != th_size:
+            self._proba = np.ones(env.chronics_handler.real_data.cache_size, dtype=np.float64)
+
         self._prev_id = 0
         # this is for the "limit the episode length" depending on your previous success
         self._total_sucesses = 0

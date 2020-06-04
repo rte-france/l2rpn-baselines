@@ -27,6 +27,7 @@ def train(env,
           logs_dir=None,
           nb_env=1,
           training_param=None,
+          filter_action_fun=None,
           kwargs_converters={},
           kwargs_archi={}):
 
@@ -38,6 +39,9 @@ def train(env,
     if training_param is None:
         training_param = TrainingParam()
 
+    # get the size of the action space
+    kwargs_archi["action_size"] = DuelQLeapNet.get_action_size(env.action_space, filter_action_fun, kwargs_converters)
+    kwargs_archi["observation_size"] = 0  # this is not used anyway
     if load_path is not None:
         # TODO test that
         path_model, path_target_model = DuelQLeapNet_NN.get_path_model(load_path, name)
@@ -51,6 +55,7 @@ def train(env,
                             name=name,
                             istraining=True,
                             nb_env=nb_env,
+                            filter_action_fun=filter_action_fun,
                             **kwargs_converters
                             )
 
@@ -75,7 +80,8 @@ if __name__ == "__main__":
     import numpy as np
     from grid2op.Parameters import Parameters
     from grid2op import make
-    from grid2op.Reward import L2RPNReward
+    from grid2op.Reward import BaseReward
+    from grid2op.dtypes import dt_float
     import re
     try:
         from lightsim2grid.LightSimBackend import LightSimBackend
@@ -88,31 +94,78 @@ if __name__ == "__main__":
 
     # is it highly recommended to modify the reward depening on the algorithm.
     # for example here i will push my algorithm to learn that plyaing illegal or ambiguous action is bad
-    class MyReward(L2RPNReward):
+    class MyReward(BaseReward):
+        power_rho = int(4)  # to which "power" is put the rho values
+
+        penalty_powerline_disco = 1.0  # how to penalize the powerline disconnected that can be reconnected
+
+        # how to penalize the fact that a powerline will be disconnected next time steps, because it's close to an overflow
+        penalty_powerline_close_disco = 1.0
+
+        # cap the minimum reward (put None to ignore)
+        cap_min = -0.5  # if the minimum reward is too low, model will not learn easily. It will be "scared" to take
+        # actions. Because you win more or less points 1 by 1, but you can lose them
+        # way way faster.
+
+        def __init__(self):
+            self.reward_min = 0
+            self.reward_max = 0
+            self.ts_overflow = None
+
         def initialize(self, env):
-            self.reward_min = 0.0
+            self.ts_overflow = env.parameters.NB_TIMESTEP_OVERFLOW_ALLOWED-1
+            # now calibrate min and max reward
+            hard_overflow = env.parameters.HARD_OVERFLOW_THRESHOLD
+            max_flow_penalty = self.flow_penalty(rho=np.ones(env.n_line) * hard_overflow) / env.n_line
+            disconnected_powerline_that_can_be_reconnected = self.penalty_powerline_disco
+            disconnected_still_connected_powerline_on_overflow = self.penalty_powerline_close_disco
+            self.reward_min = max_flow_penalty - disconnected_powerline_that_can_be_reconnected
+            self.reward_min -= disconnected_still_connected_powerline_on_overflow
+            if self.cap_min is not None:
+                self.reward_min = max(self.reward_min, self.cap_min)
             self.reward_max = 1.0
 
+        def flow_penalty(self, rho):
+            tmp = 1 - rho**self.power_rho
+            return tmp.sum()
+
         def __call__(self, action, env, has_error, is_done, is_illegal, is_ambiguous):
-            if has_error or is_illegal or is_ambiguous:
+            if has_error or is_ambiguous:
                 # previous action was bad
-                res = self.reward_min
+                res = self.reward_min  #self.reward_min
             elif is_done:
                 # really strong reward if an episode is over without game over
                 res = self.reward_max
             else:
-                res = super().__call__(action, env, has_error, is_done, is_illegal, is_ambiguous)
+                if env.get_obs() is not None:
+                    obs = env.get_obs()
+                    res = self.flow_penalty(rho=obs.rho)
+                    disconnected_powerline_that_can_be_reconnected = np.sum((obs.time_before_cooldown_line == 0) &
+                                                                                (~obs.line_status))
+                    disconnected_still_connected_powerline_on_overflow = np.sum((obs.timestep_overflow == self.ts_overflow) &
+                                                                                    (obs.rho >= 1.))
+                    res -= disconnected_powerline_that_can_be_reconnected * self.penalty_powerline_disco
+                    res -= disconnected_still_connected_powerline_on_overflow * self.penalty_powerline_close_disco
+                else:
+                    res = env.n_line
                 res /= env.n_line
+                if is_illegal:
+                    if res > 0.:
+                        res *= 0.5  # divide by two reward for illegal actions
+                    else:
+                        res *= 1.5
                 if not np.isfinite(res):
                     res = self.reward_min
-            return res
+
+                if self.cap_min is not None:
+                    res = max(res, self.cap_min)
+            return dt_float(res)
 
     # Use custom params
 
     # Create grid2op game environement
     env_init = None
     from grid2op.Chronics import MultifolderWithCache
-    from grid2op.Chronics import GridStateFromFileWithForecasts
     game_param = Parameters()
     game_param.NB_TIMESTEP_COOLDOWN_SUB = 2
     game_param.NB_TIMESTEP_COOLDOWN_LINE = 2
@@ -124,13 +177,16 @@ if __name__ == "__main__":
                )
     # env.chronics_handler.set_max_iter(7*288)
     env.chronics_handler.real_data.set_filter(lambda x: re.match(".*((0003)|(0072)|(0057))$", x) is not None)
+    # env.chronics_handler.real_data.set_filter(lambda x: re.match(".*((0057))$", x) is not None)
+    env.chronics_handler.real_data.set_filter(lambda x: re.match(".*((0000)|(0003))$", x) is not None)
+    env.chronics_handler.real_data.set_filter(lambda x: re.match(".*((0000))$", x) is not None)
     env.chronics_handler.real_data.reset_cache()
     # env.chronics_handler.real_data.
     env_init = env
     if args.nb_env > 1:
         from grid2op.Environment import MultiEnvironment
         env = MultiEnvironment(int(args.nb_env), env)
-        # TODO hack i'll fix in 0.9.0
+        # TODO hack i'll fix in 1.0.0
         env.action_space = env_init.action_space
         env.observation_space = env_init.observation_space
         env.fast_forward_chronics = lambda x: None
@@ -143,24 +199,24 @@ if __name__ == "__main__":
     # NN training
     tp.lr = 1e-4
     tp.lr_decay_steps = 30000
-    tp.minibatch_size = 256
-    tp.update_freq = 128
+    tp.minibatch_size = 32
+    tp.update_freq = 16
 
     # limit the number of time steps played per scenarios
-    tp.step_increase_nb_iter = 2
+    tp.step_increase_nb_iter = 100  # None to deactivate it
     tp.min_iter = 10
-    tp.update_nb_iter(2)
+    tp.update_nb_iter(100)  # once 100 scenarios are solved, increase of "step_increase_nb_iter"
 
     # oversampling hard scenarios
-    tp.oversampling_rate = 3
+    tp.oversampling_rate = 3  # None to deactivate it
 
     # experience replay
     tp.buffer_size = 1000000
 
     # e greedy
     tp.min_observation = 10000
-    tp.initial_epsilon = 0.4
-    tp.final_epsilon = 1./(2*7*288.)
+    tp.initial_epsilon = 0.2
+    tp.final_epsilon = 1./(7*288.)
     tp.step_for_final_epsilon = int(1e5)
 
     # don't start always at the same hour (if not None) otherwise random sampling, see docs
@@ -172,29 +228,30 @@ if __name__ == "__main__":
 
     li_attr_obs_X = ["day_of_week", "hour_of_day", "minute_of_hour", "prod_p", "prod_v", "load_p", "load_q",
                      "actual_dispatch", "target_dispatch", "topo_vect", "time_before_cooldown_line",
-                     "time_before_cooldown_sub"]
-    li_attr_obs_Tau = ["rho", "timestep_overflow", "line_status"]
-
-    # nn architecture
-    tau_dim_start = LeapNet_NNParam.get_obs_size(env_init, li_attr_obs_X)
-    tau_dim_end = LeapNet_NNParam.get_obs_size(env_init, li_attr_obs_Tau)
-
-    kwargs_archi = {'action_size': 247,
-                    'observation_size': tau_dim_start + tau_dim_end,
-                    'sizes': [800, 800, 800, 494, 494, 494],
-                    'activs': ["relu" for _ in range(6)],
-                    'tau_dim_start': tau_dim_start,
-                    'tau_dim_end': tau_dim_start + tau_dim_end,
-                    'add_tau': 0.0,
-                    "list_attr_obs": li_attr_obs_X,
-                    "list_attr_obs_tau": li_attr_obs_Tau}
-
+                     "time_before_cooldown_sub", "timestep_overflow", "line_status", "rho"]
+    li_attr_obs_Tau = ["rho", "line_status"]
+    sizes = [800, 800, 800, 494, 494, 494]
     # which actions i keep
     kwargs_converters = {"all_actions": None,
                          "set_line_status": False,
                          "change_bus_vect": True,
                          "set_topo_vect": False
                          }
+
+    # nn architecture
+    x_dim = LeapNet_NNParam.get_obs_size(env_init, li_attr_obs_X)
+    tau_dims = [LeapNet_NNParam.get_obs_size(env_init, [el]) for el in li_attr_obs_Tau]
+
+    kwargs_archi = {'sizes': sizes,
+                    'activs': ["relu" for _ in sizes],
+                    'x_dim': x_dim,
+                    'tau_dims': tau_dims,
+                    'tau_adds': [0.0 for _ in range(len(tau_dims))],  # add some value to taus
+                    'tau_mults': [1.0 for _ in range(len(tau_dims))],  # divide by some value for tau (after adding)
+                    "list_attr_obs": li_attr_obs_X,
+                    "list_attr_obs_tau": li_attr_obs_Tau
+                    }
+
     nm_ = args.name if args.name is not None else DEFAULT_NAME
     try:
         train(env,

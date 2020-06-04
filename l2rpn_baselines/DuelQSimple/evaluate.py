@@ -38,6 +38,69 @@ def evaluate(env,
              max_steps=DEFAULT_MAX_STEPS,
              verbose=False,
              save_gif=False):
+    """
+    How to evaluate the performances of the trained DuelQSimple agent.
+
+    Parameters
+    ----------
+    env: :class:`grid2op.Environment`
+        The environment on which you evaluate your agent.
+
+    name: ``str``
+        The name of the trained baseline
+
+    load_path: ``str``
+        Path where the agent has been stored
+
+    logs_path: ``str``
+        Where to write tensorboard related information
+
+    nb_episode: ``str``
+        How many episodes to run during the assessment of the performances
+
+    nb_process: ``int``
+        On how many process the assessment will be made. (setting this > 1 can lead to some speed ups but can be
+        unstable on some plaform)
+
+    max_steps: ``int``
+        How many steps at maximum your agent will be assessed
+
+    verbose: ``bool``
+        Currently un used
+
+    save_gif: ``bool``
+        Whether or not you want to save, as a gif, the performance of your agent. It might cause memory issues (might
+        take a lot of ram) and drastically increase computation time.
+
+    Examples
+    -------
+    You can evaluate a DuelQSimpleBaseline this way:
+
+    .. code-block:: python
+
+        from grid2op.Reward import L2RPNSandBoxScore, L2RPNReward
+        from l2rpn_baselines.DuelQSimple import eval
+
+        # Create dataset env
+        env = make("l2rpn_case14_sandbox",
+                   reward_class=L2RPNSandBoxScore,
+                   other_rewards={
+                       "reward": L2RPNReward
+                   })
+
+        # Call evaluation interface
+        evaluate(env,
+                 name="MyAwesomeAgent",
+                 load_path="/WHERE/I/SAVED/THE/MODEL",
+                 logs_path=None,
+                 nb_episode=10,
+                 nb_process=1,
+                 max_steps=-1,
+                 verbose=False,
+                 save_gif=False)
+
+
+    """
 
     # Limit gpu usage
     physical_devices = tf.config.list_physical_devices('GPU')

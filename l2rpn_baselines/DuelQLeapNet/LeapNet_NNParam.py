@@ -6,6 +6,7 @@
 # SPDX-License-Identifier: MPL-2.0
 # This file is part of L2RPN Baselines, L2RPN Baselines a repository to host baselines for l2rpn competitions.
 import os
+import numpy as np
 
 from l2rpn_baselines.utils import NNParam
 from l2rpn_baselines.DuelQLeapNet.DuelQLeapNet_NN import DuelQLeapNet_NN
@@ -19,33 +20,36 @@ class LeapNet_NNParam(NNParam):
     _list_str = NNParam._list_str
     _list_int = NNParam._list_int
 
-    _int_attr += ["tau_dim_start", "tau_dim_end"]
-    _float_attr += ["add_tau"]
+    _int_attr += ["x_dim"]
     _list_str += ["list_attr_obs_tau"]
+    _list_float += ["tau_adds", "tau_mults"]
+    _list_int += ["tau_dims"]
     nn_class = DuelQLeapNet_NN
 
     def __init__(self,
                  action_size,
-                 observation_size,  # TODO this might not be usefull
+                 observation_size,  # not used here for retro compatibility with NNParam.from_dict
                  sizes,
                  activs,
+                 x_dim,
                  list_attr_obs,
-                 tau_dim_start,  # TODO this might not be usefull
-                 tau_dim_end,  # TODO this might not be usefull
-                 add_tau,  # TODO this might not be usefull
-                 list_attr_obs_tau
+                 tau_dims,
+                 tau_adds,
+                 tau_mults,
+                 list_attr_obs_tau,
                  ):
         NNParam.__init__(self,
                          action_size,
-                         observation_size,  # TODO this might not be usefull
-                         sizes,
-                         activs,
-                         list_attr_obs
+                         observation_size=x_dim + np.sum(tau_dims),  # TODO this might not be usefull
+                         sizes=sizes,
+                         activs=activs,
+                         list_attr_obs=list_attr_obs
                          )
-        self.tau_dim_start = int(tau_dim_start)
-        self.tau_dim_end = int(tau_dim_end)
-        self.add_tau = float(add_tau)
+        self.tau_dims = [int(el) for el in tau_dims]
         self.list_attr_obs_tau = [str(el) for el in list_attr_obs_tau]
+        self.x_dim = x_dim
+        self.tau_adds = tau_adds
+        self.tau_mults = tau_mults
 
     def get_obs_attr(self):
         return self.list_attr_obs + self.list_attr_obs_tau

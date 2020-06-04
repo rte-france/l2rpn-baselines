@@ -21,75 +21,77 @@ with warnings.catch_warnings():
 
 from l2rpn_baselines.utils import BaseDeepQ, TrainingParam
 
-try:
-    from leap_net import Ltau  # this import might change if you use the "quick and dirty way".
-except ImportError:
-    # Copyright (c) 2019-2020, RTE (https://www.rte-france.com)
-    # See AUTHORS.txt
-    # This Source Code Form is subject to the terms of the Mozilla Public License, version 2.0.
-    # If a copy of the Mozilla Public License, version 2.0 was not distributed with this file,
-    # you can obtain one at http://mozilla.org/MPL/2.0/.
-    # SPDX-License-Identifier: MPL-2.0
-    # This file is part of leap_net, leap_net a keras implementation of the LEAP Net model.
-    MSG_WARNING = "Leap net model is not installed on your system. Please visit \n" \
-                  "https://github.com/BDonnot/leap_net \n" \
-                  "to have the latest Leap net implementation."
-    warnings.warn(MSG_WARNING)
+# try:
+#     from leap_net import Ltau  # this import might change if you use the "quick and dirty way".
+# except ImportError:
+#     # Copyright (c) 2019-2020, RTE (https://www.rte-france.com)
+#     # See AUTHORS.txt
+#     # This Source Code Form is subject to the terms of the Mozilla Public License, version 2.0.
+#     # If a copy of the Mozilla Public License, version 2.0 was not distributed with this file,
+#     # you can obtain one at http://mozilla.org/MPL/2.0/.
+#     # SPDX-License-Identifier: MPL-2.0
+#     # This file is part of leap_net, leap_net a keras implementation of the LEAP Net model.
+# MSG_WARNING = "Leap net model is not installed on your system. Please visit \n" \
+#               "https://github.com/BDonnot/leap_net \n" \
+#               "to have the latest Leap net implementation."
+# warnings.warn(MSG_WARNING)
 
-    from tensorflow.keras.layers import Layer
-    from tensorflow.keras.layers import Dense
-    from tensorflow.keras.layers import add as tfk_add
-    from tensorflow.keras.layers import multiply as tfk_multiply
+# TODO implement that in the leap net package too
+from tensorflow.keras.layers import Layer
+from tensorflow.keras.layers import Dense
+from tensorflow.keras.layers import add as tfk_add
+from tensorflow.keras.layers import multiply as tfk_multiply
 
-    class Ltau(Layer):
-        """
-        This layer implements the Ltau layer.
 
-        This kind of leap net layer computes, from their input `x`: `d.(e.x * tau)` where `.` denotes the
-        matrix multiplication and `*` the elementwise multiplication.
+class LtauBis(Layer):
+    """
+    This layer implements the Ltau layer.
 
-        """
+    This kind of leap net layer computes, from their input `x`: `d.(e.x * tau)` where `.` denotes the
+    matrix multiplication and `*` the elementwise multiplication.
 
-        def __init__(self, initializer='glorot_uniform', use_bias=True, trainable=True, name=None, **kwargs):
-            super(Ltau, self).__init__(trainable=trainable, name=name, **kwargs)
-            self.initializer = initializer
-            self.use_bias = use_bias
-            self.e = None
-            self.d = None
+    """
 
-        def build(self, input_shape):
-            is_x, is_tau = input_shape
-            nm_e = None
-            nm_d = None
-            if self.name is not None:
-                nm_e = '{}_e'.format(self.name)
-                nm_d = '{}_d'.format(self.name)
-            self.e = Dense(is_tau[-1],
-                           kernel_initializer=self.initializer,
-                           use_bias=self.use_bias,
-                           trainable=self.trainable,
-                           name=nm_e)
-            self.d = Dense(is_x[-1],
-                           kernel_initializer=self.initializer,
-                           use_bias=False,
-                           trainable=self.trainable,
-                           name=nm_d)
+    def __init__(self, initializer='glorot_uniform', use_bias=True, trainable=True, name=None, **kwargs):
+        super(LtauBis, self).__init__(trainable=trainable, name=name, **kwargs)
+        self.initializer = initializer
+        self.use_bias = use_bias
+        self.e = None
+        self.d = None
 
-        def get_config(self):
-            config = super().get_config().copy()
-            config.update({
-                'initializer': self.initializer,
-                'use_bias': self.use_bias
-            })
-            return config
+    def build(self, input_shape):
+        is_x, is_tau = input_shape
+        nm_e = None
+        nm_d = None
+        if self.name is not None:
+            nm_e = '{}_e'.format(self.name)
+            nm_d = '{}_d'.format(self.name)
+        self.e = Dense(is_tau[-1],
+                       kernel_initializer=self.initializer,
+                       use_bias=self.use_bias,
+                       trainable=self.trainable,
+                       name=nm_e)
+        self.d = Dense(is_x[-1],
+                       kernel_initializer=self.initializer,
+                       use_bias=False,
+                       trainable=self.trainable,
+                       name=nm_d)
 
-        def call(self, inputs, **kwargs):
-            x, tau = inputs
-            tmp = self.e(x)
-            tmp = tfk_multiply([tau, tmp])  # element wise multiplication
-            tmp = self.d(tmp)
-            res = tfk_add([x, tmp])
-            return res
+    def get_config(self):
+        config = super().get_config().copy()
+        config.update({
+            'initializer': self.initializer,
+            'use_bias': self.use_bias
+        })
+        return config
+
+    def call(self, inputs, **kwargs):
+        x, tau = inputs
+        tmp = self.e(x)
+        tmp = tfk_multiply([tau, tmp])  # element wise multiplication
+        res = self.d(tmp)  # no addition of x
+        # res = tfk_add([x, tmp])
+        return res
 
 
 class DuelQLeapNet_NN(BaseDeepQ):
@@ -102,10 +104,7 @@ class DuelQLeapNet_NN(BaseDeepQ):
         BaseDeepQ.__init__(self,
                            nn_params,
                            training_param)
-        # self.tau_dim_start = nn_params.tau_dim_start
-        # self.tau_dim_end = nn_params.tau_dim_end
-        # self.add_tau = nn_params.add_tau
-        self.custom_objects = {"Ltau": Ltau}
+        self.custom_objects = {"LtauBis": LtauBis}
         self.construct_q_network()
         self.max_global_norm_grad = training_param.max_global_norm_grad
         self.max_value_grad = training_param.max_value_grad
@@ -115,48 +114,48 @@ class DuelQLeapNet_NN(BaseDeepQ):
         # Uses the network architecture found in DeepMind paper
         # The inputs and outputs size have changed, as well as replacing the convolution by dense layers.
         self.model = Sequential()
-        input_x = Input(shape=(self.observation_size - (self.nn_archi.tau_dim_end-self.nn_archi.tau_dim_start),),
+        input_x = Input(shape=(self.nn_archi.x_dim,),
                         name="x")
-        input_tau = Input(shape=(self.nn_archi.tau_dim_end-self.nn_archi.tau_dim_start,),
-                          name="tau")
+        inputs_tau = [Input(shape=(el,), name="tau_{}".format(nm_)) for el, nm_ in
+                      zip(self.nn_archi.tau_dims, self.nn_archi.list_attr_obs_tau)]
 
         lay = input_x
         for (size, act) in zip(self.nn_archi.sizes, self.nn_archi.activs):
             lay = Dense(size)(lay)  # put at self.action_size
             lay = Activation(act)(lay)
 
-        # TODO
-        l_tau = Ltau(name="tau1")((lay, input_tau))
-        l_tau = Ltau(name="tau2")((l_tau, input_tau))
+        # TODO multiple taus
+        l_tau = lay
+        for el, nm_ in zip(inputs_tau, self.nn_archi.list_attr_obs_tau):
+            l_tau = l_tau + LtauBis(name="leap_{}".format(nm_))([lay, el])
 
         advantage = Dense(self.action_size)(l_tau)
-        value = Dense(1)(l_tau)
+        value = Dense(1, name="value")(l_tau)
 
         meaner = Lambda(lambda x: K.mean(x, axis=1))
         mn_ = meaner(advantage)
         tmp = subtract([advantage, mn_])
         policy = add([tmp, value], name="policy")
 
-        self.model = Model(inputs=[input_x, input_tau], outputs=[policy])
+        self.model = Model(inputs=[input_x, *inputs_tau], outputs=[policy])
         self.schedule_model, self.optimizer_model = self.make_optimiser()
         self.model.compile(loss='mse', optimizer=self.optimizer_model)
 
-        self.target_model = Model(inputs=[input_x, input_tau], outputs=[policy])
+        self.target_model = Model(inputs=[input_x, *inputs_tau], outputs=[policy])
         print("Successfully constructed networks.")
 
     def _make_x_tau(self, data):
-        data_x_1 = data[:, :self.nn_archi.tau_dim_start]
-        data_x_2 = data[:, self.nn_archi.tau_dim_end:]
-        data_x = np.concatenate((data_x_1, data_x_2), axis=1)
+        data_x = data[:, :self.nn_archi.x_dim]
 
         # for the taus
+        data_tau = []
+        prev = self.nn_archi.x_dim
+        for sz, add_, mul_ in zip(self.nn_archi.tau_dims, self.nn_archi.tau_adds, self.nn_archi.tau_mults):
+            data_tau.append((data[:, prev:prev+sz] + add_) * mul_)
+            prev += sz
 
-        data_tau = data[:, self.nn_archi.tau_dim_start:self.nn_archi.tau_dim_end] + self.nn_archi.add_tau
-        # data_tau_topo = 1.0 * data_tau
-        # data_tau_topo[data_tau_topo < 0.] = 1.0
-        # data_tau_status = 0.0 * data_tau
-        # data_tau_status[data_tau < 0.] = 1.0
-        return data_x, data_tau
+        res = [data_x, *data_tau]
+        return res
 
     def predict_movement(self, data, epsilon, batch_size=None):
         """Predict movement of game controler where is epsilon

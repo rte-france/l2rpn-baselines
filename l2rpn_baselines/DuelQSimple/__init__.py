@@ -1,5 +1,5 @@
 __all__ = [
-    "DeepQSimple",
+    "DuelQSimple",
     "evaluate",
     "train"
 ]

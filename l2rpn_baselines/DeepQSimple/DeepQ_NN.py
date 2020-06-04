@@ -19,7 +19,14 @@ from l2rpn_baselines.utils import BaseDeepQ, TrainingParam
 
 
 class DeepQ_NN(BaseDeepQ):
-    """Constructs the desired deep q learning network"""
+    """
+    Constructs the desired deep q learning network
+
+    Attributes
+    ----------
+    schedule_lr_model:
+        The schedule for the learning rate.
+    """
 
     def __init__(self,
                  nn_params,
@@ -33,9 +40,12 @@ class DeepQ_NN(BaseDeepQ):
         self.construct_q_network()
 
     def construct_q_network(self):
-        # replacement of the Convolution layers by Dense layers, and change the size of the input space and output space
+        """
+        The network architecture can be changed with the :attr:`l2rpn_baselines.BaseDeepQ.nn_archi`
 
-        # Uses the network architecture found in DeepMind paper
+        This function will make 2 identical models, one will serve as a target model, the other one will be trained
+        regurlarly.
+        """
         self.model = Sequential()
         input_layer = Input(shape=(self.nn_archi.observation_size,),
                             name="state")
@@ -51,5 +61,4 @@ class DeepQ_NN(BaseDeepQ):
         self.model.compile(loss='mse', optimizer=self.optimizer_model)
 
         self.target_model = Model(inputs=[input_layer], outputs=[output])
-        # self.target_model.compile(loss='mse', optimizer=Adam(lr=self.lr_))
         self.target_model.set_weights(self.model.get_weights())

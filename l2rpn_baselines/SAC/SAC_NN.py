@@ -27,8 +27,16 @@ from l2rpn_baselines.utils import BaseDeepQ, TrainingParam
 # It is a custom implementation, courtesy to Clement Goubet
 # The original paper is: https://arxiv.org/abs/1801.01290
 class SAC_NN(BaseDeepQ):
-    """Constructs the desired soft actor critic network"""
+    """
+    Constructs the desired soft actor critic network.
 
+    Compared to other baselines shown elsewhere (*eg* :class:`l2rpn_baselines.DeepQSimple` or
+    :class:`l2rpn_baselines.DeepQSimple`) the implementation of the SAC is a bit more tricky.
+
+    However, we demonstrate here that the use of :class:`l2rpn_baselines.utils.BaseDeepQ` with custom
+    parameters class (in this calse :class:`SAC_NNParam` is flexible enough to meet our needs.
+
+    """
     def __init__(self,
                  nn_params,
                  training_param=None):
@@ -97,7 +105,9 @@ class SAC_NN(BaseDeepQ):
         return model
 
     def construct_q_network(self):
-        # construct double Q networks
+        """
+        This constructs all the networks needed for the SAC agent.
+        """
         self.model_Q = self._build_q_NN()
         self.schedule_lr_Q, self.optimizer_Q = self.make_optimiser()
         self.model_Q.compile(loss='mse', optimizer=self.optimizer_Q)
@@ -129,7 +139,7 @@ class SAC_NN(BaseDeepQ):
         self.model_policy.compile(loss='categorical_crossentropy', optimizer=self.optimizer_policy)
         print("Successfully constructed networks.")
 
-    def get_eye_pm(self, batch_size):
+    def _get_eye_pm(self, batch_size):
         if batch_size != self.previous_size:
             tmp = np.zeros((batch_size, self.action_size), dtype=np.float32)
             self.previous_eyes = tmp
@@ -138,6 +148,9 @@ class SAC_NN(BaseDeepQ):
         return self.previous_eyes, self.previous_arange
 
     def predict_movement(self, data, epsilon, batch_size=None):
+        """
+        predict the next movements in a vectorized fashion
+        """
         if batch_size is None:
             batch_size = data.shape[0]
         rand_val = np.random.random(data.shape[0])
@@ -148,7 +161,7 @@ class SAC_NN(BaseDeepQ):
         opt_policy = opt_policy.astype(np.int)
         return opt_policy, p_actions[:, opt_policy]
 
-    def get_eye_train(self, batch_size):
+    def _get_eye_train(self, batch_size):
         if batch_size != self.previous_size_train:
             self.previous_eyes_train = np.repeat(np.eye(self.action_size),
                                                  batch_size * np.ones(self.action_size, dtype=np.int),
@@ -184,7 +197,7 @@ class SAC_NN(BaseDeepQ):
         # tiled_batch: output something like: batch, batch, batch
         # TODO save that somewhere not to compute it each time, you can even save this in the
         # TODO tensorflow graph!
-        tmp = self.get_eye_train(batch_size)
+        tmp = self._get_eye_train(batch_size)
 
         action_v1_orig = self.model_Q.predict([tiled_batch_ts, tmp], batch_size=batch_size).reshape(batch_size, -1)
         action_v2_orig = self.model_Q2.predict([tiled_batch_ts, tmp], batch_size=batch_size).reshape(batch_size, -1)
@@ -216,7 +229,9 @@ class SAC_NN(BaseDeepQ):
         return path_model, path_target_model, path_modelQ, path_modelQ2, path_policy
 
     def save_network(self, path, name=None, ext="h5"):
-        # Saves model at specified path as h5 file
+        """
+        Saves all the models with unique names
+        """
         path_model, path_target_model, path_modelQ, path_modelQ2, path_policy = self._get_path_model(path, name)
         self.model_value.save('{}.{}'.format(path_model, ext))
         self.model_value_target.save('{}.{}'.format(path_target_model, ext))
@@ -225,7 +240,9 @@ class SAC_NN(BaseDeepQ):
         self.model_policy.save('{}.{}'.format(path_policy, ext))
 
     def load_network(self, path, name=None, ext="h5"):
-        # nothing has changed
+        """
+        We load all the models using the keras "load_model" function.
+        """
         path_model, path_target_model, path_modelQ, path_modelQ2, path_policy = self._get_path_model(path, name)
         self.model_value = load_model('{}.{}'.format(path_model, ext))
         self.model_value_target = load_model('{}.{}'.format(path_target_model, ext))
@@ -235,7 +252,9 @@ class SAC_NN(BaseDeepQ):
         print("Succesfully loaded network.")
 
     def target_train(self):
-        # nothing has changed from the original implementation
+        """
+        This update the target model.
+        """
         model_weights = self.model_value.get_weights()
         target_model_weights = self.model_value_target.get_weights()
         for i in range(len(model_weights)):

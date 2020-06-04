@@ -32,8 +32,10 @@ class DuelQ_NN(BaseDeepQ):
         self.construct_q_network()
 
     def construct_q_network(self):
-        # Uses the network architecture found in DeepMind paper
-        # The inputs and outputs size have changed, as well as replacing the convolution by dense layers.
+        """
+        It uses the architecture defined in the `nn_archi` attributes.
+
+        """
         self.model = Sequential()
         input_layer = Input(shape=(self.nn_archi.observation_size,),
                             name="observation")
