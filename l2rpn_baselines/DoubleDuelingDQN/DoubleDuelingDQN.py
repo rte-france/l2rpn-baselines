@@ -22,14 +22,13 @@ LR_DECAY_RATE = 0.95
 INITIAL_EPSILON = 0.99
 FINAL_EPSILON = 0.001
 DECAY_EPSILON = 1024*64
-DISCOUNT_FACTOR = 0.98
+DISCOUNT_FACTOR = 0.99
 PER_CAPACITY = 1024*64
 PER_ALPHA = 0.7
 PER_BETA = 0.5
 UPDATE_FREQ = 28
 UPDATE_TARGET_HARD_FREQ = -1
-UPDATE_TARGET_SOFT_TAU = 1e-3
-
+UPDATE_TARGET_SOFT_TAU = 1e-4
 
 class DoubleDuelingDQN(AgentWithConverter):
     def __init__(self,
@@ -46,9 +45,9 @@ class DoubleDuelingDQN(AgentWithConverter):
         self.obs_space = observation_space
 
         # Filter
-        print("Actions filtering...")
-        self.action_space.filter_action(self._filter_action)
-        print("..Done")
+        #print("Actions filtering...")
+        #self.action_space.filter_action(self._filter_action)
+        #print("..Done")
         
         # Store constructor params
         self.name = name
@@ -234,17 +233,12 @@ class DoubleDuelingDQN(AgentWithConverter):
         modelpath = os.path.join(save_path, self.name + ".h5")
         self.tf_writer = tf.summary.create_file_writer(logpath, name=self.name)
         self._save_hyperparameters(save_path, env, num_steps)
-        
+
         # Training loop
         while step < num_steps:
             # Init first time or new episode
             if self.done:
                 new_obs = env.reset() # This shouldn't raise
-                # Random fast forward somewhere in the day
-                #ff_rand = np.random.randint(0, 12*24) 
-                #env.fast_forward_chronics(ff_rand)
-                # Reset internal state
-                #new_obs = env.current_obs
                 self.reset(new_obs)
             if step % 1000 == 0:
                 print("Step [{}] -- Random [{}]".format(step, self.epsilon))
