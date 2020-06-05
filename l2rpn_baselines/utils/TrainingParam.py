@@ -108,11 +108,13 @@ class TrainingParam(object):
         Clip the value of the loss function. Set it to ``None`` to deactivate it. Again, this can make the training
         more stable but possibly slower. Not all baselines are compatible.
     """
+    _tol_float_equal = float(1e-8)
+
     _int_attr = ["buffer_size", "minibatch_size", "step_for_final_epsilon",
                   "min_observation", "last_step", "num_frames", "update_freq",
-                 "min_iter", "max_iter", "update_tensorboard_freq", "save_model_each", "update_nb_iter_",
+                 "min_iter", "max_iter", "update_tensorboard_freq", "save_model_each", "_update_nb_iter",
                  "step_increase_nb_iter"]
-    _float_attr = ["final_epsilon", "initial_epsilon", "lr", "lr_decay_steps", "lr_decay_rate",
+    _float_attr = ["_final_epsilon", "_initial_epsilon", "lr", "lr_decay_steps", "lr_decay_rate",
                     "discount_factor", "tau", "oversampling_rate",
                    "max_global_norm_grad", "max_value_grad", "max_loss"]
 
@@ -148,8 +150,8 @@ class TrainingParam(object):
         self.buffer_size = buffer_size
         self.minibatch_size = minibatch_size
         self.min_observation = min_observation  # 5000
-        self.final_epsilon = float(final_epsilon)  # have on average 1 random action per day of approx 288 timesteps at the end (never kill completely the exploration)
-        self.initial_epsilon = float(initial_epsilon)
+        self._final_epsilon = float(final_epsilon)  # have on average 1 random action per day of approx 288 timesteps at the end (never kill completely the exploration)
+        self._initial_epsilon = float(initial_epsilon)
         self.step_for_final_epsilon = float(step_for_final_epsilon)
         self.lr = lr
         self.lr_decay_steps = float(lr_decay_steps)
@@ -167,7 +169,7 @@ class TrainingParam(object):
         self.update_freq = update_freq
         self.min_iter = min_iter
         self.max_iter = max_iter
-        self.update_nb_iter_ = update_nb_iter
+        self._update_nb_iter = update_nb_iter
         if step_increase_nb_iter is None:
             # 0 and None have the same effect: it disable the feature
             step_increase_nb_iter = 0
@@ -180,26 +182,44 @@ class TrainingParam(object):
 
         self.update_tensorboard_freq = update_tensorboard_freq
         self.save_model_each = save_model_each
+        self._compute_exp_facto()
 
-        if self.final_epsilon > 0:
+    @property
+    def final_epsilon(self):
+        return self._final_epsilon
+
+    @final_epsilon.setter
+    def final_epsilon(self, final_epsilon):
+        self._final_epsilon = final_epsilon
+        self._compute_exp_facto()
+
+    @property
+    def initial_epsilon(self):
+        return self._initial_epsilon
+
+    @initial_epsilon.setter
+    def initial_epsilon(self, initial_epsilon):
+        self._initial_epsilon = initial_epsilon
+        self._compute_exp_facto()
+
+    @property
+    def update_nb_iter(self):
+        return self._update_nb_iter
+
+    @update_nb_iter.setter
+    def update_nb_iter(self, update_nb_iter):
+        self._update_nb_iter = update_nb_iter
+        if self._update_nb_iter is not None and self._update_nb_iter > 0:
+            self._1_update_nb_iter = 1.0 / self._update_nb_iter
+        else:
+            self._1_update_nb_iter = 1.0
+
+    def _compute_exp_facto(self):
+        if self.final_epsilon is not None and self.initial_epsilon is not None and self.final_epsilon > 0:
             self._exp_facto = np.log(self.initial_epsilon/self.final_epsilon)
         else:
             # TODO
             self._exp_facto = 1
-
-        if self.update_nb_iter_ > 0:
-            self._1_update_nb_iter = 1.0 / self.update_nb_iter_
-        else:
-            self._1_update_nb_iter = 1.0
-
-        self.max_iter_fun = self.default_max_iter_fun
-
-    def update_nb_iter(self, update_nb_iter):
-        self.update_nb_iter_ = update_nb_iter
-        if self.update_nb_iter_ > 0:
-            self._1_update_nb_iter = 1.0 / self.update_nb_iter_
-        else:
-            self._1_update_nb_iter = 1.0
 
     def default_max_iter_fun(self, nb_success):
         return self.step_increase_nb_iter * int(nb_success * self._1_update_nb_iter)
@@ -208,12 +228,16 @@ class TrainingParam(object):
         self.last_step = current_step
 
     def get_next_epsilon(self, current_step):
-        self.last_step = current_step
-        if current_step > self.step_for_final_epsilon:
-            res = self.final_epsilon
+        self.tell_step(current_step)
+        if self.step_for_final_epsilon is None or self.initial_epsilon is None \
+                or self._exp_facto is None or self.final_epsilon is None:
+            res = 0.
         else:
-            # exponential decrease
-            res = self.initial_epsilon * np.exp(- (current_step / self.step_for_final_epsilon) * self._exp_facto )
+            if current_step > self.step_for_final_epsilon:
+                res = self.final_epsilon
+            else:
+                # exponential decrease
+                res = self.initial_epsilon * np.exp(- (current_step / self.step_for_final_epsilon) * self._exp_facto )
         return res
 
     def to_dict(self):
@@ -253,13 +277,7 @@ class TrainingParam(object):
                 else:
                     setattr(res, attr_nm, None)
 
-        if res.final_epsilon > 0:
-            res._exp_facto = np.log(res.initial_epsilon/res.final_epsilon)
-        else:
-            # TODO
-            res._exp_facto = 1
-        res.update_nb_iter(res.update_nb_iter_)
-
+        res._compute_exp_facto()
         return res
 
     @staticmethod
@@ -284,3 +302,28 @@ class TrainingParam(object):
 
     def do_train(self):
         return self.last_step % self.update_freq == 0
+
+    def __eq__(self, other):
+        res = True
+        for el in self._int_attr:
+            me_ = getattr(self, el)
+            oth_ = getattr(other, el)
+            if me_ != oth_:
+                res = False
+                break
+        if res:
+            for el in self._float_attr:
+                me_ = getattr(self, el)
+                oth_ = getattr(other, el)
+                if me_ is None and oth_ is not None:
+                    res = False
+                    break
+                if oth_ is None and me_ is not None:
+                    res = False
+                    break
+                if me_ is None and oth_ is None:
+                    continue
+                if abs(float(me_) != float(oth_)) > self._tol_float_equal:
+                    res = False
+                    break
+        return res

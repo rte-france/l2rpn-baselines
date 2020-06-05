@@ -151,7 +151,6 @@ class DuelQLeapNet_NN(BaseDeepQ):
         self.model.compile(loss='mse', optimizer=self.optimizer_model)
 
         self.target_model = Model(inputs=[input_x, *inputs_tau], outputs=[policy])
-        print("Successfully constructed networks.")
 
     def _make_x_tau(self, data):
         data_x = data[:, :self.nn_archi.x_dim]

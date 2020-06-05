@@ -5,7 +5,7 @@
 # you can obtain one at http://mozilla.org/MPL/2.0/.
 # SPDX-License-Identifier: MPL-2.0
 # This file is part of L2RPN Baselines, L2RPN Baselines a repository to host baselines for l2rpn competitions.
-import os
+import copy
 
 from l2rpn_baselines.utils import NNParam
 from l2rpn_baselines.SAC.SAC_NN import SAC_NN
@@ -29,19 +29,18 @@ class SAC_NNParam(NNParam):
         List of ``str``: The activation functions (for each layer) of the policy network
 
     """
-    _int_attr = NNParam._int_attr
-    _float_attr = NNParam._float_attr
-    _str_attr = NNParam._str_attr
-    _list_float = NNParam._list_float
-    _list_str = NNParam._list_str
-    _list_int = NNParam._list_int
+    _int_attr = copy.deepcopy(NNParam._int_attr)
+    _float_attr = copy.deepcopy(NNParam._float_attr)
+    _str_attr = copy.deepcopy(NNParam._str_attr)
+    _list_float = copy.deepcopy(NNParam._list_float)
+    _list_str = copy.deepcopy(NNParam._list_str)
+    _list_int = copy.deepcopy(NNParam._list_int)
 
-    # _int_attr += ["tau_dim_start", "tau_dim_end"]
-    # _float_attr += ["add_tau"]
     _list_str += ["activs_value", "activs_policy"]
     _list_int += ["sizes_value", "sizes_policy"]
 
     nn_class = SAC_NN
+
     def __init__(self,
                  action_size,
                  observation_size,  # TODO this might not be usefull

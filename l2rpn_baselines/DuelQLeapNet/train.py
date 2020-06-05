@@ -9,6 +9,7 @@
 # This file is part of L2RPN Baselines, L2RPN Baselines a repository to host baselines for l2rpn competitions.
 
 import os
+import warnings
 import tensorflow as tf
 
 from l2rpn_baselines.utils import cli_train
@@ -16,7 +17,7 @@ from l2rpn_baselines.DuelQLeapNet.DuelQLeapNet import DuelQLeapNet, DEFAULT_NAME
 from l2rpn_baselines.DuelQLeapNet.DuelQLeapNet_NN import DuelQLeapNet_NN
 from l2rpn_baselines.utils import TrainingParam
 from l2rpn_baselines.DuelQLeapNet.LeapNet_NNParam import LeapNet_NNParam
-import pdb
+from l2rpn_baselines.utils.waring_msgs import _WARN_GPU_MEMORY
 
 
 def train(env,
@@ -28,6 +29,7 @@ def train(env,
           nb_env=1,
           training_param=None,
           filter_action_fun=None,
+          verbose=True,
           kwargs_converters={},
           kwargs_archi={}):
     """
@@ -65,6 +67,9 @@ def train(env,
         A function to filter the action space. See
         `IdToAct.filter_action <https://grid2op.readthedocs.io/en/latest/converter.html#grid2op.Converter.IdToAct.filter_action>`_
         documentation.
+
+    verbose: ``bool``
+        If you want something to be printed on the terminal (a better logging strategy will be put at some point)
 
     kwargs_converters: ``dict``
         A dictionary containing the key-word arguments pass at this initialization of the
@@ -114,8 +119,8 @@ def train(env,
         sizes = [800, 800, 800, 494, 494, 494]
 
         # nn architecture
-        x_dim = LeapNet_NNParam.get_obs_size(env_init, li_attr_obs_X)
-        tau_dims = [LeapNet_NNParam.get_obs_size(env_init, [el]) for el in li_attr_obs_Tau]
+        x_dim = LeapNet_NNParam.get_obs_size(env, li_attr_obs_X)
+        tau_dims = [LeapNet_NNParam.get_obs_size(env, [el]) for el in li_attr_obs_Tau]
 
         kwargs_archi = {'sizes': sizes,
                         'activs': ["relu" for _ in sizes],
@@ -153,9 +158,20 @@ def train(env,
     """
 
     # Limit gpu usage
-    physical_devices = tf.config.list_physical_devices('GPU')
-    if len(physical_devices) > 0:
-        tf.config.experimental.set_memory_growth(physical_devices[0], True)
+    try:
+        physical_devices = tf.config.list_physical_devices('GPU')
+        if len(physical_devices) > 0:
+            tf.config.experimental.set_memory_growth(physical_devices[0], True)
+    except AttributeError:
+         # issue of https://stackoverflow.com/questions/59266150/attributeerror-module-tensorflow-core-api-v2-config-has-no-attribute-list-p
+        try:
+            physical_devices = tf.config.experimental.list_physical_devices('GPU')
+            if len(physical_devices) > 0:
+                tf.config.experimental.set_memory_growth(physical_devices[0], True)
+        except Exception:
+            warnings.warn(_WARN_GPU_MEMORY)
+    except Exception:
+        warnings.warn(_WARN_GPU_MEMORY)
 
     if training_param is None:
         training_param = TrainingParam()

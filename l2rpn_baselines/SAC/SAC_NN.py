@@ -137,7 +137,6 @@ class SAC_NN(BaseDeepQ):
         self.model_policy = Model(inputs=[input_states], outputs=[soft_proba])
         self.schedule_lr_policy, self.optimizer_policy = self.make_optimiser()
         self.model_policy.compile(loss='categorical_crossentropy', optimizer=self.optimizer_policy)
-        print("Successfully constructed networks.")
 
     def _get_eye_pm(self, batch_size):
         if batch_size != self.previous_size:

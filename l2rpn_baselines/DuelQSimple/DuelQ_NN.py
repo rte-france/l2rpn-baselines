@@ -61,4 +61,3 @@ class DuelQ_NN(BaseDeepQ):
         self.model.compile(loss='mse', optimizer=self.optimizer_model)
 
         self.target_model = Model(inputs=[input_layer], outputs=[policy])
-        print("Successfully constructed networks.")

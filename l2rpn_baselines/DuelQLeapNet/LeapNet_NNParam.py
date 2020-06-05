@@ -7,6 +7,7 @@
 # This file is part of L2RPN Baselines, L2RPN Baselines a repository to host baselines for l2rpn competitions.
 import os
 import numpy as np
+import copy
 
 from l2rpn_baselines.utils import NNParam
 from l2rpn_baselines.DuelQLeapNet.DuelQLeapNet_NN import DuelQLeapNet_NN
@@ -40,12 +41,12 @@ class LeapNet_NNParam(NNParam):
         0,1, you can set the `tau_mults` number to `0.1`
 
     """
-    _int_attr = NNParam._int_attr
-    _float_attr = NNParam._float_attr
-    _str_attr = NNParam._str_attr
-    _list_float = NNParam._list_float
-    _list_str = NNParam._list_str
-    _list_int = NNParam._list_int
+    _int_attr = copy.deepcopy(NNParam._int_attr)
+    _float_attr = copy.deepcopy(NNParam._float_attr)
+    _str_attr = copy.deepcopy(NNParam._str_attr)
+    _list_float = copy.deepcopy(NNParam._list_float)
+    _list_str = copy.deepcopy(NNParam._list_str)
+    _list_int = copy.deepcopy(NNParam._list_int)
 
     _int_attr += ["x_dim"]
     _list_str += ["list_attr_obs_tau"]

@@ -18,6 +18,12 @@ from grid2op.Converter import IdToAct
 from l2rpn_baselines.utils.ReplayBuffer import ReplayBuffer
 from l2rpn_baselines.utils.TrainingParam import TrainingParam
 
+try:
+    from grid2op.Chronics import MultifolderWithCache
+    _CACHE_AVAILABLE_DEEPQAGENT = True
+except ImportError:
+    _CACHE_AVAILABLE_DEEPQAGENT = False
+
 
 class DeepQAgent(AgentWithConverter):
     def __init__(self,
@@ -28,6 +34,7 @@ class DeepQAgent(AgentWithConverter):
                  istraining=False,
                  nb_env=1,
                  filter_action_fun=None,
+                 verbose=False,
                  **kwargs_converters):
         AgentWithConverter.__init__(self, action_space, action_space_converter=IdToAct, **kwargs_converters)
         self.filter_action_fun = filter_action_fun
@@ -88,6 +95,7 @@ class DeepQAgent(AgentWithConverter):
         self.obs_as_vect = None
         self._tmp_obs = None
         self._indx_obs = None
+        self.verbose = verbose
 
     def init_deep_q(self, training_param):
         if self.deep_q is None:
@@ -287,17 +295,23 @@ class DeepQAgent(AgentWithConverter):
         self.nb_do_nothing = 0
 
         # for non uniform random sampling of the scenarios
-        th_size = env.chronics_handler.real_data.cache_size
+        th_size = None
+        if _CACHE_AVAILABLE_DEEPQAGENT:
+            if isinstance(env.chronics_handler.real_data, MultifolderWithCache):
+                th_size = env.chronics_handler.real_data.cache_size
+        if th_size is None:
+            th_size = len(env.chronics_handler.real_data.subpaths)
+
         self._prev_obs_num = 0
         # number of time step lived per possible scenarios
         if self._time_step_lived is None or self._time_step_lived.shape[0] != th_size:
-            self._time_step_lived = np.zeros(env.chronics_handler.real_data.cache_size, dtype=np.uint64)
+            self._time_step_lived = np.zeros(th_size, dtype=np.uint64)
         # number of time a given scenario has been played
         if self._nb_chosen is None or self._nb_chosen.shape[0] != th_size:
-            self._nb_chosen = np.zeros(env.chronics_handler.real_data.cache_size, dtype=np.uint)
+            self._nb_chosen = np.zeros(th_size, dtype=np.uint)
         # number of time a given scenario has been played
         if self._proba is None or self._proba.shape[0] != th_size:
-            self._proba = np.ones(env.chronics_handler.real_data.cache_size, dtype=np.float64)
+            self._proba = np.ones(th_size, dtype=np.float64)
 
         self._prev_id = 0
         # this is for the "limit the episode length" depending on your previous success
@@ -305,7 +319,7 @@ class DeepQAgent(AgentWithConverter):
         # update the frequency of action types
         self.nb_updated_act_tensorboard = 0
 
-        with tqdm(total=iterations - training_step) as pbar:
+        with tqdm(total=iterations - training_step, disable=not self.verbose) as pbar:
             while training_step < iterations:
                 # reset or build the environment
                 initial_state = self._need_reset(env, training_step, epoch_num, done, new_state)
@@ -343,8 +357,7 @@ class DeepQAgent(AgentWithConverter):
                 # now train the model
                 if not self._train_model(training_step):
                     # infinite loss in this case
-                    print("ERROR INFINITE LOSS")
-                    break
+                    raise RuntimeError("ERROR INFINITE LOSS")
 
                 # Save the network every 1000 iterations
                 if training_step % SAVING_NUM == 0 or training_step == iterations - 1:
@@ -466,8 +479,15 @@ class DeepQAgent(AgentWithConverter):
                 self._proba[:] = 1. / (self._time_step_lived**self.training_param.oversampling_rate + 1)
                 self._proba /= np.sum(self._proba)
 
-            self._prev_id = env.chronics_handler.real_data.sample_next_chronics(self._proba)
-            # print("selected id in the training scheme: {}".format(self._prev_id))
+            _prev_id = self._prev_id
+            self._prev_id = None
+            if _CACHE_AVAILABLE_DEEPQAGENT:
+                if isinstance(env.chronics_handler.real_data, MultifolderWithCache):
+                    self._prev_id = env.chronics_handler.real_data.sample_next_chronics(self._proba)
+            if self._prev_id is None:
+                self._prev_id = _prev_id + 1
+                self._prev_id %= self._time_step_lived.shape[0]
+
             env.reset()
             self._nb_chosen[self._prev_id] += 1
 
@@ -515,7 +535,6 @@ class DeepQAgent(AgentWithConverter):
                 temp_done[0] = True
                 temp_reward[0] = self.max_reward
                 self._total_sucesses += 1
-                # print("I made it to the end with {} ts (max was {})".format(self.curr_iter_env, self.max_iter_env_))
 
         done = temp_done
         alive_frame[done] = 0
@@ -545,18 +564,19 @@ class DeepQAgent(AgentWithConverter):
         if step % UPDATE_FREQ == 0 and epoch_num > 0:
             if step % (10 * UPDATE_FREQ) == 0:
                 # print the top k scenarios the "hardest" (ie chosen the most number of times
-                top_k = 10
-                array_ = np.argsort(self._nb_chosen)[-top_k:][::-1]
-                print("hardest scenarios\n{}".format(array_))
-                print("They have been chosen respectively\n{}".format(self._nb_chosen[array_]))
-                # print("Associated proba are\n{}".format(self._proba[array_]))
-                print("The number of timesteps played is\n{}".format(self._time_step_lived[array_]))
-                print("avg (accross all scenarios) number of timsteps played {}"
-                      "".format(np.mean(self._time_step_lived)))
-                print("Time alive: {}".format(self._time_step_lived[array_] / (self._nb_chosen[array_] + 1)))
-                print("Avg time alive: {}".format(np.mean(self._time_step_lived / (self._nb_chosen + 1 ))))
-                # print("avg (accross all scenarios) proba {}"
-                #       "".format(np.mean(self._proba)))
+                if self.verbose:
+                    top_k = 10
+                    array_ = np.argsort(self._nb_chosen)[-top_k:][::-1]
+                    print("hardest scenarios\n{}".format(array_))
+                    print("They have been chosen respectively\n{}".format(self._nb_chosen[array_]))
+                    # print("Associated proba are\n{}".format(self._proba[array_]))
+                    print("The number of timesteps played is\n{}".format(self._time_step_lived[array_]))
+                    print("avg (accross all scenarios) number of timsteps played {}"
+                          "".format(np.mean(self._time_step_lived)))
+                    print("Time alive: {}".format(self._time_step_lived[array_] / (self._nb_chosen[array_] + 1)))
+                    print("Avg time alive: {}".format(np.mean(self._time_step_lived / (self._nb_chosen + 1 ))))
+                    # print("avg (accross all scenarios) proba {}"
+                    #       "".format(np.mean(self._proba)))
             with self.tf_writer.as_default():
                 last_alive = epoch_alive[(epoch_num-1)]
                 last_reward = epoch_rewards[(epoch_num-1)]

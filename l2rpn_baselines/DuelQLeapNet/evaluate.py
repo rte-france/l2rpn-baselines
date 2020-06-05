@@ -54,7 +54,7 @@ def evaluate(env,
         Path where the agent has been stored
 
     logs_path: ``str``
-        Where to write tensorboard related information
+        Where to write the results of the assessment
 
     nb_episode: ``str``
         How many episodes to run during the assessment of the performances
@@ -109,7 +109,7 @@ def evaluate(env,
         tf.config.experimental.set_memory_growth(physical_devices[0], True)
 
     runner_params = env.get_params_for_runner()
-    runner_params["verbose"] = args.verbose
+    runner_params["verbose"] = verbose
 
     if load_path is  None:
         raise RuntimeError("Cannot evaluate a model if there is nothing to be loaded.")
@@ -136,7 +136,8 @@ def evaluate(env,
     stringlist = []
     agent.deep_q.model.summary(print_fn=lambda x: stringlist.append(x))
     short_model_summary = "\n".join(stringlist)
-    print(short_model_summary)
+    if verbose:
+        print(short_model_summary)
 
     # Run
     os.makedirs(logs_path, exist_ok=True)
@@ -144,30 +145,32 @@ def evaluate(env,
                      nb_episode=nb_episode,
                      nb_process=nb_process,
                      max_iter=max_steps,
-                     pbar=True)
+                     pbar=verbose)
 
     # Print summary
-    print("Evaluation summary:")
-    for _, chron_name, cum_reward, nb_time_step, max_ts in res:
-        msg_tmp = "chronics at: {}".format(chron_name)
-        msg_tmp += "\ttotal score: {:.6f}".format(cum_reward)
-        msg_tmp += "\ttime steps: {:.0f}/{:.0f}".format(nb_time_step, max_ts)
-        print(msg_tmp)
+    if verbose:
+        print("Evaluation summary:")
+        for _, chron_name, cum_reward, nb_time_step, max_ts in res:
+            msg_tmp = "chronics at: {}".format(chron_name)
+            msg_tmp += "\ttotal score: {:.6f}".format(cum_reward)
+            msg_tmp += "\ttime steps: {:.0f}/{:.0f}".format(nb_time_step, max_ts)
+            print(msg_tmp)
 
-    if len(agent.dict_action):
-        # I output some of the actions played
-        print("The agent played {} different action".format(len(agent.dict_action)))
-        for id_, (nb, act, types) in agent.dict_action.items():
-            print("Action with ID {} was played {} times".format(id_, nb))
-            print("{}".format(act))
-            print("-----------")
+        if len(agent.dict_action):
+            # I output some of the actions played
+            print("The agent played {} different action".format(len(agent.dict_action)))
+            for id_, (nb, act, types) in agent.dict_action.items():
+                print("Action with ID {} was played {} times".format(id_, nb))
+                print("{}".format(act))
+                print("-----------")
 
     # if logs_path is not None:
     #     for path_dhron, chron_name, cum_reward, nb_time_step, max_ts in res:
     #         ep_data = EpisodeData.from_disk(logs_path, chron_name)
 
     if save_gif:
-        print("Saving the gif of the episodes")
+        if verbose:
+            print("Saving the gif of the episodes")
         save_log_gif(logs_path, res)
 
 

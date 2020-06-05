@@ -151,6 +151,4 @@ l2rpn_baselines/DuelQLeapNet/test_simple/
 l2rpn_baselines/DuelQLeapNet/tf_logs/
 l2rpn_baselines/DuelQLeapNet/working_superwell/
 _doc_built/
-l2rpn_baselines/test/
-
-
+l2rpn_baselines/test/*.txt

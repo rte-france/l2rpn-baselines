@@ -10,12 +10,14 @@
 
 import os
 import tensorflow as tf
+import warnings
 
 from l2rpn_baselines.utils import cli_train
 from l2rpn_baselines.DeepQSimple.DeepQSimple import DeepQSimple, DEFAULT_NAME
 from l2rpn_baselines.DeepQSimple.DeepQ_NNParam import DeepQ_NNParam
 from l2rpn_baselines.DeepQSimple.DeepQ_NN import DeepQ_NN
 from l2rpn_baselines.utils import TrainingParam
+from l2rpn_baselines.utils.waring_msgs import _WARN_GPU_MEMORY
 
 
 def train(env,
@@ -28,7 +30,8 @@ def train(env,
           training_param=None,
           filter_action_fun=None,
           kwargs_converters={},
-          kwargs_archi={}):
+          kwargs_archi={},
+          verbose=True):
     """
     This function implements the "training" part of the balines "DeepQSimple".
 
@@ -64,6 +67,9 @@ def train(env,
         A function to filter the action space. See
         `IdToAct.filter_action <https://grid2op.readthedocs.io/en/latest/converter.html#grid2op.Converter.IdToAct.filter_action>`_
         documentation.
+
+    verbose: ``bool``
+        If you want something to be printed on the terminal (a better logging strategy will be put at some point)
 
     kwargs_converters: ``dict``
         A dictionary containing the key-word arguments pass at this initialization of the
@@ -105,11 +111,11 @@ def train(env,
                          "time_before_cooldown_sub", "rho", "timestep_overflow", "line_status"]
 
         # neural network architecture
-        observation_size = DeepQ_NNParam.get_obs_size(env_init, li_attr_obs_X)
+        observation_size = DeepQ_NNParam.get_obs_size(env, li_attr_obs_X)
         sizes = [800, 800, 800, 494, 494, 494]  # sizes of each hidden layers
         kwargs_archi = {'observation_size': observation_size,
                         'sizes': sizes,
-                        'activs': ["relu" for _ in range(sizes)],  # all relu activation function
+                        'activs': ["relu" for _ in sizes],  # all relu activation function
                         "list_attr_obs": li_attr_obs_X}
 
         # select some part of the action
@@ -138,9 +144,20 @@ def train(env,
     """
 
     # Limit gpu usage
-    physical_devices = tf.config.list_physical_devices('GPU')
-    if len(physical_devices) > 0:
-        tf.config.experimental.set_memory_growth(physical_devices[0], True)
+    try:
+        physical_devices = tf.config.list_physical_devices('GPU')
+        if len(physical_devices) > 0:
+            tf.config.experimental.set_memory_growth(physical_devices[0], True)
+    except AttributeError:
+         # issue of https://stackoverflow.com/questions/59266150/attributeerror-module-tensorflow-core-api-v2-config-has-no-attribute-list-p
+        try:
+            physical_devices = tf.config.experimental.list_physical_devices('GPU')
+            if len(physical_devices) > 0:
+                tf.config.experimental.set_memory_growth(physical_devices[0], True)
+        except Exception:
+            warnings.warn(_WARN_GPU_MEMORY)
+    except Exception:
+        warnings.warn(_WARN_GPU_MEMORY)
 
     if training_param is None:
         training_param = TrainingParam()
@@ -149,23 +166,25 @@ def train(env,
     kwargs_archi["action_size"] = DeepQSimple.get_action_size(env.action_space, filter_action_fun, kwargs_converters)
 
     if load_path is not None:
-        # TODO test that
         path_model, path_target_model = DeepQ_NN.get_path_model(load_path, name)
-        print("INFO: Reloading a model, the architecture parameters will be ignored")
+        if verbose:
+            print("INFO: Reloading a model, the architecture parameters will be ignored")
         nn_archi = DeepQ_NNParam.from_json(os.path.join(path_model, "nn_architecture.json"))
     else:
         nn_archi = DeepQ_NNParam(**kwargs_archi)
 
     baseline = DeepQSimple(action_space=env.action_space,
-                            nn_archi=nn_archi,
-                            name=name,
-                            istraining=True,
-                            nb_env=nb_env,
+                           nn_archi=nn_archi,
+                           name=name,
+                           istraining=True,
+                           nb_env=nb_env,
+                           verbose=verbose,
                             **kwargs_converters
                             )
 
     if load_path is not None:
-        print("INFO: Reloading a model, training parameters will be ignored")
+        if verbose:
+            print("INFO: Reloading a model, training parameters will be ignored")
         baseline.load(load_path)
         training_param = baseline.training_param
 

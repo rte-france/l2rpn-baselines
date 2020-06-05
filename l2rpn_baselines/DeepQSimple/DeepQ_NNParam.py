@@ -6,6 +6,7 @@
 # SPDX-License-Identifier: MPL-2.0
 # This file is part of L2RPN Baselines, L2RPN Baselines a repository to host baselines for l2rpn competitions.
 import os
+import copy
 
 from l2rpn_baselines.utils import NNParam
 from l2rpn_baselines.DeepQSimple.DeepQ_NN import DeepQ_NN
@@ -17,12 +18,12 @@ class DeepQ_NNParam(NNParam):
     except that :attr:`l2rpn_baselines.NNParam.nn_class` is :class:`DeepQ_NN`
 
     """
-    _int_attr = NNParam._int_attr
-    _float_attr = NNParam._float_attr
-    _str_attr = NNParam._str_attr
-    _list_float = NNParam._list_float
-    _list_str = NNParam._list_str
-    _list_int = NNParam._list_int
+    _int_attr = copy.deepcopy(NNParam._int_attr)
+    _float_attr = copy.deepcopy(NNParam._float_attr)
+    _str_attr = copy.deepcopy(NNParam._str_attr)
+    _list_float = copy.deepcopy(NNParam._list_float)
+    _list_str = copy.deepcopy(NNParam._list_str)
+    _list_int = copy.deepcopy(NNParam._list_int)
 
     nn_class = DeepQ_NN
 

@@ -9,13 +9,13 @@
 import os
 from abc import ABC, abstractmethod
 import numpy as np
+import warnings
 import tensorflow as tf
 import tensorflow.keras.optimizers as tfko
 
 from tensorflow.keras.models import load_model
 
 from l2rpn_baselines.utils.TrainingParam import TrainingParam
-import pdb
 
 
 # refactorization of the code in a base class to avoid copy paste.
@@ -123,7 +123,10 @@ class BaseDeepQ(ABC):
         # nothing has changed
         path_model, path_target_model = self.get_path_model(path, name)
         self.model = load_model('{}.{}'.format(path_model, ext), custom_objects=self.custom_objects)
-        self.target_model = load_model('{}.{}'.format(path_target_model, ext), custom_objects=self.custom_objects)
+
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore")
+            self.target_model = load_model('{}.{}'.format(path_target_model, ext), custom_objects=self.custom_objects)
         print("Succesfully loaded network.")
 
     def target_train(self):
