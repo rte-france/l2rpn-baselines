@@ -10,6 +10,8 @@ Change Log
 - [ADDED] serialize / de serialize TrainingParams and NNArchi as json
 - [ADDED] possibility get the proper observation from their attribute name
 - [ADDED] action space is now serializable / de serializable
+- [ADDED] documentation
+- [ADDED] some tests
 
 [0.3.0] - 2020-05-13
 --------------------
