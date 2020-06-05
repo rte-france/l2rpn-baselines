@@ -70,5 +70,9 @@ class TestPandapowerOPFAgent(TestImport, unittest.TestCase):
         return "PandapowerOPFAgent"
 
 
+class TestPandapowerGeirina(TestImport, unittest.TestCase):
+    def load_module(self):
+        return "Geirina"
+
 if __name__ == "__main__":
     unittest.main()

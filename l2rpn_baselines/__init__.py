@@ -8,6 +8,7 @@ __all__ = [
     "DuelQSimple",
     "SAC",
     "PandapowerOPFAgent",
+    "Geirina",
     # utilitary scripts
     "utils"
 ]
