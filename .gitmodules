@@ -4,6 +4,3 @@
 [submodule "l2rpn_baselines/Geirina"]
 	path = l2rpn_baselines/Geirina
 	url = https://github.com/djmax008/GEIRINA_baseline
-[submodule "l2rpn_baselines/Multithreading_agent"]
-	path = l2rpn_baselines/Multithreading_agent
-	url = https://github.com/KishanGitASU/A3C-RL-baseline-agent-for-Grid2Op-environment
