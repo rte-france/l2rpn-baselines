@@ -73,7 +73,7 @@ def train(env,
 
     kwargs_converters: ``dict``
         A dictionary containing the key-word arguments pass at this initialization of the
-        :class:`grid2op.Converter.Id2Act` that serves as "Base" for the Agent.
+        :class:`grid2op.Converter.IdToAct` that serves as "Base" for the Agent.
 
     kwargs_archi: ``dict``
         Key word arguments used for making the :class:`DeepQ_NNParam` object that will be used to build the baseline.
