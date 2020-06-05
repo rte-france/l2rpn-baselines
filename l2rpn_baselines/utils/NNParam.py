@@ -39,6 +39,10 @@ class NNParam(object):
         self.activs = [str(el) for el in activs]
         self.list_attr_obs = [str(el) for el in list_attr_obs]
 
+    @classmethod
+    def get_path_model(cls, path, name=None):
+        return cls.nn_class.get_path_model(path, name=name)
+
     def make_nn(self, training_param):
         res = self.nn_class(self, training_param)
         return res

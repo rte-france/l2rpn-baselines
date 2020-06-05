@@ -73,6 +73,15 @@ def evaluate(env,
         Whether or not you want to save, as a gif, the performance of your agent. It might cause memory issues (might
         take a lot of ram) and drastically increase computation time.
 
+    Returns
+    -------
+    agent: :class:`l2rpn_baselines.utils.DeepQAgent`
+        The loaded agent that has been evaluated thanks to the runner.
+
+    res: ``list``
+        The results of the Runner on which the agent was tested.
+
+
     Examples
     -------
     You can evaluate a DeepQSimple this way:
@@ -172,6 +181,8 @@ def evaluate(env,
         if verbose:
             print("Saving the gif of the episodes")
         save_log_gif(logs_path, res)
+
+    return agent, res
 
 
 if __name__ == "__main__":

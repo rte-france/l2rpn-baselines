@@ -119,12 +119,54 @@ class DeepQAgent(AgentWithConverter):
 
     # grid2op.Agent interface
     def convert_obs(self, observation):
+        """
+        Generic way to convert an observation. This transform it to a vector and the select the attributes that were
+        selected in :attr:`l2rpn_baselines.utils.NNParams.list_attr_obs` (that have been extracted once and for all
+        in the :attr:`DeepQAgent._indx_obs` vector).
+
+        Parameters
+        ----------
+        observation: :class:`grid2op.Observation.BaseObservation`
+            The current observation sent by the environment
+
+        Returns
+        -------
+        _tmp_obs: ``numpy.ndarray``
+            The observation as vector with only the proper attribute selected (TODO scaling will be available
+            in future version)
+
+        """
         obs_as_vect = observation.to_vect()
-        # TODO optimize that
         self._tmp_obs[:] = obs_as_vect[self._indx_obs]
         return self._tmp_obs
 
     def my_act(self, transformed_observation, reward, done=False):
+        """
+        This function will return the action (its id) selected by the underlying :attr:`DeepQAgent.deep_q` network.
+
+        Before being used, this method require that the :attr:`DeepQAgent.deep_q` is created. To that end a call
+        to :func:`DeepQAgent.init_deep_q` needs to have been performed (this is automatically done if you use
+        baseline we provide and their `evaluate` and `train` scripts).
+
+        Parameters
+        ----------
+        transformed_observation: ``numpy.ndarray``
+            The observation, as transformed after :func:`DeepQAgent.convert_obs`
+
+        reward: ``float``
+            The reward of the last time step. Ignored by this method. Here for retro compatibility with openAI
+            gym interface.
+
+        done: ``bool``
+            Whether the episode is over or not. This is not used, and is only present to be compliant with
+            open AI gym interface
+
+        Returns
+        -------
+        res: ``int``
+            The id the action taken.
+
+        """
         predict_movement_int, *_ = self.deep_q.predict_movement(transformed_observation, epsilon=0.0)
         res = int(predict_movement_int)
         self._store_action_played(res)
