@@ -7,8 +7,10 @@ __all__ = [
     "DeepQSimple",
     "DuelQSimple",
     "SAC",
+    # contribution
     "PandapowerOPFAgent",
     "Geirina",
+    "AsynchronousActorCritic",
     # utilitary scripts
     "utils"
 ]
