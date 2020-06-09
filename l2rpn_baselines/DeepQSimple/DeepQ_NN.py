@@ -46,19 +46,19 @@ class DeepQ_NN(BaseDeepQ):
         This function will make 2 identical models, one will serve as a target model, the other one will be trained
         regurlarly.
         """
-        self.model = Sequential()
-        input_layer = Input(shape=(self.nn_archi.observation_size,),
+        self._model = Sequential()
+        input_layer = Input(shape=(self._nn_archi.observation_size,),
                             name="state")
         lay = input_layer
-        for lay_num, (size, act) in enumerate(zip(self.nn_archi.sizes, self.nn_archi.activs)):
+        for lay_num, (size, act) in enumerate(zip(self._nn_archi.sizes, self._nn_archi.activs)):
             lay = Dense(size, name="layer_{}".format(lay_num))(lay)  # put at self.action_size
             lay = Activation(act)(lay)
 
-        output = Dense(self.action_size, name="output")(lay)
+        output = Dense(self._action_size, name="output")(lay)
 
-        self.model = Model(inputs=[input_layer], outputs=[output])
-        self.schedule_lr_model, self.optimizer_model = self.make_optimiser()
-        self.model.compile(loss='mse', optimizer=self.optimizer_model)
+        self._model = Model(inputs=[input_layer], outputs=[output])
+        self._schedule_lr_model, self._optimizer_model = self.make_optimiser()
+        self._model.compile(loss='mse', optimizer=self._optimizer_model)
 
-        self.target_model = Model(inputs=[input_layer], outputs=[output])
-        self.target_model.set_weights(self.model.get_weights())
+        self._target_model = Model(inputs=[input_layer], outputs=[output])
+        self._target_model.set_weights(self._model.get_weights())

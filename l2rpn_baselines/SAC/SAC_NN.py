@@ -77,12 +77,12 @@ class SAC_NN(BaseDeepQ):
         self.optimizer_value = None
 
     def _build_q_NN(self):
-        input_states = Input(shape=(self.observation_size,))
-        input_action = Input(shape=(self.action_size,))
+        input_states = Input(shape=(self._observation_size,))
+        input_action = Input(shape=(self._action_size,))
 
         input_layer = Concatenate()([input_states, input_action])
         lay = input_layer
-        for lay_num, (size, act) in enumerate(zip(self.nn_archi.sizes, self.nn_archi.activs)):
+        for lay_num, (size, act) in enumerate(zip(self._nn_archi.sizes, self._nn_archi.activs)):
             lay = Dense(size, name="layer_{}".format(lay_num))(lay)  # put at self.action_size
             lay = Activation(act)(lay)
 
@@ -92,14 +92,14 @@ class SAC_NN(BaseDeepQ):
         return model
 
     def _build_model_value(self):
-        input_states = Input(shape=(self.observation_size,))
+        input_states = Input(shape=(self._observation_size,))
 
         lay = input_states
-        for lay_num, (size, act) in enumerate(zip(self.nn_archi.sizes_value, self.nn_archi.activs_value)):
+        for lay_num, (size, act) in enumerate(zip(self._nn_archi.sizes_value, self._nn_archi.activs_value)):
             lay = Dense(size)(lay)
             lay = Activation(act)(lay)
 
-        advantage = Dense(self.action_size, activation='relu')(lay)
+        advantage = Dense(self._action_size, activation='relu')(lay)
         state_value = Dense(1, activation='linear', name="state_value")(advantage)
         model = Model(inputs=[input_states], outputs=[state_value])
         return model
@@ -119,7 +119,7 @@ class SAC_NN(BaseDeepQ):
         # state value function approximation
         self.model_value = self._build_model_value()
         self.schedule_lr_value, self.optimizer_value = self.make_optimiser()
-        self.optimizer_model = self.optimizer_value
+        self._optimizer_model = self.optimizer_value
         self.model_value.compile(loss='mse', optimizer=self.optimizer_value)
 
         self.model_value_target = self._build_model_value()
@@ -128,19 +128,19 @@ class SAC_NN(BaseDeepQ):
         # policy function approximation
         self.model_policy = Sequential()
         # proba of choosing action a depending on policy pi
-        input_states = Input(shape=(self.observation_size,))
+        input_states = Input(shape=(self._observation_size,))
         lay = input_states
-        for lay_num, (size, act) in enumerate(zip(self.nn_archi.sizes_policy, self.nn_archi.activs_policy)):
+        for lay_num, (size, act) in enumerate(zip(self._nn_archi.sizes_policy, self._nn_archi.activs_policy)):
             lay = Dense(size)(lay)
             lay = Activation(act)(lay)
-        soft_proba = Dense(self.action_size, activation="softmax", kernel_initializer='uniform', name="soft_proba")(lay)
+        soft_proba = Dense(self._action_size, activation="softmax", kernel_initializer='uniform', name="soft_proba")(lay)
         self.model_policy = Model(inputs=[input_states], outputs=[soft_proba])
         self.schedule_lr_policy, self.optimizer_policy = self.make_optimiser()
         self.model_policy.compile(loss='categorical_crossentropy', optimizer=self.optimizer_policy)
 
     def _get_eye_pm(self, batch_size):
         if batch_size != self.previous_size:
-            tmp = np.zeros((batch_size, self.action_size), dtype=np.float32)
+            tmp = np.zeros((batch_size, self._action_size), dtype=np.float32)
             self.previous_eyes = tmp
             self.previous_arange = np.arange(batch_size)
             self.previous_size = batch_size
@@ -156,14 +156,14 @@ class SAC_NN(BaseDeepQ):
         p_actions = self.model_policy.predict(data, batch_size=batch_size)
         opt_policy_orig = np.argmax(np.abs(p_actions), axis=-1)
         opt_policy = 1.0 * opt_policy_orig
-        opt_policy[rand_val < epsilon] = np.random.randint(0, self.action_size, size=(np.sum(rand_val < epsilon)))
+        opt_policy[rand_val < epsilon] = np.random.randint(0, self._action_size, size=(np.sum(rand_val < epsilon)))
         opt_policy = opt_policy.astype(np.int)
         return opt_policy, p_actions[:, opt_policy]
 
     def _get_eye_train(self, batch_size):
         if batch_size != self.previous_size_train:
-            self.previous_eyes_train = np.repeat(np.eye(self.action_size),
-                                                 batch_size * np.ones(self.action_size, dtype=np.int),
+            self.previous_eyes_train = np.repeat(np.eye(self._action_size),
+                                                 batch_size * np.ones(self._action_size, dtype=np.int),
                                                  axis=0)
             self.previous_eyes_train = tf.convert_to_tensor(self.previous_eyes_train, dtype=tf.float32)
             self.previous_size_train = batch_size
@@ -175,7 +175,7 @@ class SAC_NN(BaseDeepQ):
             batch_size = s_batch.shape[0]
         target = np.zeros((batch_size, 1))
         # training of the action state value networks
-        last_action = np.zeros((batch_size, self.action_size))
+        last_action = np.zeros((batch_size, self._action_size))
         # Save the graph just the first time
         if tf_writer is not None:
             tf.summary.trace_on()
@@ -185,13 +185,13 @@ class SAC_NN(BaseDeepQ):
                 tf.summary.trace_export("model_value_target-graph", 0)
             tf.summary.trace_off()
 
-        target[:, 0] = r_batch + (1 - d_batch) * self.training_param.discount_factor * fut_action
+        target[:, 0] = r_batch + (1 - d_batch) * self._training_param.discount_factor * fut_action
         loss = self.model_Q.train_on_batch([s_batch, last_action], target)
         loss_2 = self.model_Q2.train_on_batch([s_batch, last_action], target)
 
         self.life_spent += 1
         temp = 1 / np.log(self.life_spent) / 2
-        tiled_batch = np.tile(s_batch, (self.action_size, 1))
+        tiled_batch = np.tile(s_batch, (self._action_size, 1))
         tiled_batch_ts = tf.convert_to_tensor(tiled_batch)
         # tiled_batch: output something like: batch, batch, batch
         # TODO save that somewhere not to compute it each time, you can even save this in the
@@ -257,6 +257,6 @@ class SAC_NN(BaseDeepQ):
         model_weights = self.model_value.get_weights()
         target_model_weights = self.model_value_target.get_weights()
         for i in range(len(model_weights)):
-            target_model_weights[i] = self.training_param.tau * model_weights[i] + (1 - self.training_param.tau) * \
+            target_model_weights[i] = self._training_param.tau * model_weights[i] + (1 - self._training_param.tau) * \
                                       target_model_weights[i]
         self.model_value_target.set_weights(model_weights)

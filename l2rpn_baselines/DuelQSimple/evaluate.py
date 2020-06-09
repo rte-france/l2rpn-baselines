@@ -142,7 +142,7 @@ def evaluate(env,
 
     # Print model summary
     stringlist = []
-    agent.deep_q.model.summary(print_fn=lambda x: stringlist.append(x))
+    agent.deep_q._model.summary(print_fn=lambda x: stringlist.append(x))
     short_model_summary = "\n".join(stringlist)
     if verbose:
         print(short_model_summary)

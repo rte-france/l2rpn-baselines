@@ -106,11 +106,11 @@ class DuelQLeapNet_NN(BaseDeepQ):
         BaseDeepQ.__init__(self,
                            nn_params,
                            training_param)
-        self.custom_objects = {"LtauBis": LtauBis}
+        self._custom_objects = {"LtauBis": LtauBis}
         self.construct_q_network()
-        self.max_global_norm_grad = training_param.max_global_norm_grad
-        self.max_value_grad = training_param.max_value_grad
-        self.max_loss = training_param.max_loss
+        self._max_global_norm_grad = training_param.max_global_norm_grad
+        self._max_value_grad = training_param.max_value_grad
+        self._max_loss = training_param.max_loss
 
     def construct_q_network(self):
         """
@@ -122,23 +122,23 @@ class DuelQLeapNet_NN(BaseDeepQ):
         """
         # Uses the network architecture found in DeepMind paper
         # The inputs and outputs size have changed, as well as replacing the convolution by dense layers.
-        self.model = Sequential()
-        input_x = Input(shape=(self.nn_archi.x_dim,),
+        self._model = Sequential()
+        input_x = Input(shape=(self._nn_archi.x_dim,),
                         name="x")
         inputs_tau = [Input(shape=(el,), name="tau_{}".format(nm_)) for el, nm_ in
-                      zip(self.nn_archi.tau_dims, self.nn_archi.list_attr_obs_tau)]
+                      zip(self._nn_archi.tau_dims, self._nn_archi.list_attr_obs_tau)]
 
         lay = input_x
-        for (size, act) in zip(self.nn_archi.sizes, self.nn_archi.activs):
+        for (size, act) in zip(self._nn_archi.sizes, self._nn_archi.activs):
             lay = Dense(size)(lay)  # put at self.action_size
             lay = Activation(act)(lay)
 
         # TODO multiple taus
         l_tau = lay
-        for el, nm_ in zip(inputs_tau, self.nn_archi.list_attr_obs_tau):
+        for el, nm_ in zip(inputs_tau, self._nn_archi.list_attr_obs_tau):
             l_tau = l_tau + LtauBis(name="leap_{}".format(nm_))([lay, el])
 
-        advantage = Dense(self.action_size)(l_tau)
+        advantage = Dense(self._action_size)(l_tau)
         value = Dense(1, name="value")(l_tau)
 
         meaner = Lambda(lambda x: K.mean(x, axis=1))
@@ -146,19 +146,19 @@ class DuelQLeapNet_NN(BaseDeepQ):
         tmp = subtract([advantage, mn_])
         policy = add([tmp, value], name="policy")
 
-        self.model = Model(inputs=[input_x, *inputs_tau], outputs=[policy])
-        self.schedule_model, self.optimizer_model = self.make_optimiser()
-        self.model.compile(loss='mse', optimizer=self.optimizer_model)
+        self._model = Model(inputs=[input_x, *inputs_tau], outputs=[policy])
+        self._schedule_model, self._optimizer_model = self.make_optimiser()
+        self._model.compile(loss='mse', optimizer=self._optimizer_model)
 
-        self.target_model = Model(inputs=[input_x, *inputs_tau], outputs=[policy])
+        self._target_model = Model(inputs=[input_x, *inputs_tau], outputs=[policy])
 
     def _make_x_tau(self, data):
-        data_x = data[:, :self.nn_archi.x_dim]
+        data_x = data[:, :self._nn_archi.x_dim]
 
         # for the taus
         data_tau = []
-        prev = self.nn_archi.x_dim
-        for sz, add_, mul_ in zip(self.nn_archi.tau_dims, self.nn_archi.tau_adds, self.nn_archi.tau_mults):
+        prev = self._nn_archi.x_dim
+        for sz, add_, mul_ in zip(self._nn_archi.tau_dims, self._nn_archi.tau_adds, self._nn_archi.tau_mults):
             data_tau.append((data[:, prev:prev+sz] + add_) * mul_)
             prev += sz
 
@@ -206,10 +206,10 @@ class DuelQLeapNet_NN(BaseDeepQ):
         grads = tape.gradient(loss, model.trainable_variables)
 
         # clip gradients
-        if self.max_global_norm_grad is not None:
-            grads, _ = tf.clip_by_global_norm(grads, self.max_global_norm_grad)
-        if self.max_value_grad is not None:
-            grads = [tf.clip_by_value(grad, -self.max_value_grad, self.max_value_grad) for grad in grads]
+        if self._max_global_norm_grad is not None:
+            grads, _ = tf.clip_by_global_norm(grads, self._max_global_norm_grad)
+        if self._max_value_grad is not None:
+            grads = [tf.clip_by_value(grad, -self._max_value_grad, self._max_value_grad) for grad in grads]
 
         # Apply gradients
         optimizer_model.apply_gradients(zip(grads, model.trainable_variables))
@@ -221,8 +221,8 @@ class DuelQLeapNet_NN(BaseDeepQ):
     def _clipped_batch_loss(self, y_true, y_pred):
         sq_error = tf.math.square(y_true - y_pred, name="sq_error")
         batch_sq_error = tf.math.reduce_sum(sq_error, axis=1, name="batch_sq_error")
-        if self.max_loss is not None:
-            res = tf.clip_by_value(batch_sq_error, 0.0, self.max_loss, name="batch_sq_error_clip")
+        if self._max_loss is not None:
+            res = tf.clip_by_value(batch_sq_error, 0.0, self._max_loss, name="batch_sq_error_clip")
         else:
             res = batch_sq_error
         return res

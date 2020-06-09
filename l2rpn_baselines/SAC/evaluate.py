@@ -123,9 +123,9 @@ def evaluate(env,
     # Run
     # Create agent
     agent = SAC(action_space=env.action_space,
-                         name=name,
-                         store_action=nb_process == 1,
-                         nn_archi=nn_archi)
+                name=name,
+                store_action=nb_process == 1,
+                nn_archi=nn_archi)
 
     # Load weights from file
     agent.load(load_path)

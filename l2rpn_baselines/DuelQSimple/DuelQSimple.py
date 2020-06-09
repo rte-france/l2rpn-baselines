@@ -17,6 +17,4 @@ class DuelQSimple(DeepQAgent):
 
     It does nothing in particular.
     """
-    def init_deep_q(self, training_param):
-        if self.deep_q is None:
-            self.deep_q = self.nn_archi.make_nn(training_param)
+    pass

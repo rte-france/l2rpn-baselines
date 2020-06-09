@@ -16,6 +16,30 @@ class NNParam(object):
     (number of layers, non linearities, size of each layers etc.)
 
     It is recommended to overload this class for each specific model.
+
+    Attributes
+    ----------
+
+    nn_class: :class:`l2rpn_baselines.BaseDeepQ`
+        The neural network class that will be created with each call of :func:`l2rpn_baselines.make_nn`
+
+    observation_size: ``int``
+        The size of the observation space.
+
+    action_size: ``int``
+        The size of the action space.
+
+    sizes: ``list``
+        A list of integer, each will represent the number of hidden units. The number of hidden layer is given by
+        the size / length of this list.
+
+    activs: ``list``
+        List of activation functions (given as string). It should have the same length as the :attr:`NNParam.sizes`.
+        This function should be name of keras activation function.
+
+    list_attr_obs: ``list``
+        List of the attributes that will be used from the observation and concatenated to be fed to the neural network.
+
     """
 
     _int_attr = ["action_size", "observation_size"]
@@ -37,18 +61,24 @@ class NNParam(object):
         self.action_size = action_size
         self.sizes = [int(el) for el in sizes]
         self.activs = [str(el) for el in activs]
+        if len(self.sizes) != len(self.activs):
+            raise RuntimeError("\"sizes\" and \"activs\" lists have not the same size. It's not clear how many layers "
+                               "you want your neural network to have.")
         self.list_attr_obs = [str(el) for el in list_attr_obs]
 
     @classmethod
     def get_path_model(cls, path, name=None):
+        """get the path at which the model will be saved"""
         return cls.nn_class.get_path_model(path, name=name)
 
     def make_nn(self, training_param):
+        """build the appropriate BaseDeepQ"""
         res = self.nn_class(self, training_param)
         return res
 
     @staticmethod
     def get_obs_size(env, list_attr_name):
+        """get the size of the flatten observation"""
         res = 0
         for obs_attr_name in list_attr_name:
             beg_, end_, dtype_ = env.observation_space.get_indx_extract(obs_attr_name)
@@ -56,10 +86,12 @@ class NNParam(object):
         return res
 
     def get_obs_attr(self):
+        """get the names of the observation attributes that will be extracted """
         return self.list_attr_obs
 
     # utilitaries, do not change
     def to_dict(self):
+        """convert this instance to a dictionnary"""
         # TODO copy and paste from TrainingParam
         res = {}
         for attr_nm in self._int_attr:
@@ -94,6 +126,7 @@ class NNParam(object):
 
     @classmethod
     def from_dict(cls, tmp):
+        """load from a dictionnary"""
         # TODO copy and paste from TrainingParam (more or less)
         cls_as_dict = {}
         for attr_nm in cls._int_attr:
@@ -135,6 +168,7 @@ class NNParam(object):
 
     @classmethod
     def from_json(cls, json_path):
+        """load from a json file"""
         # TODO copy and paste from TrainingParam
         if not os.path.exists(json_path):
             raise FileNotFoundError("No path are located at \"{}\"".format(json_path))
@@ -143,6 +177,7 @@ class NNParam(object):
         return cls.from_dict(dict_)
 
     def save_as_json(self, path, name=None):
+        """save as a json file"""
         # TODO copy and paste from TrainingParam
         res = self.to_dict()
         if name is None:

@@ -38,8 +38,10 @@ class TrainingParam(object):
 
     lr: ``float``
         The initial learning rate
+
     lr_decay_steps: ``int``
         The learning rate decay step
+
     lr_decay_rate: ``float``
         The learning rate decay rate
 
@@ -186,28 +188,34 @@ class TrainingParam(object):
 
     @property
     def final_epsilon(self):
+        """return the final epsilon allowed by this instance"""
         return self._final_epsilon
 
     @final_epsilon.setter
     def final_epsilon(self, final_epsilon):
+        """used to update the final_epsilon"""
         self._final_epsilon = final_epsilon
         self._compute_exp_facto()
 
     @property
     def initial_epsilon(self):
+        """get the intial epsilon used for epsilon greedy"""
         return self._initial_epsilon
 
     @initial_epsilon.setter
     def initial_epsilon(self, initial_epsilon):
+        """used to update the initial_epsilon attribute"""
         self._initial_epsilon = initial_epsilon
         self._compute_exp_facto()
 
     @property
     def update_nb_iter(self):
+        """update the total number of iteration you want to make"""
         return self._update_nb_iter
 
     @update_nb_iter.setter
     def update_nb_iter(self, update_nb_iter):
+        """update the total number of iteration you want to make"""
         self._update_nb_iter = update_nb_iter
         if self._update_nb_iter is not None and self._update_nb_iter > 0:
             self._1_update_nb_iter = 1.0 / self._update_nb_iter
@@ -222,12 +230,15 @@ class TrainingParam(object):
             self._exp_facto = 1
 
     def default_max_iter_fun(self, nb_success):
+        """the default max iteration function used"""
         return self.step_increase_nb_iter * int(nb_success * self._1_update_nb_iter)
 
     def tell_step(self, current_step):
+        """tell this instance the number of training steps that have been made"""
         self.last_step = current_step
 
     def get_next_epsilon(self, current_step):
+        """get the next epsilon for the e greedy exploration"""
         self.tell_step(current_step)
         if self.step_for_final_epsilon is None or self.initial_epsilon is None \
                 or self._exp_facto is None or self.final_epsilon is None:
@@ -241,6 +252,7 @@ class TrainingParam(object):
         return res
 
     def to_dict(self):
+        """serialize this instance to a dictionnary."""
         res = {}
         for attr_nm in self._int_attr:
             tmp = getattr(self, attr_nm)
@@ -258,6 +270,7 @@ class TrainingParam(object):
 
     @staticmethod
     def from_dict(tmp):
+        """initialize this instance from a dictionnary"""
         if not isinstance(tmp, dict):
             raise RuntimeError("TrainingParam from dict must be called with a dictionnary, and not {}".format(tmp))
         res = TrainingParam()
@@ -282,6 +295,7 @@ class TrainingParam(object):
 
     @staticmethod
     def from_json(json_path):
+        """initialize this instance from a json"""
         if not os.path.exists(json_path):
             raise FileNotFoundError("No path are located at \"{}\"".format(json_path))
         with open(json_path, "r") as f:
@@ -289,6 +303,7 @@ class TrainingParam(object):
         return TrainingParam.from_dict(dict_)
 
     def save_as_json(self, path, name=None):
+        """save this instance as a json"""
         res = self.to_dict()
         if name is None:
             name = "training_parameters.json"
@@ -301,6 +316,7 @@ class TrainingParam(object):
             json.dump(res, fp=f, indent=4, sort_keys=True)
 
     def do_train(self):
+        """return whether or not i should train the model at this time step"""
         return self.last_step % self.update_freq == 0
 
     def __eq__(self, other):

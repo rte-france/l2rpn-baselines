@@ -36,19 +36,19 @@ class DuelQ_NN(BaseDeepQ):
         It uses the architecture defined in the `nn_archi` attributes.
 
         """
-        self.model = Sequential()
-        input_layer = Input(shape=(self.nn_archi.observation_size,),
+        self._model = Sequential()
+        input_layer = Input(shape=(self._nn_archi.observation_size,),
                             name="observation")
 
         lay = input_layer
-        for lay_num, (size, act) in enumerate(zip(self.nn_archi.sizes, self.nn_archi.activs)):
+        for lay_num, (size, act) in enumerate(zip(self._nn_archi.sizes, self._nn_archi.activs)):
             lay = Dense(size, name="layer_{}".format(lay_num))(lay)  # put at self.action_size
             lay = Activation(act)(lay)
 
-        fc1 = Dense(self.action_size)(lay)
-        advantage = Dense(self.action_size, name="advantage")(fc1)
+        fc1 = Dense(self._action_size)(lay)
+        advantage = Dense(self._action_size, name="advantage")(fc1)
 
-        fc2 = Dense(self.action_size)(lay)
+        fc2 = Dense(self._action_size)(lay)
         value = Dense(1, name="value")(fc2)
 
         meaner = Lambda(lambda x: K.mean(x, axis=1))
@@ -56,8 +56,8 @@ class DuelQ_NN(BaseDeepQ):
         tmp = subtract([advantage, mn_])
         policy = add([tmp, value], name="policy")
 
-        self.model = Model(inputs=[input_layer], outputs=[policy])
-        self.schedule_model, self.optimizer_model = self.make_optimiser()
-        self.model.compile(loss='mse', optimizer=self.optimizer_model)
+        self._model = Model(inputs=[input_layer], outputs=[policy])
+        self._schedule_model, self._optimizer_model = self.make_optimiser()
+        self._model.compile(loss='mse', optimizer=self._optimizer_model)
 
-        self.target_model = Model(inputs=[input_layer], outputs=[policy])
+        self._target_model = Model(inputs=[input_layer], outputs=[policy])

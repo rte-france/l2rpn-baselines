@@ -14,6 +14,7 @@ import numpy as np
 import random
 import pdb
 
+
 class ReplayBuffer:
     """Constructs a buffer object that stores the past moves
     and samples a set of subsamples"""

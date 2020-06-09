@@ -186,7 +186,7 @@ def train(env,
     if load_path is not None:
         print("INFO: Reloading a model, training parameters will be ignored")
         baseline.load(load_path)
-        training_param = baseline.training_param
+        training_param = baseline._training_param
 
     baseline.train(env,
                    iterations,

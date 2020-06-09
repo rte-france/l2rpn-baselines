@@ -11,6 +11,7 @@ DEFAULT_NAME = "DeepQSimple"
 
 
 class DeepQSimple(DeepQAgent):
-    def init_deep_q(self, training_param):
-        if self.deep_q is None:
-            self.deep_q = self.nn_archi.make_nn(training_param)
+    """
+    A simple deep q learning algorithm. It does nothing different thant its base class.
+    """
+    pass
