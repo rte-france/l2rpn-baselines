@@ -11,8 +11,6 @@ from grid2op.Agent import DoNothingAgent
 
 class Template(DoNothingAgent):
     """
-    Do nothing agent of grid2op, as a lowerbond baseline for l2rpn competition.
-
     Note that a Baseline should always somehow inherit from :class:`grid2op.Agent.BaseAgent`.
 
     It serves as a template agent to explain how a baseline can be built.

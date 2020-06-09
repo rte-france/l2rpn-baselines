@@ -16,6 +16,7 @@ import grid2op
 
 
 def zip_for_codalab(path_agent, dest="."):
+    """DEPRECATED DO NOT USE"""
     warnings.warn("This is a deprecated version of the zip file. Please avoid using it and use the one given in the "
                   "starting kit of the competition.")
     folder = os.path.abspath(path_agent)

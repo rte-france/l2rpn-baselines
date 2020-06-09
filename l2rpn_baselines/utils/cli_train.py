@@ -10,6 +10,7 @@ import argparse
 
 
 def cli_train():
+    """some default command line arguments (cli) for training the baselines. Can be reused in some baselines here."""
     parser = argparse.ArgumentParser(description="Train baseline DDQN")
     parser.add_argument("--num_train_steps", required=False,
                         default=1024, type=int,

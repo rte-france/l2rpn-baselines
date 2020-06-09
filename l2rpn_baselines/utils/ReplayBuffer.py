@@ -12,6 +12,7 @@
 from collections import deque
 import numpy as np
 import random
+import pdb
 
 
 class ReplayBuffer:
@@ -28,7 +29,7 @@ class ReplayBuffer:
         # S represents current state, a is action,
         # r is reward, d is whether it is the end,
         # and s2 is next state
-        if np.any(~np.isfinite(s)) or np.any(~np.isfinite(s2)):
+        if np.any(~np.isfinite(s)) or np.any(~np.isfinite(s2)) or np.any(~np.isfinite(r)):
             # TODO proper handling of infinite values somewhere !!!!
             raise RuntimeError("Infinite value somwhere in at least one of the state")
 
