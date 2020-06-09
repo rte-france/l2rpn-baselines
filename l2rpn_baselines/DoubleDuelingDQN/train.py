@@ -11,7 +11,8 @@
 import argparse
 import tensorflow as tf
 
-from l2rpn_baselines.DoubleDuelingDQN.DoubleDuelingDQN import DoubleDuelingDQN as DDDQNAgent
+from l2rpn_baselines.DoubleDuelingDQN.DoubleDuelingDQN import DoubleDuelingDQN as D3QNAgent
+from l2rpn_baselines.DoubleDuelingDQN.DoubleDuelingDQNConfig import DoubleDuelingDQNConfig as D3QNConfig
 
 DEFAULT_NAME = "DoubleDuelingDQN"
 DEFAULT_SAVE_DIR = "./models"
@@ -68,18 +69,20 @@ def train(env,
           batch_size= DEFAULT_BATCH_SIZE,
           learning_rate= DEFAULT_LR):
 
+    # Set config
+    D3QNConfig.LR = learning_rate
+    D3QNConfig.N_FRAMES = num_frames
+    D3QNConfig.BATCH_SIZE = batch_size
+    
     # Limit gpu usage
     physical_devices = tf.config.list_physical_devices('GPU')
     if len(physical_devices) > 0:
         tf.config.experimental.set_memory_growth(physical_devices[0], True)
 
-    agent = DDDQNAgent(env.observation_space,
-                       env.action_space,
-                       name=name,
-                       is_training=True,
-                       batch_size=batch_size,
-                       num_frames=num_frames,
-                       lr=learning_rate)
+    agent = D3QNAgent(env.observation_space,
+                      env.action_space,
+                      name=name,
+                      is_training=True)
 
     if load_path is not None:
         agent.load(load_path)
@@ -110,9 +113,10 @@ if __name__ == "__main__":
 
     # Register custom reward for training
     cr = env.reward_helper.template_reward
-    cr.addReward("overflow", CloseToOverflowReward(), 1.0)
-    cr.addReward("game", GameplayReward(), 2.0)
-    cr.addReward("recolines", LinesReconnectedReward(), 1.0)
+    #cr.addReward("overflow", CloseToOverflowReward(), 1.0)
+    cr.addReward("game", GameplayReward(), 1.0)
+    #cr.addReward("recolines", LinesReconnectedReward(), 1.0)
+    cr.addReward("l2rpn", L2RPNReward(), 2.0/float(env.n_line))
     # Initialize custom rewards
     cr.initialize(env)
     # Set reward range to something managable

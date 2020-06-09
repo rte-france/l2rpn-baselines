@@ -44,13 +44,13 @@ class DoubleDuelingDQN_NN(object):
         lay2 = tfkl.Dense(self.observation_size, name="fc_2")(lay1)
         lay2 = tfka.relu(lay2, alpha=0.01) #leaky_relu
 
-        lay3 = tfkl.Dense(self.action_size * 2 + 512, name="fc_3")(lay2)
+        lay3 = tfkl.Dense(896, name="fc_3")(lay2)
         lay3 = tfka.relu(lay3, alpha=0.01) #leaky_relu
 
-        lay4 = tfkl.Dense(self.action_size * 2 + 256, name="fc_4")(lay3)
+        lay4 = tfkl.Dense(512, name="fc_4")(lay3)
         lay4 = tfka.relu(lay4, alpha=0.01) #leaky_relu
 
-        advantage = tfkl.Dense(self.action_size * 2, name="fc_adv")(lay4)
+        advantage = tfkl.Dense(384, name="fc_adv")(lay4)
         advantage = tfka.relu(advantage, alpha=0.01) #leaky_relu
         advantage = tfkl.Dense(self.action_size, name="adv")(advantage)
         advantage_mean = tf.math.reduce_mean(advantage,
@@ -59,7 +59,7 @@ class DoubleDuelingDQN_NN(object):
         advantage = tfkl.subtract([advantage, advantage_mean],
                                   name="adv_subtract")
 
-        value = tfkl.Dense(self.action_size * 2, name="fc_val")(lay4)
+        value = tfkl.Dense(384, name="fc_val")(lay4)
         value = tfka.relu(value, alpha=0.01) #leaky_relu
         value = tfkl.Dense(1, name="val")(value)
 
