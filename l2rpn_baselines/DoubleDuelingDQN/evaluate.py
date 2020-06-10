@@ -17,7 +17,8 @@ from grid2op.Runner import Runner
 from grid2op.Reward import *
 from grid2op.Action import *
 
-from l2rpn_baselines.DoubleDuelingDQN.DoubleDuelingDQN import DoubleDuelingDQN as DDDQNAgent
+from l2rpn_baselines.DoubleDuelingDQN.DoubleDuelingDQN import DoubleDuelingDQN as D3QNAgent
+from l2rpn_baselines.DoubleDuelingDQN.DoubleDuelingDQNConfig import DoubleDuelingDQNConfig as D3QNConfig
 from l2rpn_baselines.utils.save_log_gif import save_log_gif
 
 DEFAULT_LOGS_DIR = "./logs-evals"
@@ -65,6 +66,9 @@ def evaluate(env,
              verbose=False,
              save_gif=False):
 
+    # Set config
+    D3QNConfig.N_FRAMES = num_frames
+
     # Limit gpu usage
     physical_devices = tf.config.list_physical_devices('GPU')
     tf.config.experimental.set_memory_growth(physical_devices[0], True)
@@ -73,10 +77,9 @@ def evaluate(env,
     runner_params["verbose"] = args.verbose
 
     # Create agent
-    agent = DDDQNAgent(env.observation_space,
-                       env.action_space,
-                       is_training=False,
-                       num_frames=num_frames)
+    agent = D3QNAgent(env.observation_space,
+                      env.action_space,
+                      is_training=False)
 
     # Load weights from file
     agent.load(load_path)

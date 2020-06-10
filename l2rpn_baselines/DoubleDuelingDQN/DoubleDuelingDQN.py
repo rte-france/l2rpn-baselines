@@ -130,11 +130,11 @@ class DoubleDuelingDQN(AgentWithConverter):
     def _save_hyperparameters(self, logpath, env, steps):
         r_instance = env.reward_helper.template_reward
         hp = {
-            "lr": self.lr,
+            "lr": cfg.LR,
             "lr_decay_steps": cfg.LR_DECAY_STEPS,
             "lr_decay_rate": cfg.LR_DECAY_RATE,
-            "batch_size": self.batch_size,
-            "stack_frames": self.num_frames,
+            "batch_size": cfg.BATCH_SIZE,
+            "stack_frames": cfg.N_FRAMES,
             "iter": steps,
             "e_start": cfg.INITIAL_EPSILON,
             "e_end": cfg.FINAL_EPSILON,
