@@ -17,6 +17,7 @@ from grid2op.Runner import Runner
 from grid2op.Reward import *
 from grid2op.Action import *
 
+from l2rpn_baselines.DoubleDuelingRDQN.DoubleDuelingRDQNConfig import DoubleDuelingRDQNConfig as RDQNConfig
 from l2rpn_baselines.DoubleDuelingRDQN.DoubleDuelingRDQN import DoubleDuelingRDQN as RDQNAgent
 from l2rpn_baselines.utils.save_log_gif import save_log_gif
 
@@ -24,7 +25,6 @@ DEFAULT_LOGS_DIR = "./logs-eval"
 DEFAULT_NB_EPISODE = 1
 DEFAULT_NB_PROCESS = 1
 DEFAULT_MAX_STEPS = -1
-
 
 def cli():
     parser = argparse.ArgumentParser(description="Eval baseline DDDQN")

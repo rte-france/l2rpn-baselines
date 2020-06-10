@@ -15,6 +15,7 @@ from grid2op.MakeEnv import make
 from grid2op.Reward import *
 from grid2op.Action import *
 
+from l2rpn_baselines.DoubleDuelingRDQN.DoubleDuelingRDQNConfig import DoubleDuelingRDQNConfig as RDQNConfig
 from l2rpn_baselines.DoubleDuelingRDQN.DoubleDuelingRDQN import DoubleDuelingRDQN as RDQNAgent
 
 DEFAULT_NAME = "DoubleDuelingRDQN"
@@ -74,6 +75,11 @@ def train(env,
           batch_size=DEFAULT_BATCH_SIZE,
           learning_rate=DEFAULT_LR):
 
+    # Set config
+    RDQNConfig.TRACE_LENGTH = trace_length
+    RDQNConfig.BATCH_SIZE = batch_size
+    RDQNConfig.LR = learning_rate
+
     # Limit gpu usage
     physical_devices = tf.config.list_physical_devices('GPU')
     if len(physical_devices) > 0:
@@ -82,10 +88,7 @@ def train(env,
     agent = RDQNAgent(env.observation_space,
                       env.action_space,
                       name=name, 
-                      is_training=True,
-                      batch_size=batch_size,
-                      trace_length=trace_length,
-                      lr=learning_rate)
+                      is_training=True)
 
     if load_path is not None:
         agent.load(load_path)
