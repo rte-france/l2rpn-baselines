@@ -16,12 +16,21 @@ import grid2op
 from l2rpn_baselines.utils import TrainingParam, NNParam
 from l2rpn_baselines.DeepQSimple import train as train_dqn
 from l2rpn_baselines.DeepQSimple import evaluate as eval_dqn
-from l2rpn_baselines.DuelQSimple import train as train_d3qn
-from l2rpn_baselines.DuelQSimple import evaluate as eval_d3qn
+from l2rpn_baselines.DuelQSimple import train as train_d3qs
+from l2rpn_baselines.DuelQSimple import evaluate as eval_d3qs
 from l2rpn_baselines.SAC import train as train_sac
 from l2rpn_baselines.SAC import evaluate as eval_sac
 from l2rpn_baselines.DuelQLeapNet import train as train_leap
 from l2rpn_baselines.DuelQLeapNet import evaluate as eval_leap
+from l2rpn_baselines.DoubleDuelingDQN import train as train_d3qn
+from l2rpn_baselines.DoubleDuelingDQN import evaluate as eval_d3qn
+from l2rpn_baselines.DoubleDuelingDQN import DoubleDuelingDQNConfig as d3qn_cfg
+from l2rpn_baselines.DoubleDuelingRDQN import train as train_rqn
+from l2rpn_baselines.DoubleDuelingRDQN import evaluate as eval_rqn
+from l2rpn_baselines.DoubleDuelingRDQN import DoubleDuelingRDQNConfig as rdqn_cfg
+from l2rpn_baselines.SliceRDQN import train as train_srqn
+from l2rpn_baselines.SliceRDQN import evaluate as eval_srqn
+from l2rpn_baselines.SliceRDQN import SliceRDQN_Config as srdqn_cfg
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
@@ -105,7 +114,7 @@ class TestDuelQSimple(unittest.TestCase):
                                  "set_topo_vect": False
                                  }
             nm_ = "AnneOnymous"
-            train_d3qn(env,
+            train_d3qs(env,
                       name=nm_,
                       iterations=100,
                       save_path=tmp_dir,
@@ -117,7 +126,7 @@ class TestDuelQSimple(unittest.TestCase):
                       kwargs_converters=kwargs_converters,
                       kwargs_archi=kwargs_archi)
 
-            baseline_2 = eval_d3qn(env,
+            baseline_2 = eval_d3qs(env,
                                   name=nm_,
                                   load_path=tmp_dir,
                                   logs_path=tmp_dir,
@@ -247,6 +256,113 @@ class TestLeapNet(unittest.TestCase):
                                    max_steps=30,
                                    verbose=False,
                                    save_gif=False)
+
+class TestD3QN(unittest.TestCase):
+    def test_train_eval(self):
+        tmp_dir = tempfile.mkdtemp()
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore")
+            env = grid2op.make("rte_case5_example", test=True)
+            nm_ = "test_D3QN"
+
+            d3qn_cfg.INITIAL_EPISLON = 1.0
+            d3qn_cfg.FINAL_EPISLON = 0.01
+            d3qn_cfg.EPISLON_DECAY = 20
+            d3qn_cfg.UPDATE_FREQ = 16
+            
+            train_d3qn(env,
+                       name=nm_,
+                       iterations=100,
+                       save_path=tmp_dir,
+                       load_path=None,
+                       logs_path=tmp_dir,
+                       learning_rate=1e-4,
+                       verbose=False,
+                       num_pre_training_steps=32,
+                       num_frames=4,
+                       batch_size=8)
+
+            model_path = os.path.join(tmp_dir, nm_ + ".h5")
+            eval_res = eval_d3qn(env,
+                                 load_path=model_path,
+                                 logs_path=tmp_dir,
+                                 nb_episode=1,
+                                 nb_process=1,
+                                 max_steps=10,
+                                 verbose=False,
+                                 save_gif=False)
+
+            assert eval_res is not None
+
+class TestRDQN(unittest.TestCase):
+    def test_train_eval(self):
+        tmp_dir = tempfile.mkdtemp()
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore")
+            env = grid2op.make("rte_case5_example", test=True)
+            nm_ = "test_RDQN"
+            rdqn_cfg.INITIAL_EPISLON = 1.0
+            rdqn_cfg.FINAL_EPISLON = 0.01
+            rdqn_cfg.EPISLON_DECAY = 20
+            rdqn_cfg.UPDATE_FREQ = 16
+
+            train_rqn(env,
+                      name=nm_,
+                      iterations=100,
+                      save_path=tmp_dir,
+                      load_path=None,
+                      logs_path=tmp_dir,
+                      learning_rate=1e-4,
+                      verbose=False,
+                      num_pre_training_steps=16,
+                      batch_size=8)
+
+            model_path = os.path.join(tmp_dir, nm_ + ".tf")
+            eval_res = eval_rqn(env,
+                                load_path=model_path,
+                                logs_path=tmp_dir,
+                                nb_episode=1,
+                                nb_process=1,
+                                max_steps=10,
+                                verbose=False,
+                                save_gif=False)
+
+            assert eval_res is not None
+
+class TestSRDQN(unittest.TestCase):
+    def test_train_eval(self):
+        tmp_dir = tempfile.mkdtemp()
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore")
+            env = grid2op.make("rte_case5_example", test=True)
+            nm_ = "test_SRDQN"
+            srdqn_cfg.INITIAL_EPISLON = 1.0
+            srdqn_cfg.FINAL_EPISLON = 0.01
+            srdqn_cfg.EPISLON_DECAY = 20
+            srdqn_cfg.UPDATE_FREQ = 16
+
+            train_srqn(env,
+                       name=nm_,
+                       iterations=100,
+                       save_path=tmp_dir,
+                       load_path=None,
+                       logs_path=tmp_dir,
+                       learning_rate=1e-4,
+                       verbose=False,
+                       num_pre_training_steps=32,
+                       batch_size=8)
+
+            model_path = os.path.join(tmp_dir, nm_ + ".tf")
+            eval_res = eval_srqn(env,
+                                 load_path=model_path,
+                                 logs_path=tmp_dir,
+                                 nb_episode=1,
+                                 nb_process=1,
+                                 max_steps=10,
+                                 verbose=False,
+                                 save_gif=False)
+
+            assert eval_res is not None
 
 
 if __name__ == "__main__":

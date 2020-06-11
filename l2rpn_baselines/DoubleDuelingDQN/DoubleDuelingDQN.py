@@ -225,7 +225,7 @@ class DoubleDuelingDQN(AgentWithConverter):
             if self.done:
                 new_obs = env.reset() # This shouldn't raise
                 self.reset(new_obs)
-            if step % 1000 == 0:
+            if cfg.VERBOSE and step % 1000 == 0:
                 print("Step [{}] -- Random [{}]".format(step, self.epsilon))
 
             # Save current observation to stacking buffer
@@ -248,7 +248,8 @@ class DoubleDuelingDQN(AgentWithConverter):
             new_state = self.convert_obs(new_obs)
             if info["is_illegal"] or info["is_ambiguous"] or \
                info["is_dispatching_illegal"] or info["is_illegal_reco"]:
-                print (a, info)
+                if cfg.VERBOSE:
+                    print (a, info)
 
             # Save new observation to stacking buffer
             self._save_next_frame(new_state)
@@ -286,8 +287,9 @@ class DoubleDuelingDQN(AgentWithConverter):
             if self.done:
                 self.epoch_rewards.append(total_reward)
                 self.epoch_alive.append(alive_steps)
-                print("Survived [{}] steps".format(alive_steps))
-                print("Total reward [{}]".format(total_reward))
+                if cfg.VERBOSE:
+                    print("Survived [{}] steps".format(alive_steps))
+                    print("Total reward [{}]".format(total_reward))
                 alive_steps = 0
                 total_reward = 0
             else:
@@ -375,5 +377,5 @@ class DoubleDuelingDQN(AgentWithConverter):
                 tf.summary.scalar("mean_alive_100", mean_alive_100, step)
                 tf.summary.scalar("loss", loss, step)
                 tf.summary.scalar("lr", self.Qmain.train_lr, step)
-
-            print("loss =", loss)
+            if cfg.VERBOSE:
+                print("loss =", loss)

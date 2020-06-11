@@ -14,6 +14,7 @@ class DoubleDuelingRDQNConfig():
     TRACE_LENGTH = 8
     BATCH_SIZE = 32
     LR = 1e-5
+    VERBOSE = True
 
     @staticmethod
     def from_json(json_in_path):

@@ -216,7 +216,7 @@ class SliceRDQN(AgentWithConverter):
                 episode += 1
                 episode_exp = []
 
-            if step % cfg.SUFFLE_FREQ == 0:
+            if cfg.VERBOSE and step % cfg.SUFFLE_FREQ == 0:
                 print("Step [{}] -- Dropout [{}]".format(step, self.epsilon))
 
             # Choose an action
@@ -274,8 +274,9 @@ class SliceRDQN(AgentWithConverter):
             if self.done:
                 self.epoch_rewards.append(total_reward)
                 self.epoch_alive.append(alive_steps)
-                print("Survived [{}] steps".format(alive_steps))
-                print("Total reward [{}]".format(total_reward))
+                if cfg.VERBOSE:
+                    print("Survived [{}] steps".format(alive_steps))
+                    print("Total reward [{}]".format(total_reward))
                 alive_steps = 0
                 total_reward = 0
             else:
@@ -367,7 +368,8 @@ class SliceRDQN(AgentWithConverter):
         loss = self.Qmain.model.train_on_batch(batch_x, batch_y)
         loss = loss[0]
 
-        print("loss =", loss)
+        if cfg.VERBOSE:
+            print("loss =", loss)
         with self.tf_writer.as_default():
             mean_reward = np.mean(self.epoch_rewards)
             mean_alive = np.mean(self.epoch_alive)

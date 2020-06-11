@@ -26,7 +26,7 @@ DEFAULT_TRAIN_STEPS = 1024
 DEFAULT_TRACE_LEN = 12
 DEFAULT_BATCH_SIZE = 32
 DEFAULT_LR = 1e-5
-
+DEFAULT_VERBOSE = True
 
 def cli():
     parser = argparse.ArgumentParser(description="Train baseline DDQN")
@@ -73,12 +73,14 @@ def train(env,
           num_pre_training_steps=DEFAULT_PRE_STEPS,
           trace_length=DEFAULT_TRACE_LEN,
           batch_size=DEFAULT_BATCH_SIZE,
-          learning_rate=DEFAULT_LR):
+          learning_rate=DEFAULT_LR,
+          verbose=DEFAULT_VERBOSE):
 
     # Set config
     RDQNConfig.TRACE_LENGTH = trace_length
     RDQNConfig.BATCH_SIZE = batch_size
     RDQNConfig.LR = learning_rate
+    RDQNConfig.VERBOSE = verbose
 
     # Limit gpu usage
     physical_devices = tf.config.list_physical_devices('GPU')

@@ -151,5 +151,5 @@ class DoubleDuelingDQN_NN(object):
     def load_network(self, path):
         # Load from a model.h5 file
         self.model.load_weights(path)
-        print("Succesfully loaded network from: {}".format(path))
+        print("Successfully loaded network from: {}".format(path))
 

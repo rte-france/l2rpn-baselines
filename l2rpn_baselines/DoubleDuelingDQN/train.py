@@ -22,7 +22,7 @@ DEFAULT_TRAIN_STEPS = 1024
 DEFAULT_N_FRAMES = 4
 DEFAULT_BATCH_SIZE = 32
 DEFAULT_LR = 1e-5
-
+DEFAULT_VERBOSE = True
 
 def cli():
     parser = argparse.ArgumentParser(description="Train baseline DDQN")
@@ -67,13 +67,15 @@ def train(env,
           num_pre_training_steps = DEFAULT_PRE_STEPS,
           num_frames = DEFAULT_N_FRAMES,
           batch_size= DEFAULT_BATCH_SIZE,
-          learning_rate= DEFAULT_LR):
+          learning_rate= DEFAULT_LR,
+          verbose=DEFAULT_VERBOSE):
 
     # Set config
     D3QNConfig.LR = learning_rate
     D3QNConfig.N_FRAMES = num_frames
     D3QNConfig.BATCH_SIZE = batch_size
-    
+    D3QNConfig.VERBOSE = verbose
+
     # Limit gpu usage
     physical_devices = tf.config.list_physical_devices('GPU')
     if len(physical_devices) > 0:
