@@ -74,5 +74,11 @@ class TestPandapowerGeirina(TestImport, unittest.TestCase):
     def load_module(self):
         return "Geirina"
 
+
+class TestAsynchronousActorCritic(TestImport, unittest.TestCase):
+    def load_module(self):
+        return "AsynchronousActorCritic"
+
+
 if __name__ == "__main__":
     unittest.main()

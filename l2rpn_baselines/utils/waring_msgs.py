@@ -6,15 +6,5 @@
 # SPDX-License-Identifier: MPL-2.0
 # This file is part of L2RPN Baselines, L2RPN Baselines a repository to host baselines for l2rpn competitions.
 
-from l2rpn_baselines.utils import DeepQAgent
-DEFAULT_NAME = "DuelQSimple"
-
-
-class DuelQSimple(DeepQAgent):
-    """
-    Inheriting from :class:`l2rpn_baselines.DeepQAgent` this class implements the  particular agent used for the
-    Double Duelling Deep Q network baseline.
-
-    It does nothing in particular.
-    """
-    pass
+_WARN_GPU_MEMORY = "Impossible to locate tensorflow GPU devices. If you have GPUs on your systems, this script " \
+                   "might take all their available memory."

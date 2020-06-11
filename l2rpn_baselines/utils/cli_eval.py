@@ -12,6 +12,7 @@ from l2rpn_baselines.utils.str2bool import str2bool
 
 # TODO add possibilitiy to add new CLI when calling the function
 def cli_eval():
+    """ some usefull command line arguments (CLI) for the evaluation of the baseline."""
     parser = argparse.ArgumentParser(description="Train baseline DDQN")
     parser.add_argument("--env_name", default="l2rpn_case14_sandbox",
                         help="Name of the l2rpn dataset environment")
