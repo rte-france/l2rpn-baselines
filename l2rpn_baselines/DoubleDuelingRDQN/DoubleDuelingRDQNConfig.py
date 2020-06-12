@@ -2,6 +2,10 @@ import os
 import json
 
 class DoubleDuelingRDQNConfig():
+    """
+    DoubleDuelingRDQN configurable hyperparameters as class attributes
+    """
+
     INITIAL_EPSILON = 0.99
     FINAL_EPSILON = 0.01
     DECAY_EPSILON = 1024*32

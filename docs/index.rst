@@ -29,6 +29,7 @@ Baseline already Available
    DuelQSimple
    SAC
    DoubleDuelingDQN
+   DoubleDuelingRDQN
 
 
 More advanced baselines

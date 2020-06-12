@@ -19,7 +19,7 @@ You can use this class with:
     from l2rpn_baselines.DoubleDuelingDQN import train
     from l2rpn_baselines.DoubleDuelingDQN import evaluate
 
-.. automodule:: l2rpn_baselines.DoubleDuelingDQN
+.. automodule:: l2rpn_baselines.DoubleDuelingDQN.DoubleDuelingDQN
     :members:
     :autosummary:
 
