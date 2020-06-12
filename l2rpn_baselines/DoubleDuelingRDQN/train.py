@@ -15,6 +15,7 @@ from grid2op.MakeEnv import make
 from grid2op.Reward import *
 from grid2op.Action import *
 
+from l2rpn_baselines.DoubleDuelingRDQN.DoubleDuelingRDQNConfig import DoubleDuelingRDQNConfig as RDQNConfig
 from l2rpn_baselines.DoubleDuelingRDQN.DoubleDuelingRDQN import DoubleDuelingRDQN as RDQNAgent
 
 DEFAULT_NAME = "DoubleDuelingRDQN"
@@ -25,7 +26,7 @@ DEFAULT_TRAIN_STEPS = 1024
 DEFAULT_TRACE_LEN = 12
 DEFAULT_BATCH_SIZE = 32
 DEFAULT_LR = 1e-5
-
+DEFAULT_VERBOSE = True
 
 def cli():
     parser = argparse.ArgumentParser(description="Train baseline DDQN")
@@ -72,7 +73,14 @@ def train(env,
           num_pre_training_steps=DEFAULT_PRE_STEPS,
           trace_length=DEFAULT_TRACE_LEN,
           batch_size=DEFAULT_BATCH_SIZE,
-          learning_rate=DEFAULT_LR):
+          learning_rate=DEFAULT_LR,
+          verbose=DEFAULT_VERBOSE):
+
+    # Set config
+    RDQNConfig.TRACE_LENGTH = trace_length
+    RDQNConfig.BATCH_SIZE = batch_size
+    RDQNConfig.LR = learning_rate
+    RDQNConfig.VERBOSE = verbose
 
     # Limit gpu usage
     physical_devices = tf.config.list_physical_devices('GPU')
@@ -82,10 +90,7 @@ def train(env,
     agent = RDQNAgent(env.observation_space,
                       env.action_space,
                       name=name, 
-                      is_training=True,
-                      batch_size=batch_size,
-                      trace_length=trace_length,
-                      lr=learning_rate)
+                      is_training=True)
 
     if load_path is not None:
         agent.load(load_path)
