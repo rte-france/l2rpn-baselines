@@ -2,6 +2,11 @@ import os
 import json
 
 class DoubleDuelingDQNConfig():
+    """
+    DoubleDuelingDQN configurable hyperparameters
+    exposed as class attributes
+    """
+
     LR_DECAY_STEPS = 1024*64
     LR_DECAY_RATE = 0.95
     INITIAL_EPSILON = 0.99
