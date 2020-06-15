@@ -95,7 +95,7 @@ def train(env,
         import grid2op
         from grid2op.Reward import L2RPNReward
         from l2rpn_baselines.utils import TrainingParam
-        from l2rpn_baselines.DuelQLeapNet import train
+        from l2rpn_baselines.DuelQLeapNet import train, LeapNet_NNParam
 
         # define the environment
         env = grid2op.make("l2rpn_case14_sandbox",
@@ -193,6 +193,7 @@ def train(env,
                             istraining=True,
                             nb_env=nb_env,
                             filter_action_fun=filter_action_fun,
+                            verbose=verbose,
                             **kwargs_converters
                             )
 

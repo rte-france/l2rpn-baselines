@@ -95,7 +95,7 @@ def train(env,
 
         import grid2op
         from grid2op.Reward import L2RPNReward
-        from l2rpn_baselines.utils import TrainingParam
+        from l2rpn_baselines.utils import TrainingParam, NNParam
         from l2rpn_baselines.DuelQSimple import train
 
         # define the environment
@@ -112,7 +112,7 @@ def train(env,
                          "time_before_cooldown_sub", "rho", "timestep_overflow", "line_status"]
 
         # neural network architecture
-        observation_size = DeepQ_NNParam.get_obs_size(env, li_attr_obs_X)
+        observation_size = NNParam.get_obs_size(env, li_attr_obs_X)
         sizes = [800, 800, 800, 494, 494, 494]  # sizes of each hidden layers
         kwargs_archi = {'observation_size': observation_size,
                         'sizes': sizes,
