@@ -7,6 +7,3 @@
 [submodule "l2rpn_baselines/AsynchronousActorCritic"]
 	path = l2rpn_baselines/AsynchronousActorCritic
 	url = https://github.com/KishanGitASU/A3C-RL-baseline-agent-for-Grid2Op-environment.git
-[submodule "l2rpn_baselines/WolperGrid"]
-	path = l2rpn_baselines/WolperGrid
-	url = git@github.com:Tezirg/WolperGrid.git
