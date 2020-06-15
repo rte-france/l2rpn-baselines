@@ -343,7 +343,7 @@ if __name__ == "__main__":
     # limit the number of time steps played per scenarios
     tp.step_increase_nb_iter = 100  # None to deactivate it
     tp.min_iter = 10
-    tp.update_nb_iter(100)  # once 100 scenarios are solved, increase of "step_increase_nb_iter"
+    tp.update_nb_iter = 100  # once 100 scenarios are solved, increase of "step_increase_nb_iter"
 
     # oversampling hard scenarios
     tp.oversampling_rate = 3  # None to deactivate it
@@ -402,7 +402,8 @@ if __name__ == "__main__":
               nb_env=args.nb_env,
               training_param=tp,
               kwargs_converters=kwargs_converters,
-              kwargs_archi=kwargs_archi)
+              kwargs_archi=kwargs_archi,
+              verbose=True)
     finally:
         env.close()
         if args.nb_env > 1:

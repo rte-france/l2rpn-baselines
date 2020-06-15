@@ -184,6 +184,7 @@ class TrainingParam(object):
 
         self.update_tensorboard_freq = update_tensorboard_freq
         self.save_model_each = save_model_each
+        self.max_iter_fun = self.default_max_iter_fun
         self._compute_exp_facto()
 
     @property
