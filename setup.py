@@ -13,7 +13,14 @@ __version__ = "0.4.1"
 
 pkgs = {
     "required": [
-        "grid2op[optional]>=0.9.1.post1"
+        "grid2op[optional]>=0.9.1.post1",
+        "tensorflow>=2.2.0",
+        "Keras>=2.3.1",
+        "torch>=1.4.0",
+        "statsmodels>=0.11.1",
+        "scikit-learn>=0.22.2.post1",
+        "gym>=0.17.1",
+        "scipy>=1.4.1",
     ],
     "extras": {
         "docs": [
