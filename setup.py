@@ -8,12 +8,12 @@
 
 import setuptools
 from setuptools import setup
-__version__ = "0.4.0"
+__version__ = "0.4.1"
 
 
 pkgs = {
     "required": [
-        "grid2op[challenge,optional]>=0.9.1.post1"
+        "grid2op[optional]>=0.9.1.post1"
     ],
     "extras": {
         "docs": [
@@ -22,7 +22,8 @@ pkgs = {
             "sphinx-rtd-theme>=0.4.3",
             "sphinxcontrib-trio>=1.1.0",
             "autodocsumm>=0.1.13"
-        ]
+        ],
+        "challenge": ["grid2op[challenge]>=0.9.1.post1"]
     }
 }
 
