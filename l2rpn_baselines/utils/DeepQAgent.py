@@ -11,6 +11,7 @@ import numpy as np
 from tqdm import tqdm
 import tensorflow as tf
 
+import grid2op
 from grid2op.Exceptions import Grid2OpException
 from grid2op.Agent import AgentWithConverter
 from grid2op.Converter import IdToAct
@@ -111,7 +112,6 @@ class DeepQAgent(AgentWithConverter):
                  name="DeepQAgent",
                  store_action=True,
                  istraining=False,
-                 nb_env=1,
                  filter_action_fun=None,
                  verbose=False,
                  **kwargs_converters):
@@ -122,7 +122,7 @@ class DeepQAgent(AgentWithConverter):
 
         # and now back to the origin implementation
         self.replay_buffer = None
-        self.__nb_env = nb_env
+        self.__nb_env = None
 
         self.deep_q = None
         self._training_param = None
@@ -306,8 +306,6 @@ class DeepQAgent(AgentWithConverter):
             conv_path = os.path.join(tmp_me, "{}.npy".format(nm_attr))
             if os.path.exists(conv_path):
                 setattr(self, nm_attr, np.load(file=conv_path))
-            else:
-                raise RuntimeError("Impossible to find the data \"{}.npy\" at \"{}\"".format(nm_attr, tmp_me))
 
     def save(self, path):
         """
@@ -336,7 +334,9 @@ class DeepQAgent(AgentWithConverter):
             # TODO save the "oversampling" part, and all the other info
             for nm_attr in ["_time_step_lived", "_nb_chosen", "_proba"]:
                 conv_path = os.path.join(tmp_me, "{}.npy".format(nm_attr))
-                np.save(arr=getattr(self, nm_attr), file=conv_path)
+                attr_ = getattr(self, nm_attr)
+                if attr_ is not None:
+                    np.save(arr=attr_, file=conv_path)
 
     def train(self,
               env,
@@ -353,7 +353,7 @@ class DeepQAgent(AgentWithConverter):
 
         Parameters
         ----------
-        env: :class:`grid2op.Environment.Environment`
+        env: :class:`grid2op.Environment.Environment` or :class:`grid2op.Environment.MultiEnvironment`
             The environment used to train your model.
 
         iterations: ``int``
@@ -404,6 +404,14 @@ class DeepQAgent(AgentWithConverter):
         UPDATE_FREQ = training_param.update_tensorboard_freq  # update tensorboard every "UPDATE_FREQ" steps
         SAVING_NUM = training_param.save_model_each
 
+        if isinstance(env, grid2op.Environment.Environment):
+            self.__nb_env = 1
+        else:
+            import warnings
+            nb_env = env.nb_env
+            warnings.warn("Training using {} environments".format(nb_env))
+            self.__nb_env = nb_env
+
         self.init_obs_extraction(env)
 
         training_step = self._training_param.last_step
@@ -435,22 +443,24 @@ class DeepQAgent(AgentWithConverter):
 
         # for non uniform random sampling of the scenarios
         th_size = None
-        if _CACHE_AVAILABLE_DEEPQAGENT:
-            if isinstance(env.chronics_handler.real_data, MultifolderWithCache):
-                th_size = env.chronics_handler.real_data.cache_size
-        if th_size is None:
-            th_size = len(env.chronics_handler.real_data.subpaths)
-
         self._prev_obs_num = 0
-        # number of time step lived per possible scenarios
-        if self._time_step_lived is None or self._time_step_lived.shape[0] != th_size:
-            self._time_step_lived = np.zeros(th_size, dtype=np.uint64)
-        # number of time a given scenario has been played
-        if self._nb_chosen is None or self._nb_chosen.shape[0] != th_size:
-            self._nb_chosen = np.zeros(th_size, dtype=np.uint)
-        # number of time a given scenario has been played
-        if self._proba is None or self._proba.shape[0] != th_size:
-            self._proba = np.ones(th_size, dtype=np.float64)
+        if self.__nb_env == 1:
+            # TODO make this available for multi env too
+            if _CACHE_AVAILABLE_DEEPQAGENT:
+                if isinstance(env.chronics_handler.real_data, MultifolderWithCache):
+                    th_size = env.chronics_handler.real_data.cache_size
+            if th_size is None:
+                th_size = len(env.chronics_handler.real_data.subpaths)
+
+            # number of time step lived per possible scenarios
+            if self._time_step_lived is None or self._time_step_lived.shape[0] != th_size:
+                self._time_step_lived = np.zeros(th_size, dtype=np.uint64)
+            # number of time a given scenario has been played
+            if self._nb_chosen is None or self._nb_chosen.shape[0] != th_size:
+                self._nb_chosen = np.zeros(th_size, dtype=np.uint)
+            # number of time a given scenario has been played
+            if self._proba is None or self._proba.shape[0] != th_size:
+                self._proba = np.ones(th_size, dtype=np.float64)
 
         self._prev_id = 0
         # this is for the "limit the episode length" depending on your previous success
@@ -485,6 +495,7 @@ class DeepQAgent(AgentWithConverter):
                     temp_reward = np.array([temp_reward], dtype=np.float32)
                     temp_done = np.array([temp_done], dtype=np.bool)
                     info = [info]
+
                 new_state = self._convert_obs_train(temp_observation_obj)
                 self._updage_illegal_ambiguous(training_step, info)
                 done, reward, total_reward, alive_frame, epoch_num \
@@ -588,7 +599,7 @@ class DeepQAgent(AgentWithConverter):
             loss = self.deep_q.train(s_batch, a_batch, r_batch, d_batch, s2_batch,
                                      tf_writer)
             # save learning rate for later
-            self._train_lr = self.deep_q.optimizer_model._decayed_lr('float32').numpy()
+            self._train_lr = self.deep_q._optimizer_model._decayed_lr('float32').numpy()
             self.__graph_saved = True
             if not np.all(np.isfinite(loss)):
                 # if the loss is not finite i stop the learning
@@ -673,7 +684,8 @@ class DeepQAgent(AgentWithConverter):
 
             # update the number of time steps it has live
             ts_lived = observation_num - self._prev_obs_num
-            self._time_step_lived[self._prev_id] += ts_lived
+            if self._time_step_lived is not None:
+                self._time_step_lived[self._prev_id] += ts_lived
             self._prev_obs_num = observation_num
             if self._training_param.oversampling_rate is not None:
                 # proba = np.sqrt(1. / (self._time_step_lived +1))
@@ -694,7 +706,8 @@ class DeepQAgent(AgentWithConverter):
                 self._prev_id %= self._time_step_lived.shape[0]
 
             env.reset()
-            self._nb_chosen[self._prev_id] += 1
+            if self._nb_chosen is not None:
+                self._nb_chosen[self._prev_id] += 1
 
             # random fast forward between now and next week
             if self._training_param.random_sample_datetime_start is not None:
@@ -783,17 +796,17 @@ class DeepQAgent(AgentWithConverter):
                 # print the top k scenarios the "hardest" (ie chosen the most number of times
                 if self.verbose:
                     top_k = 10
-                    array_ = np.argsort(self._nb_chosen)[-top_k:][::-1]
-                    print("hardest scenarios\n{}".format(array_))
-                    print("They have been chosen respectively\n{}".format(self._nb_chosen[array_]))
-                    # print("Associated proba are\n{}".format(self._proba[array_]))
-                    print("The number of timesteps played is\n{}".format(self._time_step_lived[array_]))
-                    print("avg (accross all scenarios) number of timsteps played {}"
-                          "".format(np.mean(self._time_step_lived)))
-                    print("Time alive: {}".format(self._time_step_lived[array_] / (self._nb_chosen[array_] + 1)))
-                    print("Avg time alive: {}".format(np.mean(self._time_step_lived / (self._nb_chosen + 1 ))))
-                    # print("avg (accross all scenarios) proba {}"
-                    #       "".format(np.mean(self._proba)))
+                    if self._nb_chosen is not None:
+                        array_ = np.argsort(self._nb_chosen)[-top_k:][::-1]
+                        print("hardest scenarios\n{}".format(array_))
+                        print("They have been chosen respectively\n{}".format(self._nb_chosen[array_]))
+                        # print("Associated proba are\n{}".format(self._proba[array_]))
+                        print("The number of timesteps played is\n{}".format(self._time_step_lived[array_]))
+                        print("avg (accross all scenarios) number of timsteps played {}"
+                              "".format(np.mean(self._time_step_lived)))
+                        print("Time alive: {}".format(self._time_step_lived[array_] / (self._nb_chosen[array_] + 1)))
+                        print("Avg time alive: {}".format(np.mean(self._time_step_lived / (self._nb_chosen + 1 ))))
+
             with self._tf_writer.as_default():
                 last_alive = epoch_alive[(epoch_num-1)]
                 last_reward = epoch_rewards[(epoch_num-1)]
@@ -885,12 +898,13 @@ class DeepQAgent(AgentWithConverter):
                         self.nb_do_nothing = 0
                         self._nb_updated_act_tensorboard = 0
 
-
-                tf.summary.histogram(
-                    "timestep_lived", self._time_step_lived, step=step_tb, buckets=None,
-                    description="number of time steps lived for all scenarios"
-                )
-                tf.summary.histogram(
-                    "nb_chosen", self._nb_chosen, step=step_tb, buckets=None,
-                    description="number of times this scenarios has been played"
-                )
+                if self._time_step_lived is not None:
+                    tf.summary.histogram(
+                        "timestep_lived", self._time_step_lived, step=step_tb, buckets=None,
+                        description="number of time steps lived for all scenarios"
+                    )
+                if self._nb_chosen is not None:
+                    tf.summary.histogram(
+                        "nb_chosen", self._nb_chosen, step=step_tb, buckets=None,
+                        description="number of times this scenarios has been played"
+                    )

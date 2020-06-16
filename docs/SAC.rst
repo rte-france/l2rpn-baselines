@@ -9,6 +9,7 @@ Description
 -----------
 This module proposes an implementation of the SAC algorithm.
 
+An example to train this model is available in the train function :ref:`Example-sac`.
 
 Exported class
 --------------

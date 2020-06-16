@@ -151,7 +151,7 @@ class TrainingParam(object):
 
         self.buffer_size = buffer_size
         self.minibatch_size = minibatch_size
-        self.min_observation = min_observation  # 5000
+        self.min_observation = min_observation
         self._final_epsilon = float(final_epsilon)  # have on average 1 random action per day of approx 288 timesteps at the end (never kill completely the exploration)
         self._initial_epsilon = float(initial_epsilon)
         self.step_for_final_epsilon = float(step_for_final_epsilon)
@@ -184,38 +184,33 @@ class TrainingParam(object):
 
         self.update_tensorboard_freq = update_tensorboard_freq
         self.save_model_each = save_model_each
+        self.max_iter_fun = self.default_max_iter_fun
         self._compute_exp_facto()
 
     @property
     def final_epsilon(self):
-        """return the final epsilon allowed by this instance"""
         return self._final_epsilon
 
     @final_epsilon.setter
     def final_epsilon(self, final_epsilon):
-        """used to update the final_epsilon"""
         self._final_epsilon = final_epsilon
         self._compute_exp_facto()
 
     @property
     def initial_epsilon(self):
-        """get the intial epsilon used for epsilon greedy"""
         return self._initial_epsilon
 
     @initial_epsilon.setter
     def initial_epsilon(self, initial_epsilon):
-        """used to update the initial_epsilon attribute"""
         self._initial_epsilon = initial_epsilon
         self._compute_exp_facto()
 
     @property
     def update_nb_iter(self):
-        """update the total number of iteration you want to make"""
         return self._update_nb_iter
 
     @update_nb_iter.setter
     def update_nb_iter(self, update_nb_iter):
-        """update the total number of iteration you want to make"""
         self._update_nb_iter = update_nb_iter
         if self._update_nb_iter is not None and self._update_nb_iter > 0:
             self._1_update_nb_iter = 1.0 / self._update_nb_iter

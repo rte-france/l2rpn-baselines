@@ -5,12 +5,14 @@
 # you can obtain one at http://mozilla.org/MPL/2.0/.
 # SPDX-License-Identifier: MPL-2.0
 # This file is part of L2RPN Baselines, L2RPN Baselines a repository to host baselines for l2rpn competitions.
+__version__ = "0.4.1"
 
 __all__ = [
     "cli_eval",
            "cli_train",
            "str2bool",
            "save_log_gif",
+           "make_multi_env",
            "zip_for_codalab",
            "train_generic",
            "TrainingParam",
@@ -26,6 +28,7 @@ from l2rpn_baselines.utils.str2bool import str2bool
 from l2rpn_baselines.utils.save_log_gif import save_log_gif
 from l2rpn_baselines.utils.zip_for_codalab import zip_for_codalab
 from l2rpn_baselines.utils.train_generic import train_generic
+from l2rpn_baselines.utils.make_multi_env import make_multi_env
 
 from l2rpn_baselines.utils.TrainingParam import TrainingParam
 from l2rpn_baselines.utils.NNParam import NNParam

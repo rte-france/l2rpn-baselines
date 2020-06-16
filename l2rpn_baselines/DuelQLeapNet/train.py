@@ -26,7 +26,6 @@ def train(env,
           save_path=None,
           load_path=None,
           logs_dir=None,
-          nb_env=1,
           training_param=None,
           filter_action_fun=None,
           verbose=True,
@@ -56,10 +55,6 @@ def train(env,
     logs_dir: ``str``
         Where to store the tensorboard generated logs during the training. ``None`` if you don't want to log them.
 
-    nb_env: ``int``
-        Number of environments used in parrallel. Note that if nb_env > 1, some functions might not be usable. Also,
-        if nb_env > 1 make sure that the `env` argument is a grid2op MultiEnvMultiProcess.
-
     training_param: :class:`l2rpn_baselines.utils.TrainingParam`
         The parameters describing the way you will train your model.
 
@@ -84,9 +79,12 @@ def train(env,
     baseline: :class:`DuelQLeapNet`
         The trained baseline.
 
+
+    .. _Example-leapnet:
+
     Examples
     ---------
-    Here is an example on how to train a DeepSimple baseline.
+    Here is an example on how to train a DuelQLeapNet baseline.
 
     First define a python script, for example
 
@@ -95,7 +93,7 @@ def train(env,
         import grid2op
         from grid2op.Reward import L2RPNReward
         from l2rpn_baselines.utils import TrainingParam
-        from l2rpn_baselines.DuelQLeapNet import train
+        from l2rpn_baselines.DuelQLeapNet import train, LeapNet_NNParam
 
         # define the environment
         env = grid2op.make("l2rpn_case14_sandbox",
@@ -141,14 +139,15 @@ def train(env,
                              }
         # define the name of the model
         nm_ = "AnneOnymous"
+        save_path = "/WHERE/I/SAVED/THE/MODEL"
+        logs_dir = "/WHERE/I/SAVED/THE/LOGS"
         try:
             train(env,
                   name=nm_,
                   iterations=10000,
-                  save_path="/WHERE/I/SAVED/THE/MODEL",
+                  save_path=save_path,
                   load_path=None,
-                  logs_dir="/WHERE/I/SAVED/THE/LOGS",
-                  nb_env=1,
+                  logs_dir=logs_dir,
                   training_param=tp,
                   kwargs_converters=kwargs_converters,
                   kwargs_archi=kwargs_archi)
@@ -191,8 +190,8 @@ def train(env,
                             nn_archi=nn_archi,
                             name=name,
                             istraining=True,
-                            nb_env=nb_env,
                             filter_action_fun=filter_action_fun,
+                            verbose=verbose,
                             **kwargs_converters
                             )
 
@@ -343,7 +342,7 @@ if __name__ == "__main__":
     # limit the number of time steps played per scenarios
     tp.step_increase_nb_iter = 100  # None to deactivate it
     tp.min_iter = 10
-    tp.update_nb_iter(100)  # once 100 scenarios are solved, increase of "step_increase_nb_iter"
+    tp.update_nb_iter = 100  # once 100 scenarios are solved, increase of "step_increase_nb_iter"
 
     # oversampling hard scenarios
     tp.oversampling_rate = 3  # None to deactivate it
@@ -374,9 +373,10 @@ if __name__ == "__main__":
     # nn architecture
     li_attr_obs_X = ["day_of_week", "hour_of_day", "minute_of_hour", "prod_p", "prod_v", "load_p", "load_q",
                      "actual_dispatch", "target_dispatch", "topo_vect", "time_before_cooldown_line",
-                     "time_before_cooldown_sub", "timestep_overflow", "line_status", "rho"]
-    li_attr_obs_Tau = ["rho", "line_status"]
-    sizes = [800, 800, 800, 494, 494, 494]
+                     "time_before_cooldown_sub", "timestep_overflow", "line_status", "rho", "line_status"]
+    # li_attr_obs_Tau = ["rho", "line_status"]
+    li_attr_obs_Tau = []
+    sizes = [512, 512, 256, 256]
 
     x_dim = LeapNet_NNParam.get_obs_size(env_init, li_attr_obs_X)
     tau_dims = [LeapNet_NNParam.get_obs_size(env_init, [el]) for el in li_attr_obs_Tau]
@@ -402,7 +402,8 @@ if __name__ == "__main__":
               nb_env=args.nb_env,
               training_param=tp,
               kwargs_converters=kwargs_converters,
-              kwargs_archi=kwargs_archi)
+              kwargs_archi=kwargs_archi,
+              verbose=True)
     finally:
         env.close()
         if args.nb_env > 1:

@@ -39,12 +39,14 @@ class SAC_NN(BaseDeepQ):
     """
     def __init__(self,
                  nn_params,
-                 training_param=None):
+                 training_param=None,
+                 verbose=False):
         if training_param is None:
             training_param = TrainingParam()
         BaseDeepQ.__init__(self,
                            nn_params,
-                           training_param)
+                           training_param,
+                           verbose=verbose)
 
         # TODO add as meta param the number of "Q" you want to use (here 2)
         # TODO add as meta param size and types of the networks
@@ -248,7 +250,8 @@ class SAC_NN(BaseDeepQ):
         self.model_Q = load_model('{}.{}'.format(path_modelQ, ext))
         self.model_Q2 = load_model('{}.{}'.format(path_modelQ2, ext))
         self.model_policy = load_model('{}.{}'.format(path_policy, ext))
-        print("Succesfully loaded network.")
+        if self.verbose:
+            print("Succesfully loaded network.")
 
     def target_train(self):
         """

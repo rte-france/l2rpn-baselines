@@ -26,7 +26,6 @@ def train(env,
           save_path=None,
           load_path=None,
           logs_dir=None,
-          nb_env=1,
           training_param=None,
           filter_action_fun=None,
           kwargs_converters={},
@@ -56,10 +55,6 @@ def train(env,
     logs_dir: ``str``
         Where to store the tensorboard generated logs during the training. ``None`` if you don't want to log them.
 
-    nb_env: ``int``
-        Number of environments used in parrallel. Note that if nb_env > 1, some functions might not be usable. Also,
-        if nb_env > 1 make sure that the `env` argument is a grid2op MultiEnvMultiProcess.
-
     training_param: :class:`l2rpn_baselines.utils.TrainingParam`
         The parameters describing the way you will train your model.
 
@@ -84,9 +79,13 @@ def train(env,
     baseline: :class:`DeepQSimple`
         The trained baseline.
 
+
+    .. _Example-deepqsimple:
+
     Examples
     ---------
-    Here is an example on how to train a DeepSimple baseline.
+
+    Here is an example on how to train a DeepQSimple baseline.
 
     First define a python script, for example
 
@@ -94,7 +93,7 @@ def train(env,
 
         import grid2op
         from grid2op.Reward import L2RPNReward
-        from l2rpn_baselines.utils import TrainingParam
+        from l2rpn_baselines.utils import TrainingParam, NNParam
         from l2rpn_baselines.DeepQSimple import train
 
         # define the environment
@@ -111,7 +110,7 @@ def train(env,
                          "time_before_cooldown_sub", "rho", "timestep_overflow", "line_status"]
 
         # neural network architecture
-        observation_size = DeepQ_NNParam.get_obs_size(env, li_attr_obs_X)
+        observation_size = NNParam.get_obs_size(env, li_attr_obs_X)
         sizes = [800, 800, 800, 494, 494, 494]  # sizes of each hidden layers
         kwargs_archi = {'observation_size': observation_size,
                         'sizes': sizes,
@@ -134,7 +133,6 @@ def train(env,
                   save_path="/WHERE/I/SAVED/THE/MODEL",
                   load_path=None,
                   logs_dir="/WHERE/I/SAVED/THE/LOGS",
-                  nb_env=1,
                   training_param=tp,
                   kwargs_converters=kwargs_converters,
                   kwargs_archi=kwargs_archi)
@@ -177,7 +175,6 @@ def train(env,
                            nn_archi=nn_archi,
                            name=name,
                            istraining=True,
-                           nb_env=nb_env,
                            verbose=verbose,
                             **kwargs_converters
                             )

@@ -4,6 +4,17 @@ Change Log
 --------
 - stack multiple states in `utils/DeepQAgent`
 
+[0.4.1] - 2020-06-16
+-----------------------
+- [FIXED] `Issue 14 <https://github.com/rte-france/l2rpn-baselines/issues/14>`_ clearer interface and get rid
+  of the "nb_env" in some baselines constructor. A helper function
+  `make_multi_env` has also been created to help the creation of the appropariate multi environment.
+- [FIXED] `Issue 13 <https://github.com/rte-france/l2rpn-baselines/issues/13>`_ the name have been properly updated
+- [FIXED] `Issue 12 <https://github.com/rte-france/l2rpn-baselines/issues/12>`_ the appropriate documentation for the
+  SAC baselines and all the kind
+- [FIXED] `Issue 9 <https://github.com/rte-france/l2rpn-baselines/issues/9>`_ no more hard coded global variables for
+  most of the baselines.
+
 [0.4.0] - 2020-06-xx
 --------------------
 - [ADDED] convenience way to modify the architecture of the neural networks

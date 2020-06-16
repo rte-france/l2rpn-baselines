@@ -13,6 +13,8 @@ powerlines based on the injection and the topology.
 
 In this baseline, we use this very same architecture to model the Q function. The D3QN RL method is used.
 
+An example to train this model is available in the train function :ref:`Example-leapnet`.
+
 Exported class
 --------------
 You can use this class with:
