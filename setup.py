@@ -8,12 +8,12 @@
 
 import setuptools
 from setuptools import setup
-__version__ = "0.3.0"
+__version__ = "0.4.0"
 
 
 pkgs = {
     "required": [
-        "grid2op[challenge,optional]>=0.8.0"
+        "grid2op[challenge,optional]>=0.9.1.post1"
     ],
     "extras": {
         "docs": [

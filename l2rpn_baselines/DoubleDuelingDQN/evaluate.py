@@ -17,7 +17,8 @@ from grid2op.Runner import Runner
 from grid2op.Reward import *
 from grid2op.Action import *
 
-from l2rpn_baselines.DoubleDuelingDQN.DoubleDuelingDQN import DoubleDuelingDQN as DDDQNAgent
+from l2rpn_baselines.DoubleDuelingDQN.DoubleDuelingDQN import DoubleDuelingDQN as D3QNAgent
+from l2rpn_baselines.DoubleDuelingDQN.DoubleDuelingDQNConfig import DoubleDuelingDQNConfig as D3QNConfig
 from l2rpn_baselines.utils.save_log_gif import save_log_gif
 
 DEFAULT_LOGS_DIR = "./logs-evals"
@@ -25,7 +26,7 @@ DEFAULT_NB_EPISODE = 1
 DEFAULT_NB_PROCESS = 1
 DEFAULT_MAX_STEPS = -1
 DEFAULT_NUM_FRAMES = 4
-
+DEFAULT_VERBOSE = True
 
 def cli():
     parser = argparse.ArgumentParser(description="Eval baseline DDDQN")
@@ -62,21 +63,24 @@ def evaluate(env,
              nb_process=DEFAULT_NB_PROCESS,
              max_steps=DEFAULT_MAX_STEPS,
              num_frames=DEFAULT_NUM_FRAMES,
-             verbose=False,
+             verbose=DEFAULT_VERBOSE,
              save_gif=False):
 
+    # Set config
+    D3QNConfig.N_FRAMES = num_frames
+    D3QNConfig.VERBOSE = verbose
+    
     # Limit gpu usage
     physical_devices = tf.config.list_physical_devices('GPU')
     tf.config.experimental.set_memory_growth(physical_devices[0], True)
 
     runner_params = env.get_params_for_runner()
-    runner_params["verbose"] = args.verbose
+    runner_params["verbose"] = verbose
 
     # Create agent
-    agent = DDDQNAgent(env.observation_space,
-                       env.action_space,
-                       is_training=False,
-                       num_frames=num_frames)
+    agent = D3QNAgent(env.observation_space,
+                      env.action_space,
+                      is_training=False)
 
     # Load weights from file
     agent.load(load_path)
@@ -87,10 +91,11 @@ def evaluate(env,
                     agentInstance=agent)
 
     # Print model summary
-    stringlist = []
-    agent.Qmain.model.summary(print_fn=lambda x: stringlist.append(x))
-    short_model_summary = "\n".join(stringlist)
-    print(short_model_summary)
+    if verbose:
+        stringlist = []
+        agent.Qmain.model.summary(print_fn=lambda x: stringlist.append(x))
+        short_model_summary = "\n".join(stringlist)
+        print(short_model_summary)
 
     # Run
     os.makedirs(logs_path, exist_ok=True)
@@ -98,18 +103,22 @@ def evaluate(env,
                      nb_episode=nb_episode,
                      nb_process=nb_process,
                      max_iter=max_steps,
-                     pbar=True)
+                     pbar=verbose)
 
     # Print summary
-    print("Evaluation summary:")
-    for _, chron_name, cum_reward, nb_time_step, max_ts in res:
-        msg_tmp = "chronics at: {}".format(chron_name)
-        msg_tmp += "\ttotal reward: {:.6f}".format(cum_reward)
-        msg_tmp += "\ttime steps: {:.0f}/{:.0f}".format(nb_time_step, max_ts)
-        print(msg_tmp)
+    if verbose:
+        print("Evaluation summary:")
+        for _, chron_name, cum_reward, nb_time_step, max_ts in res:
+            msg_tmp = "chronics at: {}".format(chron_name)
+            msg_tmp += "\ttotal reward: {:.6f}".format(cum_reward)
+            msg_tmp += "\ttime steps: {:.0f}/{:.0f}".format(nb_time_step,
+                                                            max_ts)
+            print(msg_tmp)
 
     if save_gif:
         save_log_gif(logs_path, res)
+
+    return res
 
 if __name__ == "__main__":
     # Parse command line

@@ -12,6 +12,7 @@ Change Log
 - [ADDED] action space is now serializable / de serializable
 - [ADDED] documentation
 - [ADDED] some tests
+- [ADDED] the AsynchronousActorCritic baseline, that won the 2nd place to the first edition of l2rpn in 2019.
 
 [0.3.0] - 2020-05-13
 --------------------

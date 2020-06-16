@@ -16,28 +16,16 @@ from grid2op.Parameters import Parameters
 from grid2op.Agent import AgentWithConverter
 from grid2op.Converter import IdToAct
 
+from l2rpn_baselines.DoubleDuelingRDQN.DoubleDuelingRDQNConfig import DoubleDuelingRDQNConfig as cfg
 from l2rpn_baselines.DoubleDuelingRDQN.ExperienceBuffer import ExperienceBuffer
 from l2rpn_baselines.DoubleDuelingRDQN.DoubleDuelingRDQN_NN import DoubleDuelingRDQN_NN
-
-INITIAL_EPSILON = 0.99
-FINAL_EPSILON = 0.01
-DECAY_EPSILON = 1024*32
-STEP_EPSILON = (INITIAL_EPSILON-FINAL_EPSILON)/DECAY_EPSILON
-DISCOUNT_FACTOR = 0.99
-REPLAY_BUFFER_SIZE = 1024*4
-UPDATE_FREQ = 64
-UPDATE_TARGET_HARD_FREQ = -1
-UPDATE_TARGET_SOFT_TAU = 0.001
 
 class DoubleDuelingRDQN(AgentWithConverter):
     def __init__(self,
                  observation_space,
                  action_space,
                  name=__name__,
-                 trace_length=1,
-                 batch_size=1,
-                 is_training=False,
-                 lr=1e-5):
+                 is_training=False):
         # Call parent constructor
         AgentWithConverter.__init__(self, action_space,
                                     action_space_converter=IdToAct)
@@ -45,10 +33,10 @@ class DoubleDuelingRDQN(AgentWithConverter):
         # Store constructor params
         self.observation_space = observation_space
         self.name = name
-        self.trace_length = trace_length
-        self.batch_size = batch_size
+        self.trace_length = cfg.TRACE_LENGTH
+        self.batch_size = cfg.BATCH_SIZE
         self.is_training = is_training
-        self.lr = lr
+        self.lr = cfg.LR
         
         # Declare required vars
         self.Qmain = None
@@ -78,7 +66,9 @@ class DoubleDuelingRDQN(AgentWithConverter):
 
 
     def _init_training(self):
-        self.exp_buffer = ExperienceBuffer(REPLAY_BUFFER_SIZE, self.batch_size, self.trace_length)
+        self.exp_buffer = ExperienceBuffer(cfg.REPLAY_BUFFER_SIZE,
+                                           self.batch_size,
+                                           self.trace_length)
         self.done = True
         self.epoch_rewards = []
         self.epoch_alive = []
@@ -110,17 +100,17 @@ class DoubleDuelingRDQN(AgentWithConverter):
     def _save_hyperparameters(self, logpath, env, steps):
         r_instance = env.reward_helper.template_reward
         hp = {
-            "lr": self.lr,
-            "batch_size": self.batch_size,
-            "trace_len": self.trace_length,
-            "e_start": INITIAL_EPSILON,
-            "e_end": FINAL_EPSILON,
-            "e_decay": DECAY_EPSILON,
-            "discount": DISCOUNT_FACTOR,
-            "buffer_size": REPLAY_BUFFER_SIZE,
-            "update_freq": UPDATE_FREQ,
-            "update_hard": UPDATE_TARGET_HARD_FREQ,
-            "update_soft": UPDATE_TARGET_SOFT_TAU,
+            "lr": cfg.LR,
+            "batch_size": cfg.BATCH_SIZE,
+            "trace_len": cfg.TRACE_LENGTH,
+            "e_start": cfg.INITIAL_EPSILON,
+            "e_end": cfg.FINAL_EPSILON,
+            "e_decay": cfg.DECAY_EPSILON,
+            "discount": cfg.DISCOUNT_FACTOR,
+            "buffer_size": cfg.REPLAY_BUFFER_SIZE,
+            "update_freq": cfg.UPDATE_FREQ,
+            "update_hard": cfg.UPDATE_TARGET_HARD_FREQ,
+            "update_soft": cfg.UPDATE_TARGET_SOFT_TAU,
             "reward": dict(r_instance)
         }
         hp_filename = "{}-hypers.json".format(self.name)
@@ -153,7 +143,9 @@ class DoubleDuelingRDQN(AgentWithConverter):
     def my_act(self, state, reward, done=False):
         data_input = np.array(state)
         data_input.reshape(1, 1, self.observation_size)
-        a, _, m, c = self.Qmain.predict_move(data_input, self.mem_state, self.carry_state)
+        a, _, m, c = self.Qmain.predict_move(data_input,
+                                             self.mem_state,
+                                             self.carry_state)
         self.mem_state = m
         self.carry_state = c
 
@@ -178,7 +170,7 @@ class DoubleDuelingRDQN(AgentWithConverter):
         num_training_steps = iterations
         num_steps = num_pre_training_steps + num_training_steps
         step = 0
-        epsilon = INITIAL_EPSILON
+        epsilon = cfg.INITIAL_EPSILON
         alive_steps = 0
         total_reward = 0
         episode = 0
@@ -204,17 +196,24 @@ class DoubleDuelingRDQN(AgentWithConverter):
                 episode += 1
                 episode_exp = []
 
-            if step % 1000 == 0:
+            if cfg.VERBOSE and step % 1000 == 0:
                 print("Step [{}] -- Dropout [{}]".format(step, epsilon))
 
             # Choose an action
             if step <= num_pre_training_steps:
-                a, m, c = self.Qmain.random_move(self.state, self.mem_state, self.carry_state)
+                a, m, c = self.Qmain.random_move(self.state,
+                                                 self.mem_state,
+                                                 self.carry_state)
             elif len(episode_exp) < self.trace_length:
-                a, m, c = self.Qmain.random_move(self.state, self.mem_state, self.carry_state)
+                a, m, c = self.Qmain.random_move(self.state,
+                                                 self.mem_state,
+                                                 self.carry_state)
                 a = 0 # Do Nothing
             else:
-                a, _, m, c = self.Qmain.bayesian_move(self.state, self.mem_state, self.carry_state, epsilon)
+                a, _, m, c = self.Qmain.bayesian_move(self.state,
+                                                      self.mem_state,
+                                                      self.carry_state,
+                                                      epsilon)
 
             # Update LSTM state
             self.mem_state = m
@@ -233,31 +232,36 @@ class DoubleDuelingRDQN(AgentWithConverter):
             if step >= num_pre_training_steps:
                 training_step = step - num_pre_training_steps
                 # Slowly decay dropout rate
-                if epsilon > FINAL_EPSILON:
-                    epsilon -= STEP_EPSILON
-                if epsilon < FINAL_EPSILON:
-                    epsilon = FINAL_EPSILON
+                if epsilon > cfg.FINAL_EPSILON:
+                    epsilon -= cfg.STEP_EPSILON
+                if epsilon < cfg.FINAL_EPSILON:
+                    epsilon = cfg.FINAL_EPSILON
 
                 # Perform training at given frequency
-                if step % UPDATE_FREQ == 0 and self.exp_buffer.can_sample():
+                if step % cfg.UPDATE_FREQ == 0 and \
+                   self.exp_buffer.can_sample():
                     # Sample from experience buffer
                     batch = self.exp_buffer.sample()
                     # Perform training
                     self._batch_train(batch, step, training_step)
                     # Update target network towards primary network
-                    if UPDATE_TARGET_SOFT_TAU > 0:
-                        self.Qmain.update_target_soft(self.Qtarget.model, tau=UPDATE_TARGET_SOFT_TAU)
+                    if cfg.UPDATE_TARGET_SOFT_TAU > 0:
+                        tau = cfg.UPDATE_TARGET_SOFT_TAU
+                        self.Qmain.update_target_soft(self.Qtarget.model, tau)
 
-                # Every UPDATE_TARGET_HARD_FREQ trainings, update target completely
-                if UPDATE_TARGET_HARD_FREQ > 0 and step % (UPDATE_FREQ * UPDATE_TARGET_HARD_FREQ) == 0:
+                # Every UPDATE_TARGET_HARD_FREQ trainings,
+                # update target completely
+                if cfg.UPDATE_TARGET_HARD_FREQ > 0 and \
+                   step % (cfg.UPDATE_FREQ * cfg.UPDATE_TARGET_HARD_FREQ) == 0:
                     self.Qmain.update_target_hard(self.Qtarget.model)
 
             total_reward += reward
             if self.done:
                 self.epoch_rewards.append(total_reward)
                 self.epoch_alive.append(alive_steps)
-                print("Survived [{}] steps".format(alive_steps))
-                print("Total reward [{}]".format(total_reward))
+                if cfg.VERBOSE:
+                    print("Survived [{}] steps".format(alive_steps))
+                    print("Total reward [{}]".format(total_reward))
                 alive_steps = 0
                 total_reward = 0
             else:
@@ -286,9 +290,21 @@ class DoubleDuelingRDQN(AgentWithConverter):
         m_data = m_data.reshape(self.batch_size, self.trace_length, input_size)
         t_data = np.vstack(batch[:, 4])
         t_data = t_data.reshape(self.batch_size, self.trace_length, input_size)
-        q_input = [copy.deepcopy(batch_mem), copy.deepcopy(batch_carry), copy.deepcopy(m_data)]
-        q1_input = [copy.deepcopy(batch_mem), copy.deepcopy(batch_carry), copy.deepcopy(t_data)]
-        q2_input = [copy.deepcopy(batch_mem), copy.deepcopy(batch_carry), copy.deepcopy(t_data)]
+        q_input = [
+            copy.deepcopy(batch_mem),
+            copy.deepcopy(batch_carry),
+            copy.deepcopy(m_data)
+        ]
+        q1_input = [
+            copy.deepcopy(batch_mem),
+            copy.deepcopy(batch_carry),
+            copy.deepcopy(t_data)
+        ]
+        q2_input = [
+            copy.deepcopy(batch_mem),
+            copy.deepcopy(batch_carry),
+            copy.deepcopy(t_data)
+        ]
 
         # Batch predict
         self.Qmain.trace_length.assign(self.trace_length)
@@ -301,7 +317,8 @@ class DoubleDuelingRDQN(AgentWithConverter):
             tf.summary.trace_on()
 
         # T Batch predict
-        Q, _, _ = self.Qmain.model.predict(q_input, batch_size = self.batch_size)
+        Q, _, _ = self.Qmain.model.predict(q_input,
+                                           batch_size = self.batch_size)
 
         ## Log graph once and disable graph logging
         if training_step == 0:
@@ -309,8 +326,10 @@ class DoubleDuelingRDQN(AgentWithConverter):
                 tf.summary.trace_export(self.name + "-graph", step)
 
         # T+1 batch predict
-        Q1, _, _ = self.Qmain.model.predict(q1_input, batch_size=self.batch_size)
-        Q2, _, _ = self.Qtarget.model.predict(q2_input, batch_size=self.batch_size)
+        Q1, _, _ = self.Qmain.model.predict(q1_input,
+                                            batch_size=self.batch_size)
+        Q2, _, _ = self.Qtarget.model.predict(q2_input,
+                                              batch_size=self.batch_size)
 
         # Compute batch Double Q update to Qtarget
         for i in range(self.batch_size):
@@ -321,7 +340,7 @@ class DoubleDuelingRDQN(AgentWithConverter):
             d = batch[idx][3]
             Q[i, a] = r
             if d == False:
-                Q[i, a] += DISCOUNT_FACTOR * doubleQ
+                Q[i, a] += cfg.DISCOUNT_FACTOR * doubleQ
 
         # Batch train
         batch_x = [batch_mem, batch_carry, m_data]
@@ -330,8 +349,10 @@ class DoubleDuelingRDQN(AgentWithConverter):
         loss = loss[0]
 
         # Log some useful metrics
-        if step % (UPDATE_FREQ * 2) == 0:
-            print("loss =", loss)
+        if step % (cfg.UPDATE_FREQ * 2) == 0:
+            if cfg.VERBOSE:
+                print("loss =", loss)
+
             with self.tf_writer.as_default():
                 mean_reward = np.mean(self.epoch_rewards)
                 mean_alive = np.mean(self.epoch_alive)
