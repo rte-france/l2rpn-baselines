@@ -11,6 +11,7 @@ __all__ = [
            "cli_train",
            "str2bool",
            "save_log_gif",
+           "make_multi_env",
            "zip_for_codalab",
            "train_generic",
            "TrainingParam",
@@ -26,6 +27,7 @@ from l2rpn_baselines.utils.str2bool import str2bool
 from l2rpn_baselines.utils.save_log_gif import save_log_gif
 from l2rpn_baselines.utils.zip_for_codalab import zip_for_codalab
 from l2rpn_baselines.utils.train_generic import train_generic
+from l2rpn_baselines.utils.make_multi_env import make_multi_env
 
 from l2rpn_baselines.utils.TrainingParam import TrainingParam
 from l2rpn_baselines.utils.NNParam import NNParam

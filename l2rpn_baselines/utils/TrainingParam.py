@@ -151,7 +151,7 @@ class TrainingParam(object):
 
         self.buffer_size = buffer_size
         self.minibatch_size = minibatch_size
-        self.min_observation = min_observation  # 5000
+        self.min_observation = min_observation
         self._final_epsilon = float(final_epsilon)  # have on average 1 random action per day of approx 288 timesteps at the end (never kill completely the exploration)
         self._initial_epsilon = float(initial_epsilon)
         self.step_for_final_epsilon = float(step_for_final_epsilon)

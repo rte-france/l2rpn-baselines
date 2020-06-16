@@ -12,8 +12,11 @@ import unittest
 import warnings
 import tempfile
 
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 import grid2op
-from l2rpn_baselines.utils import TrainingParam, NNParam
+from grid2op.Environment import MultiEnvironment
+
+from l2rpn_baselines.utils import TrainingParam, NNParam, make_multi_env
 from l2rpn_baselines.DeepQSimple import train as train_dqn
 from l2rpn_baselines.DeepQSimple import evaluate as eval_dqn
 from l2rpn_baselines.DuelQSimple import train as train_d3qs
@@ -32,8 +35,6 @@ from l2rpn_baselines.SliceRDQN import train as train_srqn
 from l2rpn_baselines.SliceRDQN import evaluate as eval_srqn
 from l2rpn_baselines.SliceRDQN import SliceRDQN_Config as srdqn_cfg
 
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
-
 
 class TestDeepQSimple(unittest.TestCase):
     def test_train_eval(self):
@@ -41,13 +42,12 @@ class TestDeepQSimple(unittest.TestCase):
         tp.buffer_size = 100
         tp.minibatch_size = 8
         tp.update_freq = 32
+        tp.min_observation = 32
         tmp_dir = tempfile.mkdtemp()
         with warnings.catch_warnings():
             warnings.filterwarnings("ignore")
             env = grid2op.make("rte_case5_example", test=True)
-            li_attr_obs_X = ["day_of_week", "hour_of_day", "minute_of_hour", "prod_p", "prod_v", "load_p", "load_q",
-                             "actual_dispatch", "target_dispatch", "topo_vect", "time_before_cooldown_line",
-                             "time_before_cooldown_sub", "rho", "timestep_overflow", "line_status"]
+            li_attr_obs_X = ["prod_p", "load_p", "rho"]
 
             # neural network architecture
             observation_size = NNParam.get_obs_size(env, li_attr_obs_X)
@@ -85,6 +85,54 @@ class TestDeepQSimple(unittest.TestCase):
                                   verbose=False,
                                   save_gif=False)
 
+    def test_train_eval_multi(self):
+        tp = TrainingParam()
+        tp.buffer_size = 100
+        tp.minibatch_size = 8
+        tp.update_freq = 32
+        tp.min_observation = 32
+        tmp_dir = tempfile.mkdtemp()
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore")
+            env_init = grid2op.make("rte_case5_example", test=True)
+            env = make_multi_env(env_init, 2)
+
+            li_attr_obs_X = ["prod_p", "load_p", "rho"]
+
+            # neural network architecture
+            observation_size = NNParam.get_obs_size(env, li_attr_obs_X)
+            sizes = [100, 50, 10]  # sizes of each hidden layers
+            kwargs_archi = {'observation_size': observation_size,
+                            'sizes': sizes,
+                            'activs': ["relu" for _ in sizes],  # all relu activation function
+                            "list_attr_obs": li_attr_obs_X}
+
+            kwargs_converters = {"all_actions": None,
+                                 "set_line_status": False,
+                                 "change_bus_vect": True,
+                                 "set_topo_vect": False
+                                 }
+            nm_ = "AnneOnymous"
+            train_dqn(env,
+                      name=nm_,
+                      iterations=100,
+                      save_path=tmp_dir,
+                      load_path=None,
+                      logs_dir=tmp_dir,
+                      training_param=tp,
+                      verbose=False,
+                      kwargs_converters=kwargs_converters,
+                      kwargs_archi=kwargs_archi)
+
+            baseline_2 = eval_dqn(env_init,
+                                  name=nm_,
+                                  load_path=tmp_dir,
+                                  logs_path=tmp_dir,
+                                  nb_episode=1,
+                                  nb_process=1,
+                                  max_steps=30,
+                                  verbose=False,
+                                  save_gif=False)
 
 class TestDuelQSimple(unittest.TestCase):
     def test_train_eval(self):
@@ -92,13 +140,12 @@ class TestDuelQSimple(unittest.TestCase):
         tp.buffer_size = 100
         tp.minibatch_size = 8
         tp.update_freq = 32
+        tp.min_observation = 32
         tmp_dir = tempfile.mkdtemp()
         with warnings.catch_warnings():
             warnings.filterwarnings("ignore")
             env = grid2op.make("rte_case5_example", test=True)
-            li_attr_obs_X = ["day_of_week", "hour_of_day", "minute_of_hour", "prod_p", "prod_v", "load_p", "load_q",
-                             "actual_dispatch", "target_dispatch", "topo_vect", "time_before_cooldown_line",
-                             "time_before_cooldown_sub", "rho", "timestep_overflow", "line_status"]
+            li_attr_obs_X = ["prod_p", "load_p", "rho"]
 
             # neural network architecture
             observation_size = NNParam.get_obs_size(env, li_attr_obs_X)
@@ -143,13 +190,12 @@ class TestSAC(unittest.TestCase):
         tp.buffer_size = 100
         tp.minibatch_size = 8
         tp.update_freq = 32
+        tp.min_observation = 32
         tmp_dir = tempfile.mkdtemp()
         with warnings.catch_warnings():
             warnings.filterwarnings("ignore")
             env = grid2op.make("rte_case5_example", test=True)
-            li_attr_obs_X = ["day_of_week", "hour_of_day", "minute_of_hour", "prod_p", "prod_v", "load_p", "load_q",
-                             "actual_dispatch", "target_dispatch", "topo_vect", "time_before_cooldown_line",
-                             "time_before_cooldown_sub", "rho", "timestep_overflow", "line_status"]
+            li_attr_obs_X = ["prod_p", "load_p", "rho"]
 
             # neural network architecture
             observation_size = NNParam.get_obs_size(env, li_attr_obs_X)
@@ -201,20 +247,15 @@ class TestLeapNet(unittest.TestCase):
         tp.buffer_size = 100
         tp.minibatch_size = 8
         tp.update_freq = 32
+        tp.min_observation = 32
         tmp_dir = tempfile.mkdtemp()
         with warnings.catch_warnings():
             warnings.filterwarnings("ignore")
             env = grid2op.make("rte_case5_example", test=True)
-            li_attr_obs_X = ["day_of_week", "hour_of_day", "minute_of_hour", "prod_p", "prod_v", "load_p", "load_q",
-                             "actual_dispatch", "target_dispatch", "topo_vect", "time_before_cooldown_line",
-                             "time_before_cooldown_sub", "rho", "timestep_overflow", "line_status"]
-
             # neural network architecture
-            li_attr_obs_X = ["day_of_week", "hour_of_day", "minute_of_hour", "prod_p", "prod_v", "load_p", "load_q",
-                             "actual_dispatch", "target_dispatch", "topo_vect", "time_before_cooldown_line",
-                             "time_before_cooldown_sub", "timestep_overflow", "line_status", "rho"]
-            li_attr_obs_Tau = ["rho", "line_status"]
-            sizes = [800, 800, 800, 494, 494, 494]
+            li_attr_obs_X = ["prod_p", "load_p", "rho"]
+            li_attr_obs_Tau = ["line_status"]
+            sizes = [100, 50, 10]
 
             x_dim = NNParam.get_obs_size(env, li_attr_obs_X)
             tau_dims = [NNParam.get_obs_size(env, [el]) for el in li_attr_obs_Tau]
@@ -257,6 +298,7 @@ class TestLeapNet(unittest.TestCase):
                                    verbose=False,
                                    save_gif=False)
 
+
 class TestD3QN(unittest.TestCase):
     def test_train_eval(self):
         tmp_dir = tempfile.mkdtemp()
@@ -294,6 +336,7 @@ class TestD3QN(unittest.TestCase):
 
             assert eval_res is not None
 
+
 class TestRDQN(unittest.TestCase):
     def test_train_eval(self):
         tmp_dir = tempfile.mkdtemp()
@@ -328,6 +371,7 @@ class TestRDQN(unittest.TestCase):
                                 save_gif=False)
 
             assert eval_res is not None
+
 
 class TestSRDQN(unittest.TestCase):
     def test_train_eval(self):
