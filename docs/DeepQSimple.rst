@@ -6,6 +6,7 @@ Description
 This file serves as an concrete example on how to implement a baseline, even more concretely than the "do nothing"
 baseline. Don't expect to obtain state of the art method with this simple method however.
 
+An example to train this model is available in the train function :ref:`Example-deepqsimple`
 
 Exported class
 --------------

@@ -26,7 +26,6 @@ def train(env,
           save_path=None,
           load_path=None,
           logs_dir=None,
-          nb_env=1,
           training_param=None,
           filter_action_fun=None,
           verbose=True,
@@ -56,10 +55,6 @@ def train(env,
     logs_dir: ``str``
         Where to store the tensorboard generated logs during the training. ``None`` if you don't want to log them.
 
-    nb_env: ``int``
-        Number of environments used in parrallel. Note that if nb_env > 1, some functions might not be usable. Also,
-        if nb_env > 1 make sure that the `env` argument is a grid2op MultiEnvMultiProcess.
-
     training_param: :class:`l2rpn_baselines.utils.TrainingParam`
         The parameters describing the way you will train your model.
 
@@ -84,9 +79,12 @@ def train(env,
     baseline: :class:`DuelQLeapNet`
         The trained baseline.
 
+
+    .. _Example-leapnet:
+
     Examples
     ---------
-    Here is an example on how to train a DeepSimple baseline.
+    Here is an example on how to train a DuelQLeapNet baseline.
 
     First define a python script, for example
 
@@ -141,14 +139,15 @@ def train(env,
                              }
         # define the name of the model
         nm_ = "AnneOnymous"
+        save_path = "/WHERE/I/SAVED/THE/MODEL"
+        logs_dir = "/WHERE/I/SAVED/THE/LOGS"
         try:
             train(env,
                   name=nm_,
                   iterations=10000,
-                  save_path="/WHERE/I/SAVED/THE/MODEL",
+                  save_path=save_path,
                   load_path=None,
-                  logs_dir="/WHERE/I/SAVED/THE/LOGS",
-                  nb_env=1,
+                  logs_dir=logs_dir,
                   training_param=tp,
                   kwargs_converters=kwargs_converters,
                   kwargs_archi=kwargs_archi)
@@ -191,7 +190,6 @@ def train(env,
                             nn_archi=nn_archi,
                             name=name,
                             istraining=True,
-                            nb_env=nb_env,
                             filter_action_fun=filter_action_fun,
                             verbose=verbose,
                             **kwargs_converters

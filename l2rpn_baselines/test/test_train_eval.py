@@ -11,10 +11,12 @@ import os
 import unittest
 import warnings
 import tempfile
+import logging
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
+logging.getLogger('tensorflow').setLevel(logging.FATAL)
+
 import grid2op
-from grid2op.Environment import MultiEnvironment
 
 from l2rpn_baselines.utils import TrainingParam, NNParam, make_multi_env
 from l2rpn_baselines.DeepQSimple import train as train_dqn
@@ -69,7 +71,6 @@ class TestDeepQSimple(unittest.TestCase):
                       save_path=tmp_dir,
                       load_path=None,
                       logs_dir=tmp_dir,
-                      nb_env=1,
                       training_param=tp,
                       verbose=False,
                       kwargs_converters=kwargs_converters,
@@ -167,7 +168,6 @@ class TestDuelQSimple(unittest.TestCase):
                       save_path=tmp_dir,
                       load_path=None,
                       logs_dir=tmp_dir,
-                      nb_env=1,
                       training_param=tp,
                       verbose=False,
                       kwargs_converters=kwargs_converters,
@@ -224,7 +224,6 @@ class TestSAC(unittest.TestCase):
                       save_path=tmp_dir,
                       load_path=None,
                       logs_dir=tmp_dir,
-                      nb_env=1,
                       training_param=tp,
                       verbose=False,
                       kwargs_converters=kwargs_converters,
@@ -282,7 +281,6 @@ class TestLeapNet(unittest.TestCase):
                        save_path=tmp_dir,
                        load_path=None,
                        logs_dir=tmp_dir,
-                       nb_env=1,
                        training_param=tp,
                        verbose=False,
                        kwargs_converters=kwargs_converters,

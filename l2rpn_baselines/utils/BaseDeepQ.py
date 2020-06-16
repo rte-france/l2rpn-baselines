@@ -71,10 +71,12 @@ class BaseDeepQ(ABC):
 
     def __init__(self,
                  nn_params,
-                 training_param=None):
+                 training_param=None,
+                 verbose=False):
         self._action_size = nn_params.action_size
         self._observation_size = nn_params.observation_size
         self._nn_archi = nn_params
+        self.verbose = verbose
 
         if training_param is None:
             self._training_param = TrainingParam()
@@ -207,7 +209,8 @@ class BaseDeepQ(ABC):
         with warnings.catch_warnings():
             warnings.filterwarnings("ignore")
             self._target_model = load_model('{}.{}'.format(path_target_model, ext), custom_objects=self._custom_objects)
-        print("Succesfully loaded network.")
+        if self.verbose:
+            print("Succesfully loaded network.")
 
     def target_train(self):
         """

@@ -353,7 +353,7 @@ class DeepQAgent(AgentWithConverter):
 
         Parameters
         ----------
-        env: :class:`grid2op.Environment.Environment`
+        env: :class:`grid2op.Environment.Environment` or :class:`grid2op.Environment.MultiEnvironment`
             The environment used to train your model.
 
         iterations: ``int``

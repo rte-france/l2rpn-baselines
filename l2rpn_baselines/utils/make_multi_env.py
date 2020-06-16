@@ -7,7 +7,15 @@
 # This file is part of L2RPN Baselines, L2RPN Baselines a repository to host baselines for l2rpn competitions.
 
 import warnings
-from grid2op.Environment import MultiEnvironment, Environment
+from grid2op.Environment import Environment
+try:
+    from grid2op.Environment import MultiEnvironment
+except ImportError:
+    # name will be change as of grid2op >= 1.0.0
+    try:
+        from grid2op.Environment import MultiEnvMultiProcess as MultiEnvironment
+    except ImportError as exc:
+        raise exc
 
 
 def make_multi_env(env_init, nb_env):
