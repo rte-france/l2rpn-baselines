@@ -17,6 +17,7 @@ from grid2op.Action import *
 from grid2op.Parameters import Parameters
 
 from l2rpn_baselines.SliceRDQN.SliceRDQN import SliceRDQN as RDQNAgent
+from l2rpn_baselines.SliceRDQN.SliceRDQN_Config import SliceRDQN_Config as RDQNConfig
 
 DEFAULT_NAME = "SliceRDQN"
 DEFAULT_SAVE_DIR = "./models"
@@ -26,7 +27,7 @@ DEFAULT_TRAIN_STEPS = 1024 * 1024 * 10
 DEFAULT_TRACE_LEN = 12
 DEFAULT_BATCH_SIZE = 32
 DEFAULT_LR = 1e-5
-
+DEFAULT_VERBOSE = True
 
 def cli():
     parser = argparse.ArgumentParser(description="Train baseline DDQN")
@@ -34,7 +35,8 @@ def cli():
     # Paths
     parser.add_argument("--name", required=False, default="SliceRDQN_ls",
                         help="The name of the model")
-    parser.add_argument("--data_dir", required=False, default="l2rpn_case14_sandbox",
+    parser.add_argument("--data_dir", required=False,
+                        default="l2rpn_case14_sandbox",
                         help="Path to the dataset root directory")
     parser.add_argument("--save_dir", required=False,
                         default=DEFAULT_SAVE_DIR, type=str,
@@ -73,7 +75,14 @@ def train(env,
           num_pre_training_steps=DEFAULT_PRE_STEPS,
           trace_length=DEFAULT_TRACE_LEN,
           batch_size=DEFAULT_BATCH_SIZE,
-          learning_rate=DEFAULT_LR):
+          learning_rate=DEFAULT_LR,
+          verbose=DEFAULT_VERBOSE):
+
+    # Set config
+    RDQNConfig.LR = learning_rate
+    RDQNConfig.BATCH_SIZE = batch_size
+    RDQNConfig.TRACE_LENGTH = trace_length
+    RDQNConfig.VERBOSE = verbose
 
     # Limit gpu usage
     physical_devices = tf.config.list_physical_devices('GPU')
@@ -83,10 +92,7 @@ def train(env,
     agent = RDQNAgent(env.observation_space,
                       env.action_space,
                       name=name, 
-                      is_training=True,
-                      batch_size=batch_size,
-                      trace_length=trace_length,
-                      lr=learning_rate)
+                      is_training=True)
 
     if load_path is not None:
         agent.load(load_path)

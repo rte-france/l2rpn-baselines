@@ -69,33 +69,36 @@ class DoubleDuelingRDQN_NN(object):
         advantage = tfkl.Dense(64, name="fc_adv")(lstm_output)
         advantage = tf.nn.leaky_relu(advantage, alpha=0.01, name="leak_adv")
         advantage = tfkl.Dense(self.action_size, name="adv")(advantage)
+        advantage_mean = tf.math.reduce_mean(advantage, axis=1,
+                                             keepdims=True, name="adv_mean")
+        advantage = tfkl.subtract([advantage, advantage_mean], name="adv_sub")
 
         value = tfkl.Dense(64, name="fc_val")(lstm_output)
         value = tf.nn.leaky_relu(value, alpha=0.01, name="leak_val")
         value = tfkl.Dense(1, name="val")(value)
 
-        advantage_mean = tf.math.reduce_mean(advantage, axis=1, keepdims=True, name="adv_mean")
-        advantage = tfkl.subtract([advantage, advantage_mean], name="adv_sub")
         Q = tf.math.add(value, advantage, name="Qout")
 
         # Backwards pass
-        self.model = tfk.Model(inputs=[input_mem_state, input_carry_state, input_layer],
-                               outputs=[Q, mem_s, carry_s],
+        model_inputs = [input_mem_state, input_carry_state, input_layer]
+        model_outputs = [Q, mem_s, carry_s]
+        self.model = tfk.Model(inputs=model_inputs,
+                               outputs=model_outputs,
                                name=self.__class__.__name__)
         losses = [
-            self._clipped_mse_loss,
+            self._mse_loss,
             self._no_loss,
             self._no_loss
         ]
-        self.model.compile(loss=losses, optimizer=tfko.Adam(lr=self.lr, clipnorm=1.0))
+        self.optimizer = tfko.Adam(lr=self.lr, clipnorm=1.0)
+        self.model.compile(loss=losses, optimizer=self.optimizer)
 
     def _no_loss(self, y_true, y_pred):
         return 0.0
 
-    def _clipped_mse_loss(self, Qnext, Q):
+    def _mse_loss(self, Qnext, Q):
         loss = tf.math.reduce_mean(tf.math.square(Qnext - Q), name="loss_mse")
-        clipped_loss = tf.clip_by_value(loss, 0.0, 1e3, name="loss_clip")
-        return clipped_loss
+        return loss
 
     def bayesian_move(self, data, mem, carry, rate = 0.0):
         self.dropout_rate.assign(float(rate))
@@ -165,4 +168,4 @@ class DoubleDuelingRDQN_NN(object):
     def load_network(self, path):
         # nothing has changed
         self.model.load_weights(path)
-        print("Succesfully loaded network from: {}".format(path))
+        print("Successfully loaded network from: {}".format(path))

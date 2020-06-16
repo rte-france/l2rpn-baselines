@@ -243,5 +243,5 @@ class SliceRDQN_NN(object):
     def load_network(self, path):
         # nothing has changed
         self.model.load_weights(path)
-        print("Succesfully loaded network from: {}".format(path))
+        print("Successfully loaded network from: {}".format(path))
 

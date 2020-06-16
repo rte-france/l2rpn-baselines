@@ -11,7 +11,8 @@
 import argparse
 import tensorflow as tf
 
-from l2rpn_baselines.DoubleDuelingDQN.DoubleDuelingDQN import DoubleDuelingDQN as DDDQNAgent
+from l2rpn_baselines.DoubleDuelingDQN.DoubleDuelingDQN import DoubleDuelingDQN as D3QNAgent
+from l2rpn_baselines.DoubleDuelingDQN.DoubleDuelingDQNConfig import DoubleDuelingDQNConfig as D3QNConfig
 
 DEFAULT_NAME = "DoubleDuelingDQN"
 DEFAULT_SAVE_DIR = "./models"
@@ -21,7 +22,7 @@ DEFAULT_TRAIN_STEPS = 1024
 DEFAULT_N_FRAMES = 4
 DEFAULT_BATCH_SIZE = 32
 DEFAULT_LR = 1e-5
-
+DEFAULT_VERBOSE = True
 
 def cli():
     parser = argparse.ArgumentParser(description="Train baseline DDQN")
@@ -66,20 +67,24 @@ def train(env,
           num_pre_training_steps = DEFAULT_PRE_STEPS,
           num_frames = DEFAULT_N_FRAMES,
           batch_size= DEFAULT_BATCH_SIZE,
-          learning_rate= DEFAULT_LR):
+          learning_rate= DEFAULT_LR,
+          verbose=DEFAULT_VERBOSE):
+
+    # Set config
+    D3QNConfig.LR = learning_rate
+    D3QNConfig.N_FRAMES = num_frames
+    D3QNConfig.BATCH_SIZE = batch_size
+    D3QNConfig.VERBOSE = verbose
 
     # Limit gpu usage
     physical_devices = tf.config.list_physical_devices('GPU')
     if len(physical_devices) > 0:
         tf.config.experimental.set_memory_growth(physical_devices[0], True)
 
-    agent = DDDQNAgent(env.observation_space,
-                       env.action_space,
-                       name=name,
-                       is_training=True,
-                       batch_size=batch_size,
-                       num_frames=num_frames,
-                       lr=learning_rate)
+    agent = D3QNAgent(env.observation_space,
+                      env.action_space,
+                      name=name,
+                      is_training=True)
 
     if load_path is not None:
         agent.load(load_path)
@@ -99,13 +104,9 @@ if __name__ == "__main__":
     import sys
 
     args = cli()
-    # Use custom params
-    params = Parameters()
-    params.MAX_SUB_CHANGED = 2
 
     # Create grid2op game environement
     env = make(args.data_dir,
-               param=params,
                action_class=TopologyChangeAndDispatchAction,
                reward_class=CombinedScaledReward)
 
@@ -114,13 +115,14 @@ if __name__ == "__main__":
 
     # Register custom reward for training
     cr = env.reward_helper.template_reward
-    cr.addReward("overflow", CloseToOverflowReward(), 50.0)
-    cr.addReward("game", GameplayReward(), 200.0)
-    cr.addReward("recolines", LinesReconnectedReward(), 50.0)
+    #cr.addReward("overflow", CloseToOverflowReward(), 1.0)
+    cr.addReward("game", GameplayReward(), 1.0)
+    #cr.addReward("recolines", LinesReconnectedReward(), 1.0)
+    cr.addReward("l2rpn", L2RPNReward(), 2.0/float(env.n_line))
     # Initialize custom rewards
     cr.initialize(env)
     # Set reward range to something managable
-    cr.set_range(-10.0, 10.0)
+    cr.set_range(-1.0, 1.0)
 
     train(env,
           name = args.name,
