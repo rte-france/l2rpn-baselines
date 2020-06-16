@@ -26,10 +26,9 @@ Baseline already Available
 
    utils
    DeepQSimple
+   DoubleDuelingDQN
    DuelQSimple
    SAC
-   DoubleDuelingDQN
-   DoubleDuelingRDQN
 
 
 More advanced baselines
@@ -39,6 +38,7 @@ More advanced baselines
    :maxdepth: 2
 
    DuelQLeapNet
+   DoubleDuelingRDQN
 
 
 Contributions
