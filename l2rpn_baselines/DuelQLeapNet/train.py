@@ -372,10 +372,11 @@ if __name__ == "__main__":
 
     # nn architecture
     li_attr_obs_X = ["day_of_week", "hour_of_day", "minute_of_hour", "prod_p", "prod_v", "load_p", "load_q",
-                     "actual_dispatch", "target_dispatch", "topo_vect", "time_before_cooldown_line",
-                     "time_before_cooldown_sub", "timestep_overflow", "line_status", "rho", "line_status"]
+                     "actual_dispatch", "target_dispatch"]
     # li_attr_obs_Tau = ["rho", "line_status"]
     li_attr_obs_Tau = []
+    li_attr_obs_Tau = ["topo_vect", "time_before_cooldown_line", "time_before_cooldown_sub",
+                       "timestep_overflow", "line_status", "rho"]
     sizes = [512, 512, 256, 256]
 
     x_dim = LeapNet_NNParam.get_obs_size(env_init, li_attr_obs_X)
@@ -399,7 +400,6 @@ if __name__ == "__main__":
               save_path=args.save_path,
               load_path=args.load_path,
               logs_dir=args.logs_dir,
-              nb_env=args.nb_env,
               training_param=tp,
               kwargs_converters=kwargs_converters,
               kwargs_archi=kwargs_archi,

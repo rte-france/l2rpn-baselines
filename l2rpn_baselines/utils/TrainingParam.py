@@ -284,7 +284,8 @@ class TrainingParam(object):
                     setattr(res, attr_nm, float(tmp_))
                 else:
                     setattr(res, attr_nm, None)
-
+        res.update_nb_iter = res._update_nb_iter
+        res.update_nb_iter = res._initial_epsilon
         res._compute_exp_facto()
         return res
 
