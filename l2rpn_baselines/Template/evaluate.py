@@ -98,6 +98,7 @@ def evaluate(env,
     if save_gif:
         save_log_gif(logs_path, res)
 
+
 if __name__ == "__main__":
     """
     This is a possible implementation of the eval script.

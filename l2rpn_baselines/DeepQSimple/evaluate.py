@@ -125,13 +125,13 @@ def evaluate(env,
     # Run
     # Create agent
     agent = DeepQSimple(action_space=env.action_space,
-                         name=name,
-                         store_action=nb_process == 1,
-                         nn_archi=nn_archi)
+                        name=name,
+                        store_action=nb_process == 1,
+                        nn_archi=nn_archi,
+                        observation_space=env.observation_space)
 
     # Load weights from file
     agent.load(load_path)
-    agent.init_obs_extraction(env)
 
     # Build runner
     runner = Runner(**runner_params,

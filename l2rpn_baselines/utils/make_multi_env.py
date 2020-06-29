@@ -13,7 +13,7 @@ try:
 except ImportError:
     # name will be change as of grid2op >= 1.0.0
     try:
-        from grid2op.Environment import MultiEnvMultiProcess as MultiEnvironment
+        from grid2op.Environment import SingleEnvMultiProcess as MultiEnvironment
     except ImportError as exc:
         raise exc
 
@@ -50,7 +50,7 @@ def make_multi_env(env_init, nb_env):
                       "created a copy of your initial environment.")
         res = Environment(**env_init.get_kwargs())
     else:
-        res = MultiEnvironment(nb_env, env_init)
+        res = MultiEnvironment(nb_env=nb_env, env=env_init)
         res.observation_space = env_init.observation_space
         res.action_space = env_init.action_space
         res.reward_range = env_init.reward_range
