@@ -4,6 +4,12 @@ Change Log
 --------
 - stack multiple states in `utils/DeepQAgent`
 
+[0.4.2] - 2020-06-29
+-----------------------
+- [FIXED] a bug in the TrainingParam class (wrong realoading)
+- [UPDATED] backward compatibility with 0.9.1.post1
+- [ADDED] easier UI to load the baselines SAC, DeepQSimple, DuelQSimple and DuelQLeapNet
+
 [0.4.1] - 2020-06-16
 -----------------------
 - [FIXED] `Issue 14 <https://github.com/rte-france/l2rpn-baselines/issues/14>`_ clearer interface and get rid
