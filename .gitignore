@@ -153,3 +153,8 @@ l2rpn_baselines/DuelQLeapNet/working_superwell/
 _doc_built/
 l2rpn_baselines/test/*.txt
 l2rpn_baselines/Multithreading_agent/
+l2rpn_baselines/DeepQSimple/saved_baseline/
+l2rpn_baselines/DuelQLeapNet/logs-eval/
+l2rpn_baselines/DuelQSimple/saved_baseline/
+l2rpn_baselines/SAC/saved_baseline/
+

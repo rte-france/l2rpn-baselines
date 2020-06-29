@@ -120,7 +120,7 @@ def evaluate(env,
     runner_params = env.get_params_for_runner()
     runner_params["verbose"] = verbose
 
-    if load_path is  None:
+    if load_path is None:
         raise RuntimeError("Cannot evaluate a model if there is nothing to be loaded.")
     path_model, path_target_model = DuelQLeapNet_NN.get_path_model(load_path, name)
     nn_archi = LeapNet_NNParam.from_json(os.path.join(path_model, "nn_architecture.json"))
@@ -130,11 +130,11 @@ def evaluate(env,
     agent = DuelQLeapNet(action_space=env.action_space,
                          name=name,
                          store_action=nb_process == 1,
-                         nn_archi=nn_archi)
+                         nn_archi=nn_archi,
+                         observation_space=env.observation_space)
 
     # Load weights from file
     agent.load(load_path)
-    agent.init_obs_extraction(env)
 
     # Build runner
     runner = Runner(**runner_params,

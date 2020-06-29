@@ -243,7 +243,12 @@ if __name__ == "__main__":
 
     # Create grid2op game environement
     env_init = None
-    from grid2op.Chronics import MultifolderWithCache
+    try:
+        from grid2op.Chronics import MultifolderWithCache
+    except:
+        from grid2op.Chronics import MultiFolder
+        MultifolderWithCache = MultiFolder
+
     game_param = Parameters()
     game_param.NB_TIMESTEP_COOLDOWN_SUB = 2
     game_param.NB_TIMESTEP_COOLDOWN_LINE = 2
@@ -254,20 +259,19 @@ if __name__ == "__main__":
                chronics_class=MultifolderWithCache
                )
     # env.chronics_handler.set_max_iter(7*288)
-    env.chronics_handler.real_data.set_filter(lambda x: re.match(".*((0003)|(0072)|(0057))$", x) is not None)
-    env.chronics_handler.real_data.reset_cache()
+    try:
+        env.chronics_handler.real_data.set_filter(lambda x: re.match(".*((03)|(72)|(57))$", x) is not None)
+        env.chronics_handler.real_data.reset()
+    except RuntimeError as exc_:
+        raise exc_
+    except AttributeError as exc_:
+        # not available in all grid2op version
+        pass
     # env.chronics_handler.real_data.
     env_init = env
     if args.nb_env > 1:
-        from grid2op.Environment import MultiEnvironment
-        env = MultiEnvironment(int(args.nb_env), env)
-        # TODO hack i'll fix in 0.9.0
-        env.action_space = env_init.action_space
-        env.observation_space = env_init.observation_space
-        env.fast_forward_chronics = lambda x: None
-        env.chronics_handler = env_init.chronics_handler
-        env.current_obs = env_init.current_obs
-        env.set_ff()
+        from l2rpn_baselines.utils import make_multi_env
+        env = make_multi_env(env_init=env_init, nb_env=int(args.nb_env))
 
     tp = TrainingParam()
 
@@ -278,9 +282,9 @@ if __name__ == "__main__":
     tp.update_freq = 128
 
     # limit the number of time steps played per scenarios
-    tp.step_increase_nb_iter = 2
+    tp.step_increase_nb_iter = 100  # None to deactivate it
     tp.min_iter = 10
-    tp.update_nb_iter(2)
+    tp.update_nb_iter = 100  # once 100 scenarios are solved, increase of "step_increase_nb_iter"
 
     # oversampling hard scenarios
     tp.oversampling_rate = 3
@@ -334,7 +338,6 @@ if __name__ == "__main__":
               save_path=args.save_path,
               load_path=args.load_path,
               logs_dir=args.logs_dir,
-              nb_env=args.nb_env,
               training_param=tp,
               kwargs_converters=kwargs_converters,
               kwargs_archi=kwargs_archi)

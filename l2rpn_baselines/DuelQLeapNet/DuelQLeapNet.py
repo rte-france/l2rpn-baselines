@@ -14,23 +14,10 @@ DEFAULT_NAME = "DuelQLeapNet"
 
 
 class DuelQLeapNet(DeepQAgent):
-    def __init__(self,
-                 action_space,
-                 nn_archi,
-                 name="DeepQAgent",
-                 store_action=True,
-                 istraining=False,
-                 nb_env=1,
-                 **kwargs_converters):
-        DeepQAgent.__init__(self,
-                            action_space,
-                            nn_archi,
-                            name=name,
-                            store_action=store_action,
-                            istraining=istraining,
-                            nb_env=nb_env,
-                            **kwargs_converters)
-        self.tau_dim_start = None
-        self.tau_dim_end = None
-        self.add_tau = -1  # remove one to tau to have a vector of 0 and 1 instead of 1 and 2
-        self._tmp_obs = None
+    """
+    Inheriting from :class:`l2rpn_baselines.DeepQAgent` this class implements the  particular agent used for the
+    Double Duelling Deep Q network baseline, with the particularity that the Q network is encoded with a leap net.
+
+    It does nothing in particular.
+    """
+    pass

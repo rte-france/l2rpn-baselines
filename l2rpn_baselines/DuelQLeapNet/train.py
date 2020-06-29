@@ -317,19 +317,21 @@ if __name__ == "__main__":
     # env.chronics_handler.real_data.set_filter(lambda x: re.match(".*((0057))$", x) is not None)
     env.chronics_handler.real_data.set_filter(lambda x: re.match(".*((0000)|(0003))$", x) is not None)
     env.chronics_handler.real_data.set_filter(lambda x: re.match(".*((0000))$", x) is not None)
-    env.chronics_handler.real_data.reset_cache()
+    env.chronics_handler.real_data.reset()
     # env.chronics_handler.real_data.
     env_init = env
     if args.nb_env > 1:
-        from grid2op.Environment import MultiEnvironment
-        env = MultiEnvironment(int(args.nb_env), env)
-        # TODO hack i'll fix in 1.0.0
-        env.action_space = env_init.action_space
-        env.observation_space = env_init.observation_space
-        env.fast_forward_chronics = lambda x: None
-        env.chronics_handler = env_init.chronics_handler
-        env.current_obs = env_init.current_obs
-        env.set_ff()
+        # from grid2op.Environment import MultiEnvironment
+        # env = MultiEnvironment(int(args.nb_env), env)
+        # # TODO hack i'll fix in 1.0.0
+        # env.action_space = env_init.action_space
+        # env.observation_space = env_init.observation_space
+        # env.fast_forward_chronics = lambda x: None
+        # env.chronics_handler = env_init.chronics_handler
+        # env.current_obs = env_init.current_obs
+        # env.set_ff()
+        from l2rpn_baselines.utils import make_multi_env
+        env = make_multi_env(env_init=env_init, nb_env=int(args.nb_env))
 
     tp = TrainingParam()
 

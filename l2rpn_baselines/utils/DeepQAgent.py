@@ -114,6 +114,7 @@ class DeepQAgent(AgentWithConverter):
                  istraining=False,
                  filter_action_fun=None,
                  verbose=False,
+                 observation_space=None,
                  **kwargs_converters):
         AgentWithConverter.__init__(self, action_space, action_space_converter=IdToAct, **kwargs_converters)
         self.filter_action_fun = filter_action_fun
@@ -175,6 +176,10 @@ class DeepQAgent(AgentWithConverter):
         self._tmp_obs = None
         self._indx_obs = None
         self.verbose = verbose
+        if observation_space is None:
+            pass
+        else:
+            self.init_obs_extraction(observation_space)
 
     # grid2op.Agent interface
     def convert_obs(self, observation):
@@ -262,14 +267,14 @@ class DeepQAgent(AgentWithConverter):
             converter.filter_action(filter_fun)
         return converter.n
 
-    def init_obs_extraction(self, env):
+    def init_obs_extraction(self, observation_space):
         """
         This method should be called to initialize the observation (feed as a vector in the neural network)
         from its description as a list of its attribute names.
         """
         tmp = np.zeros(0, dtype=np.uint)  # TODO platform independant
         for obs_attr_name in self._nn_archi.get_obs_attr():
-            beg_, end_, dtype_ = env.observation_space.get_indx_extract(obs_attr_name)
+            beg_, end_, dtype_ = observation_space.get_indx_extract(obs_attr_name)
             tmp = np.concatenate((tmp, np.arange(beg_, end_, dtype=np.uint)))
         self._indx_obs = tmp
         self._tmp_obs = np.zeros((1, tmp.shape[0]), dtype=np.float32)
@@ -412,7 +417,7 @@ class DeepQAgent(AgentWithConverter):
             warnings.warn("Training using {} environments".format(nb_env))
             self.__nb_env = nb_env
 
-        self.init_obs_extraction(env)
+        self.init_obs_extraction(env.observation_space)
 
         training_step = self._training_param.last_step
 
@@ -541,24 +546,31 @@ class DeepQAgent(AgentWithConverter):
         if self.store_action:
             if action_int not in self.dict_action:
                 act = self.action_space.all_actions[action_int]
-                is_inj, is_volt, is_topo, is_line_status, is_redisp = act.get_types()
-                is_dn = (not is_inj) and (not is_volt) and (not is_topo) and (not is_line_status) and (not is_redisp)
-                self.dict_action[action_int] = [0, act, (is_inj, is_volt, is_topo, is_line_status, is_redisp, is_dn)]
-            self.dict_action[action_int][0] += 1
+                is_inj, is_volt, is_topo, is_line_status, is_redisp, is_dn = False, False, False, False, False, False
+                try:
+                    # feature unavailble in grid2op <= 0.9.2
+                    is_inj, is_volt, is_topo, is_line_status, is_redisp = act.get_types()
+                    is_dn = (not is_inj) and (not is_volt) and (not is_topo) and (not is_line_status) and (not is_redisp)
+                except Exception as exc_:
+                    pass
 
-            (is_inj, is_volt, is_topo, is_line_status, is_redisp, is_dn) = self.dict_action[action_int][2]
-            if is_inj:
-                self.nb_injection += 1
-            if is_volt:
-                self.nb_voltage += 1
-            if is_topo:
-                self.nb_topology += 1
-            if is_line_status:
-                self.nb_line += 1
-            if is_redisp:
-                self.nb_redispatching += 1
-            if is_dn:
-                self.nb_do_nothing += 1
+                self.dict_action[action_int] = [0, act,
+                                                (is_inj, is_volt, is_topo, is_line_status, is_redisp, is_dn)]
+                self.dict_action[action_int][0] += 1
+
+                (is_inj, is_volt, is_topo, is_line_status, is_redisp, is_dn) = self.dict_action[action_int][2]
+                if is_inj:
+                    self.nb_injection += 1
+                if is_volt:
+                    self.nb_voltage += 1
+                if is_topo:
+                    self.nb_topology += 1
+                if is_line_status:
+                    self.nb_line += 1
+                if is_redisp:
+                    self.nb_redispatching += 1
+                if is_dn:
+                    self.nb_do_nothing += 1
 
     def _convert_all_act(self, act_as_integer):
         """this function converts the action given as a list of integer. It ouputs a list of valid grid2op Action"""
@@ -783,7 +795,7 @@ class DeepQAgent(AgentWithConverter):
         """
         if self.deep_q is None:
             self.deep_q = self._nn_archi.make_nn(training_param)
-        self.init_obs_extraction(env)
+        self.init_obs_extraction(env.observation_space)
 
     def _save_tensorboard(self, step, epoch_num, UPDATE_FREQ, epoch_rewards, epoch_alive):
         """save all the informations needed in tensorboard."""
