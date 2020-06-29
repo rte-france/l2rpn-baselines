@@ -30,13 +30,13 @@ class TestTrainingParam(unittest.TestCase):
 
     def test_loadback_modified(self):
         for el in TrainingParam._int_attr:
-            self._test_attr(el, 1)
-            self._test_attr(el, None)
+            self._aux_test_attr(el, 1)
+            self._aux_test_attr(el, None)
         for el in TrainingParam._float_attr:
-            self._test_attr(el, 1.)
-            self._test_attr(el, None)
+            self._aux_test_attr(el, 1.)
+            self._aux_test_attr(el, None)
 
-    def _test_attr(self, attr, val):
+    def _aux_test_attr(self, attr, val):
         """
         test that i can modify an attribut and then load the training parameters the correct way
         """
