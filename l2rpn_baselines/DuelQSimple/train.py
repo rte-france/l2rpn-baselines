@@ -115,7 +115,7 @@ def train(env,
         sizes = [800, 800, 800, 494, 494, 494]  # sizes of each hidden layers
         kwargs_archi = {'observation_size': observation_size,
                         'sizes': sizes,
-                        'activs': ["relu" for _ in range(sizes)],  # all relu activation function
+                        'activs': ["relu" for _ in sizes],  # all relu activation function
                         "list_attr_obs": li_attr_obs_X}
 
         # select some part of the action

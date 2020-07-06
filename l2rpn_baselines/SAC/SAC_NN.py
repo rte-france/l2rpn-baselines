@@ -16,7 +16,6 @@ import warnings
 with warnings.catch_warnings():
     warnings.filterwarnings("ignore", category=FutureWarning)
     from tensorflow.keras.models import load_model, Sequential, Model
-    import tensorflow.keras.optimizers as tfko
     from tensorflow.keras.layers import Activation, Dense
     from tensorflow.keras.layers import Input, Concatenate
 
@@ -245,11 +244,12 @@ class SAC_NN(BaseDeepQ):
         We load all the models using the keras "load_model" function.
         """
         path_model, path_target_model, path_modelQ, path_modelQ2, path_policy = self._get_path_model(path, name)
-        self.model_value = load_model('{}.{}'.format(path_model, ext))
-        self.model_value_target = load_model('{}.{}'.format(path_target_model, ext))
-        self.model_Q = load_model('{}.{}'.format(path_modelQ, ext))
-        self.model_Q2 = load_model('{}.{}'.format(path_modelQ2, ext))
-        self.model_policy = load_model('{}.{}'.format(path_policy, ext))
+        self.construct_q_network()
+        self.model_value.load_weights('{}.{}'.format(path_model, ext))
+        self.model_value_target.load_weights('{}.{}'.format(path_target_model, ext))
+        self.model_Q.load_weights('{}.{}'.format(path_modelQ, ext))
+        self.model_Q2.load_weights('{}.{}'.format(path_modelQ2, ext))
+        self.model_policy.load_weights('{}.{}'.format(path_policy, ext))
         if self.verbose:
             print("Succesfully loaded network.")
 

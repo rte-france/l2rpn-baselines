@@ -13,8 +13,6 @@ import warnings
 import tensorflow as tf
 import tensorflow.keras.optimizers as tfko
 
-from tensorflow.keras.models import load_model
-
 from l2rpn_baselines.utils.TrainingParam import TrainingParam
 
 
@@ -204,11 +202,14 @@ class BaseDeepQ(ABC):
             The file extension (by default h5)
         """
         path_model, path_target_model = self.get_path_model(path, name)
-        self._model = load_model('{}.{}'.format(path_model, ext), custom_objects=self._custom_objects)
+        # fix for issue https://github.com/keras-team/keras/issues/7440
+        self.construct_q_network()
+
+        self._model.load_weights('{}.{}'.format(path_model, ext))
 
         with warnings.catch_warnings():
             warnings.filterwarnings("ignore")
-            self._target_model = load_model('{}.{}'.format(path_target_model, ext), custom_objects=self._custom_objects)
+            self._target_model.load_weights('{}.{}'.format(path_target_model, ext))
         if self.verbose:
             print("Succesfully loaded network.")
 
