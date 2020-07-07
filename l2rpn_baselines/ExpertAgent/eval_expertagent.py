@@ -15,11 +15,11 @@ from grid2op.MakeEnv import make
 from grid2op.Runner import Runner
 from grid2op.Reward import *
 from grid2op.Action import *
-from grid2op.Agent import DoNothingAgent
+from l2rpn_baselines.ExpertAgent import ExpertAgent
 
 from l2rpn_baselines.utils.save_log_gif import save_log_gif
 
-DEFAULT_LOGS_DIR = "./logs-eval/do-nothing-baseline"
+DEFAULT_LOGS_DIR = "./logs-eval/expert-agent-baseline"
 DEFAULT_NB_EPISODE = 1
 DEFAULT_NB_PROCESS = 1
 DEFAULT_MAX_STEPS = -1
@@ -59,8 +59,11 @@ def evaluate(env,
     runner_params["verbose"] = verbose
 
     # Build runner
+    agent = ExpertAgent(env.action_space, env.observation_space, "Template")
     runner = Runner(**runner_params,
-                    agentClass=DoNothingAgent)
+                    agentClass=None,
+                    agentInstance=agent
+                    )
 
     # Run
     os.makedirs(logs_path, exist_ok=True)
