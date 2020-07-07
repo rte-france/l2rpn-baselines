@@ -86,6 +86,104 @@ class TestDeepQSimple(unittest.TestCase):
                                   verbose=False,
                                   save_gif=False)
 
+    def test_train_eval_multiprocess(self):
+        # test only done for this baselines because the feature is coded in base class in DeepQAgent
+        tp = TrainingParam()
+        tp.buffer_size = 100
+        tp.minibatch_size = 8
+        tp.update_freq = 32
+        tp.min_observation = 32
+        tmp_dir = tempfile.mkdtemp()
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore")
+            env_init = grid2op.make("rte_case5_example", test=True)
+            env = make_multi_env(env_init=env_init, nb_env=2)
+            li_attr_obs_X = ["prod_p", "load_p", "rho"]
+
+            # neural network architecture
+            observation_size = NNParam.get_obs_size(env, li_attr_obs_X)
+            sizes = [100, 50, 10]  # sizes of each hidden layers
+            kwargs_archi = {'observation_size': observation_size,
+                            'sizes': sizes,
+                            'activs': ["relu" for _ in sizes],  # all relu activation function
+                            "list_attr_obs": li_attr_obs_X}
+
+            kwargs_converters = {"all_actions": None,
+                                 "set_line_status": False,
+                                 "change_bus_vect": True,
+                                 "set_topo_vect": False
+                                 }
+            nm_ = "AnneOnymous"
+            train_dqn(env,
+                      name=nm_,
+                      iterations=100,
+                      save_path=tmp_dir,
+                      load_path=None,
+                      logs_dir=tmp_dir,
+                      training_param=tp,
+                      verbose=False,
+                      kwargs_converters=kwargs_converters,
+                      kwargs_archi=kwargs_archi)
+
+            baseline_2 = eval_dqn(env_init,
+                                  name=nm_,
+                                  load_path=tmp_dir,
+                                  logs_path=tmp_dir,
+                                  nb_episode=1,
+                                  nb_process=1,
+                                  max_steps=30,
+                                  verbose=False,
+                                  save_gif=False)
+
+    def test_train_eval_multimix(self):
+        # test only done for this baselines because the feature is coded in base class in DeepQAgent
+        tp = TrainingParam()
+        tp.buffer_size = 100
+        tp.minibatch_size = 8
+        tp.update_freq = 32
+        tp.min_observation = 32
+        tmp_dir = tempfile.mkdtemp()
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore")
+            env = grid2op.make("l2rpn_neurips_2020_track2", test=True)
+            li_attr_obs_X = ["prod_p", "load_p", "rho"]
+
+            # neural network architecture
+            observation_size = NNParam.get_obs_size(env, li_attr_obs_X)
+            sizes = [100, 50, 10]  # sizes of each hidden layers
+            kwargs_archi = {'observation_size': observation_size,
+                            'sizes': sizes,
+                            'activs': ["relu" for _ in sizes],  # all relu activation function
+                            "list_attr_obs": li_attr_obs_X}
+
+            kwargs_converters = {"all_actions": None,
+                                 "set_line_status": False,
+                                 "change_bus_vect": False,
+                                 "set_topo_vect": False
+                                 }
+            nm_ = "AnneOnymous"
+            train_dqn(env,
+                      name=nm_,
+                      iterations=100,
+                      save_path=tmp_dir,
+                      load_path=None,
+                      logs_dir=tmp_dir,
+                      training_param=tp,
+                      verbose=False,
+                      kwargs_converters=kwargs_converters,
+                      kwargs_archi=kwargs_archi)
+
+            for mix in env:
+                baseline_2 = eval_dqn(mix,
+                                      name=nm_,
+                                      load_path=tmp_dir,
+                                      logs_path=tmp_dir,
+                                      nb_episode=1,
+                                      nb_process=1,
+                                      max_steps=30,
+                                      verbose=False,
+                                      save_gif=False)
+
     def test_train_eval_multi(self):
         tp = TrainingParam()
         tp.buffer_size = 100
@@ -134,6 +232,7 @@ class TestDeepQSimple(unittest.TestCase):
                                   max_steps=30,
                                   verbose=False,
                                   save_gif=False)
+
 
 class TestDuelQSimple(unittest.TestCase):
     def test_train_eval(self):

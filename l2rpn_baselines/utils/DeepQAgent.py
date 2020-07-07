@@ -7,6 +7,7 @@
 # This file is part of L2RPN Baselines, L2RPN Baselines a repository to host baselines for l2rpn competitions.
 
 import os
+import warnings
 import numpy as np
 from tqdm import tqdm
 import tensorflow as tf
@@ -409,13 +410,20 @@ class DeepQAgent(AgentWithConverter):
         UPDATE_FREQ = training_param.update_tensorboard_freq  # update tensorboard every "UPDATE_FREQ" steps
         SAVING_NUM = training_param.save_model_each
 
-        if isinstance(env, grid2op.Environment.Environment):
-            self.__nb_env = 1
-        else:
-            import warnings
+    
+        if hasattr(env, "nb_env"):
             nb_env = env.nb_env
             warnings.warn("Training using {} environments".format(nb_env))
             self.__nb_env = nb_env
+        else:
+            self.__nb_env = 1
+        # if isinstance(env, grid2op.Environment.Environment):
+        #     self.__nb_env = 1
+        # else:
+        #     import warnings
+        #     nb_env = env.nb_env
+        #     warnings.warn("Training using {} environments".format(nb_env))
+        #     self.__nb_env = nb_env
 
         self.init_obs_extraction(env.observation_space)
 
