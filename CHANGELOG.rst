@@ -4,6 +4,17 @@ Change Log
 --------
 - stack multiple states in `utils/DeepQAgent`
 
+[0.4.4] - 2020-07-07
+--------------------
+- [FIXED] now the baselines can fully support the grid2op MultiMix environment.
+
+[0.4.3] - 2020-07-06
+---------------------
+- [FIXED] a bug the prevented to reload the baselines when the python version changed (for example
+  if the baseline was trained with python 3.8 then you would not be able to load it to load it
+  with python 3.6. This is a limitation of the "marshall" library used internally by keras. We
+  found a way to fix it.
+
 [0.4.2] - 2020-06-29
 -----------------------
 - [FIXED] a bug in the TrainingParam class (wrong realoading)
