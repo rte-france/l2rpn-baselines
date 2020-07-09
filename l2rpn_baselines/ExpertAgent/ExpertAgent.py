@@ -37,9 +37,11 @@ class ExpertAgent(BaseAgent):
 
     def act(self, observation, reward, done=False):
         ltc = None
+        rho_max = 0
         # Look for an overload
         for i, rho in enumerate(observation.rho):
-            if rho > 1:
+            if rho > 1 and rho > rho_max:
+                rho_max = rho
                 ltc = i
         # If we find none, do nothing
         if ltc is None:
@@ -48,7 +50,11 @@ class ExpertAgent(BaseAgent):
         else:
             simulator = Grid2opSimulation(observation, self.action_space, self.observation_space, param_options=self.config, debug=False, ltc=[ltc])
             ranked_combinations, expert_system_results, actions = expert_operator(simulator, plot=False, debug=False)
-            best_action = actions[expert_system_results['Topology simulated score'].argmax()]
+            # Retreive the line with best score, then best Efficacity
+            index_best_action = expert_system_results[
+                expert_system_results['Topology simulated score'] == expert_system_results['Topology simulated score'].max()
+                ]["Efficacity"].idxmax()
+            best_action = actions[index_best_action]
             return best_action
 
     def reset(self, observation):
