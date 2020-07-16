@@ -3,6 +3,7 @@ __all__ = [
     "DoubleDuelingDQN",
     "DoubleDuelingRDQN",
     "DoNothing",
+    "ExpertAgent",
     "SliceRDQN",
     "DeepQSimple",
     "DuelQSimple",
