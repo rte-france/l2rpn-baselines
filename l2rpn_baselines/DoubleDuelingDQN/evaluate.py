@@ -72,7 +72,8 @@ def evaluate(env,
     
     # Limit gpu usage
     physical_devices = tf.config.list_physical_devices('GPU')
-    tf.config.experimental.set_memory_growth(physical_devices[0], True)
+    if len(physical_devices):
+        tf.config.experimental.set_memory_growth(physical_devices[0], True)
 
     runner_params = env.get_params_for_runner()
     runner_params["verbose"] = verbose
