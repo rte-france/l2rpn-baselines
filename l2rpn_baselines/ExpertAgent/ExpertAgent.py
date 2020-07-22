@@ -27,7 +27,7 @@ class ExpertAgent(BaseAgent):
         self.action_space = action_space
         self.observation_space = observation_space
         self.config = {
-            "totalnumberofsimulatedtopos": 10,
+            "totalnumberofsimulatedtopos": 25,
             "numberofsimulatedtopospernode": 5,
             "maxUnusedLines": 3,
             "ratioToReconsiderFlowDirection": 0.75,
