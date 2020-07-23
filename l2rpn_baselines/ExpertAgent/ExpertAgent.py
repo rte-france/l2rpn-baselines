@@ -5,6 +5,7 @@
 # you can obtain one at http://mozilla.org/MPL/2.0/.
 # SPDX-License-Identifier: MPL-2.0
 # This file is part of L2RPN Baselines, L2RPN Baselines a repository to host baselines for l2rpn competitions.
+import numpy as np
 
 from grid2op.Agent import BaseAgent
 from alphaDeesp.expert_operator import expert_operator
@@ -58,7 +59,10 @@ class ExpertAgent(BaseAgent):
             index_best_action = expert_system_results[
                 expert_system_results['Topology simulated score'] == expert_system_results['Topology simulated score'].max()
                 ]["Efficacity"].idxmax()
-            best_action = actions[index_best_action]
+            if not np.isnan(index_best_action):
+                best_action = actions[index_best_action]
+            else:
+                best_action = self.action_space({})  # do nothing action
             print("action we take is:")
             print(best_action)
             return best_action
