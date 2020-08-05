@@ -410,7 +410,6 @@ class DeepQAgent(AgentWithConverter):
         UPDATE_FREQ = training_param.update_tensorboard_freq  # update tensorboard every "UPDATE_FREQ" steps
         SAVING_NUM = training_param.save_model_each
 
-    
         if hasattr(env, "nb_env"):
             nb_env = env.nb_env
             warnings.warn("Training using {} environments".format(nb_env))
@@ -501,7 +500,6 @@ class DeepQAgent(AgentWithConverter):
                     act = act[0]
 
                 temp_observation_obj, temp_reward, temp_done, info = env.step(act)
-
                 if self.__nb_env == 1:
                     # dirty hack to wrap them into list
                     temp_observation_obj = [temp_observation_obj]
@@ -611,6 +609,7 @@ class DeepQAgent(AgentWithConverter):
         self._training_param.tell_step(training_step)
         if training_step > max(self._training_param.min_observation, self._training_param.minibatch_size) and \
             self._training_param.do_train():
+
             # train the model
             s_batch, a_batch, r_batch, d_batch, s2_batch = self.replay_buffer.sample(self._training_param.minibatch_size)
             tf_writer = None
@@ -748,12 +747,12 @@ class DeepQAgent(AgentWithConverter):
     def _store_new_state(self, initial_state, predict_movement_int, reward, done, new_state):
         """store the new state in the replay buffer"""
         # vectorized version of the previous code
-        for i_s, pm_i, reward, done, new_state in zip(initial_state, predict_movement_int, reward, done, new_state):
+        for i_s, pm_i, reward, done, ns in zip(initial_state, predict_movement_int, reward, done, new_state):
             self.replay_buffer.add(i_s,
                                    pm_i,
                                    reward,
                                    done,
-                                   new_state)
+                                   ns)
 
     def _max_iter_env(self, new_max_iter):
         """update the number of maximum iteration allowed."""
