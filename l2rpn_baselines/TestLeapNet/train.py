@@ -312,14 +312,11 @@ if __name__ == "__main__":
                backend=backend,
                chronics_class=MultifolderWithCache
                )
-    # env.chronics_handler.set_max_iter(7*288)
-    # env.chronics_handler.real_data.set_filter(lambda x: True)
-    #env.chronics_handler.real_data.set_filter(lambda x: re.match(".*((0003)|(0072)|(0057))$", x) is not None)
-    # env.chronics_handler.real_data.set_filter(lambda x: re.match(".*((0057))$", x) is not None)
-    # env.chronics_handler.real_data.set_filter(lambda x: re.match(".*((0000)|(0003))$", x) is not None)
-    # env.chronics_handler.real_data.set_filter(lambda x: re.match(".*((0000))$", x) is not None)
-    env.chronics_handler.real_data.set_filter(lambda x: re.match(".*Scenario_february_.*$", x) is not None)
-    env.chronics_handler.real_data.reset()
+
+
+    # env.chronics_handler.real_data.set_filter(lambda x: re.match(".*Scenario_february_.*$", x) is not None)
+    # env.chronics_handler.real_data.reset()
+
     # env.chronics_handler.real_data.
     env_init = env
     if args.nb_env > 1:
@@ -378,30 +375,46 @@ if __name__ == "__main__":
 
     # nn architecture
     li_attr_obs_X = ["prod_p", "prod_v", "load_p", "load_q"]
-    li_attr_obs_Tau = ["time_before_cooldown_line",
-                       "time_before_cooldown_sub",
-                       "timestep_overflow",
-                       "line_status"]
+    li_attr_obs_input_q = ["time_before_cooldown_line",
+                           "time_before_cooldown_sub",
+                           "actual_dispatch",
+                           "target_dispatch"]
+    li_attr_obs_Tau = ["line_status", "timestep_overflow"]
+    list_attr_gm_out = ["a_or", "a_ex", "p_or", "p_ex", "q_or", "q_ex", "prod_q", "load_v"]
     sizes = [512, 512, 256, 256]
 
+    # TODO make all that in the constructor instead
     x_dim = TestLeapNet_NNParam.get_obs_size(env_init, li_attr_obs_X)
-    tau_dims = [TestLeapNet_NNParam.get_obs_size(env_init, [el]) for el in li_attr_obs_Tau]
+
     x_dims = [TestLeapNet_NNParam.get_obs_size(env_init, [el]) for el in li_attr_obs_X]
+    input_q_dims = [TestLeapNet_NNParam.get_obs_size(env_init, [el]) for el in li_attr_obs_input_q]
+    tau_dims = [TestLeapNet_NNParam.get_obs_size(env_init, [el]) for el in li_attr_obs_Tau]
+    gm_out_dims = [TestLeapNet_NNParam.get_obs_size(env_init, [el]) for el in list_attr_gm_out]
 
     kwargs_archi = {'sizes': sizes,
                     'activs': ["relu" for _ in sizes],
                     'x_dim': x_dim,
                     "list_attr_obs": li_attr_obs_X,
 
-                    'tau_dims': tau_dims,
-                    'tau_adds': [0.0 for _ in range(len(tau_dims))],  # add some value to taus
-                    'tau_mults': [1.0 for _ in range(len(tau_dims))],  # divide by some value for tau (after adding)
                     "list_attr_obs_tau": li_attr_obs_Tau,
+                    'tau_dims': tau_dims,
+                    'tau_adds': [0.0 for _ in tau_dims],  # add some value to taus
+                    'tau_mults': [1.0 for _ in tau_dims],  # divide by some value for tau (after adding)
 
                     "list_attr_obs_x": li_attr_obs_X,
                     "x_dims": x_dims,
                     "x_adds": [0.0 for _ in x_dims],
                     "x_mults": [1.0 for _ in x_dims],
+
+                    "list_attr_obs_input_q": li_attr_obs_input_q,
+                    "input_q_dims": input_q_dims,
+                    "input_q_adds": [0.0 for _ in input_q_dims],
+                    "input_q_mults": [1.0 for _ in input_q_dims],
+
+                    "list_attr_gm_out": list_attr_gm_out,
+                    "gm_out_dims": gm_out_dims,
+                    "gm_out_adds": [0.0 for _ in gm_out_dims],
+                    "gm_out_mults": [1.0 for _ in gm_out_dims],
 
                     'dim_topo': env.dim_topo,
                     "dim_flow": env.n_line

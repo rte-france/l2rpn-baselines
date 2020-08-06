@@ -72,6 +72,16 @@ class TestLeapNet_NNParam(NNParam):
                  x_mults,
                  list_attr_obs_x,
 
+                 input_q_dims,
+                 input_q_adds,
+                 input_q_mults,
+                 list_attr_obs_input_q,
+
+                 list_attr_gm_out,
+                 gm_out_dims,
+                 gm_out_adds,
+                 gm_out_mults,
+
                  dim_topo,
                  dim_flow,
                  ):
@@ -97,11 +107,24 @@ class TestLeapNet_NNParam(NNParam):
         # TODO add that for serializing
         self.sizes_enc = [20, 20, 20]
         self.sizes_main = [150, 150, 150]
-        self.sizes_for_flow = [150, 100, 40]
+        self.sizes_out_gm = [100, 40]
         self.sizes_Qnet = [100, 100, 100]
 
         self.dim_topo = dim_topo
         self.dim_flow = dim_flow
 
+        self.list_attr_obs_input_q = list_attr_obs_input_q
+        self.input_q_dims = input_q_dims
+        self.input_q_adds = input_q_adds
+        self.input_q_mults = input_q_mults
+
+        # grid model output (gm = grid model)
+        self.list_attr_gm_out = list_attr_gm_out
+        self.gm_out_dims = gm_out_dims
+        self.gm_out_adds = gm_out_adds
+        self.gm_out_mults = gm_out_mults
+
     def get_obs_attr(self):
-        return self.list_attr_obs + self.list_attr_obs_tau + ["topo_vect", "a_or"]
+        res = self.list_attr_obs + self.list_attr_obs_input_q
+        res += self.list_attr_obs_tau + ["topo_vect"] + self.list_attr_gm_out
+        return res

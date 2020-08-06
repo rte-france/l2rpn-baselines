@@ -68,12 +68,14 @@ class TestLeapNet_NN(BaseDeepQ):
         # Uses the network architecture found in DeepMind paper
         # The inputs and outputs size have changed, as well as replacing the convolution by dense layers.
         self._model = Sequential()
-
         inputs_x = [Input(shape=(el,), name="x_{}".format(nm_)) for el, nm_ in
-                      zip(self._nn_archi.x_dims, self._nn_archi.list_attr_obs_x)]
+                    zip(self._nn_archi.x_dims, self._nn_archi.list_attr_obs_x)]
+        inputs_q = [Input(shape=(el,), name="input_q_{}".format(nm_)) for el, nm_ in
+                    zip(self._nn_archi.input_q_dims, self._nn_archi.list_attr_obs_input_q)]
         inputs_tau = [Input(shape=(el,), name="tau_{}".format(nm_)) for el, nm_ in
                       zip(self._nn_archi.tau_dims, self._nn_archi.list_attr_obs_tau)]
         input_topo = Input(shape=(self._nn_archi.dim_topo,), name="topo")
+        models_all_inputs = [*inputs_x, *inputs_q, *inputs_tau, input_topo]
 
         # encode each data type in initial layers
         encs_out = []
@@ -98,21 +100,28 @@ class TestLeapNet_NN(BaseDeepQ):
         self.encoded_state = encoded_state
 
         # i predict the flows, that i should be able to do
-        lay = encoded_state
-        for i, size in enumerate(self._nn_archi.sizes_for_flow):
-            lay = Dense(size, name="flow_{}".format(i))(lay)
-            lay = Activation("relu")(lay)
+        outputs_gm = []
+        for sz_out, nm_ in zip(self._nn_archi.gm_out_dims,
+                               self._nn_archi.list_attr_gm_out):
+            lay = encoded_state
+            for i, size in enumerate(self._nn_archi.sizes_out_gm):
+                lay = Dense(size, name="{}_{}".format(nm_, i))(lay)
+                lay = Activation("relu")(lay)
 
-        # predict now the flows
-        flow_hat = Dense(self._nn_archi.dim_flow)(lay)
+            # predict now the variable
+            pred_ = Dense(sz_out, name="{}_hat".format(nm_))(lay)
+            outputs_gm.append(pred_)
 
         # NB grid_model does not use inputs_tau
-        self.grid_model = Model(inputs=[*inputs_x,  *inputs_tau, input_topo], outputs=[flow_hat])
+        self.grid_model = Model(inputs=models_all_inputs, outputs=outputs_gm)
         self._schedule_grid_model, self._optimizer_grid_model = self.make_optimiser()
         self.grid_model.compile(loss='mse', optimizer=self._optimizer_grid_model)
 
         # And now let's predict the Q value of the action.
-        lay = self.encoded_state
+        input_Qnet = inputs_q + [self.encoded_state]
+         # TODO do i pre process the data coming from inputs_q ???
+
+        lay = tf.keras.layers.concatenate(input_Qnet)
         for i, size in enumerate(self._nn_archi.sizes_Qnet):
             lay = Dense(size, name="qvalue_{}".format(i))(lay)  # TODO resnet instead of Dense
             lay = Activation("relu")(lay)
@@ -130,33 +139,53 @@ class TestLeapNet_NN(BaseDeepQ):
         tmp = subtract([advantage, mn_])
         policy = add([tmp, value], name="policy")
 
-        self._model = Model(inputs=[*inputs_x, *inputs_tau, input_topo], outputs=[policy])
+        model_all_outputs = [policy]
+        self._model = Model(inputs=models_all_inputs, outputs=model_all_outputs)
         self._schedule_model, self._optimizer_model = self.make_optimiser()
         self._model.compile(loss='mse', optimizer=self._optimizer_model)
 
-        self._target_model = Model(inputs=[*inputs_x, *inputs_tau, input_topo], outputs=[policy])
+        self._target_model = Model(inputs=models_all_inputs, outputs=model_all_outputs)
 
     def _make_x_tau(self, data):
-        data_x = []
         # for the x's
+        data_x = []
         prev = 0
-
-        for sz, add_, mul_ in zip(self._nn_archi.x_dims, self._nn_archi.x_adds, self._nn_archi.x_mults):
+        for sz, add_, mul_ in zip(self._nn_archi.x_dims,
+                                  self._nn_archi.x_adds,
+                                  self._nn_archi.x_mults):
             tmp = (data[:, prev:(prev+sz)] + add_) * mul_
             data_x.append(tmp)
             prev += sz
 
+        # for the input of the q network
+        data_q = []
+        for sz, add_, mul_ in zip(self._nn_archi.input_q_dims,
+                                  self._nn_archi.input_q_adds,
+                                  self._nn_archi.input_q_mults):
+            data_q.append((data[:, prev:(prev+sz)] + add_) * mul_)
+            prev += sz
+
         # for the taus
         data_tau = []
-        prev = self._nn_archi.x_dim
-        for sz, add_, mul_ in zip(self._nn_archi.tau_dims, self._nn_archi.tau_adds, self._nn_archi.tau_mults):
+        for sz, add_, mul_ in zip(self._nn_archi.tau_dims,
+                                  self._nn_archi.tau_adds,
+                                  self._nn_archi.tau_mults):
             data_tau.append((data[:, prev:(prev+sz)] + add_) * mul_)
             prev += sz
 
+        # TODO pre process that into different vector
         data_topo = data[:, prev:(prev+self._nn_archi.dim_topo)]
+
         prev += self._nn_archi.dim_topo
-        data_flow = data[:, prev:]
-        res = [*data_x, *data_tau, data_topo, data_flow]
+        # TODO predict also gen_q and load_v here, and p_or and q_or and p_ex and q_ex
+        data_flow = []
+        for sz, add_, mul_ in zip(self._nn_archi.gm_out_dims,
+                                  self._nn_archi.gm_out_adds,
+                                  self._nn_archi.gm_out_mults):
+            data_flow.append((data[:, prev:(prev+sz)] + add_) * mul_)
+            prev += sz
+
+        res = [*data_x, *data_q, *data_tau, data_topo], data_flow
         return res
 
     def predict_movement(self, data, epsilon, batch_size=None):
@@ -164,29 +193,27 @@ class TestLeapNet_NN(BaseDeepQ):
         probability randomly move."""
         if batch_size is None:
             batch_size = data.shape[0]
-        data_split = self._make_x_tau(data)
-        *data_split, flow = data_split
-        res = super().predict_movement(data_split, epsilon=epsilon, batch_size=batch_size)
+        data_nn, true_output_grid = self._make_x_tau(data)
+        res = super().predict_movement(data_nn, epsilon=epsilon, batch_size=batch_size)
         return res
 
     def train(self, s_batch, a_batch, r_batch, d_batch, s2_batch, tf_writer=None, batch_size=None):
         if batch_size is None:
             batch_size = s_batch.shape[0]
-        s_batch_split = self._make_x_tau(s_batch)
-        s2_batch_split = self._make_x_tau(s2_batch)
+        data_nn, true_output_grid = self._make_x_tau(s_batch)
+        data_nn2, true_output_grid2 = self._make_x_tau(s2_batch)
 
         # train the grid model to accurately predict the state of the grid
-        *s_batch_split, data_flow1 = s_batch_split
-        loss1 = self.grid_model.train_on_batch(s_batch_split, data_flow1)
-        *s2_batch_split, data_flow2 = s2_batch_split
-        loss2 = self.grid_model.train_on_batch(s2_batch_split, data_flow2)
+        # TODO predict also gen_q and load_v here, and p_or and q_or and p_ex and q_ex
+        loss1 = self.grid_model.train_on_batch(data_nn, true_output_grid)
+        loss2 = self.grid_model.train_on_batch(data_nn2, true_output_grid2)
 
         # and now train the q network
-        res = super().train(s_batch_split,
+        res = super().train(data_nn,
                             a_batch,
                             r_batch,
                             d_batch,
-                            s2_batch_split,
+                            data_nn2,
                             tf_writer=tf_writer,
                             batch_size=batch_size)
         return loss1 + loss2
