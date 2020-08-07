@@ -224,3 +224,7 @@ class BaseDeepQ(ABC):
             target_model_weights[i] = self._training_param.tau * model_weights[i] + (1 - self._training_param.tau) * \
                                       target_model_weights[i]
         self._target_model.set_weights(target_model_weights)
+
+    def save_tensorboard(self, current_step):
+        """function used to save other information to tensorboard"""
+        pass

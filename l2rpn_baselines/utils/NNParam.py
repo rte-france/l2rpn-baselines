@@ -7,6 +7,9 @@
 # This file is part of L2RPN Baselines, L2RPN Baselines a repository to host baselines for l2rpn competitions.
 import os
 import json
+import numpy as np
+from collections.abc import Iterable
+
 from l2rpn_baselines.utils.BaseDeepQ import BaseDeepQ
 
 
@@ -115,13 +118,37 @@ class NNParam(object):
 
         for attr_nm in self._list_float:
             tmp = getattr(self, attr_nm)
-            res[attr_nm] = [float(el) for el in tmp]
+            res[attr_nm] = self._convert_list_to_json(tmp, float)
         for attr_nm in self._list_int:
             tmp = getattr(self, attr_nm)
-            res[attr_nm] = [int(el) for el in tmp]
+            res[attr_nm] = self._convert_list_to_json(tmp, int)
         for attr_nm in self._list_str:
             tmp = getattr(self, attr_nm)
-            res[attr_nm] = [str(el) for el in tmp]
+            res[attr_nm] = self._convert_list_to_json(tmp, str)
+        return res
+
+    def _convert_list_to_json(self, obj, type_):
+        if isinstance(obj, type_):
+            res = obj
+        elif isinstance(obj, np.ndarray):
+            if len(obj.shape) == 1:
+                res = [type_(el) for el in obj]
+            else:
+                res = [self._convert_list_to_json(el, type_) for el in obj]
+        elif isinstance(obj, Iterable):
+            res = [self._convert_list_to_json(el, type_) for el in obj]
+        else:
+            res = type_(obj)
+        return res
+
+    @classmethod
+    def _attr_from_json(cls, json, type_):
+        if isinstance(json, type_):
+            res = json
+        elif isinstance(json, list):
+            res = [cls._convert_list_to_json(el, type_) for el in json]
+        else:
+            res = type_(json)
         return res
 
     @classmethod
@@ -155,13 +182,13 @@ class NNParam(object):
 
         for attr_nm in cls._list_float:
             if attr_nm in tmp:
-                cls_as_dict[attr_nm] = [float(el) for el in tmp[attr_nm]]
+                cls_as_dict[attr_nm] = cls._attr_from_json(tmp[attr_nm], float)
         for attr_nm in cls._list_int:
             if attr_nm in tmp:
-                cls_as_dict[attr_nm] = [int(el) for el in tmp[attr_nm]]
+                cls_as_dict[attr_nm] = cls._attr_from_json(tmp[attr_nm], int)
         for attr_nm in cls._list_str:
             if attr_nm in tmp:
-                cls_as_dict[attr_nm] = [str(el) for el in tmp[attr_nm]]
+                cls_as_dict[attr_nm] = cls._attr_from_json(tmp[attr_nm], str)
 
         res = cls(**cls_as_dict)
         return res
@@ -189,3 +216,55 @@ class NNParam(object):
         path_out = os.path.join(path, name)
         with open(path_out, "w", encoding="utf-8") as f:
             json.dump(res, fp=f, indent=4, sort_keys=True)
+
+    def center_reduce(self, env):
+        """currently not implemented for this class, "coming soon" as we might say"""
+        # TODO see TestLeapNet for this feature
+        self._center_reduce_vect(env.get_obs(), "x")
+
+    def _center_reduce_vect(self, obs, nn_part):
+        """
+        compute the xxxx_adds and xxxx_mults for one part of the neural network called nn_part,
+        depending on what attribute of the observation is extracted
+        """
+        li_attr_obs = getattr(self, "list_attr_obs_{}".format(nn_part))
+        adds = []
+        mults = []
+        for attr_nm in li_attr_obs:
+            if attr_nm in ["prod_p"]:
+                add_tmp = np.array([-0.5*(pmax + pmin) for pmin, pmax in zip(obs.gen_pmin, obs.gen_pmax)])
+                mult_tmp = np.array([1./(pmax - pmin) for pmin, pmax in zip(obs.gen_pmin, obs.gen_pmax)])
+            elif attr_nm in ["prod_q"]:
+                add_tmp = 0.
+                mult_tmp = np.array([1./max(abs(val), 1.0) for val in obs.prod_q])
+            elif attr_nm in ["load_p", "load_q"]:
+                add_tmp = np.array([-val for val in getattr(obs, attr_nm)])
+                mult_tmp = 2.
+            elif attr_nm in ["load_v", "prod_v", "v_or", "v_ex"]:
+                add_tmp = 0.
+                mult_tmp = np.array([1. / val for val in getattr(obs, attr_nm)])
+            elif attr_nm == "hour_of_day":
+                add_tmp = -12
+                mult_tmp = 12
+            elif attr_nm == "minute_of_hour":
+                add_tmp = -30
+                mult_tmp = 30
+            elif attr_nm == "day_of_week":
+                add_tmp = -4
+                mult_tmp = 4
+            elif attr_nm == "day":
+                add_tmp = -15
+                mult_tmp = 15
+            elif attr_nm in ["target_dispatch", "actual_dispatch"]:
+                add_tmp = 0.
+                mult_tmp = np.array([1./(pmax - pmin) for pmin, pmax in zip(obs.gen_pmin, obs.gen_pmax)])
+            elif attr_nm in ["a_or", "a_ex", "p_or", "p_ex", "q_or", "q_ex"]:
+                add_tmp = 0.
+                mult_tmp = np.array([1.0 / max(val, 1.0) for val in getattr(obs, attr_nm)])
+            else:
+                add_tmp = 0.
+                mult_tmp = 1.0
+            mults.append(mult_tmp)
+            adds.append(add_tmp)
+        setattr(self, "{}_adds".format(nn_part), adds)
+        setattr(self, "{}_mults".format(nn_part), mults)

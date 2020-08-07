@@ -185,6 +185,10 @@ def train(env,
         nn_archi = TestLeapNet_NNParam.from_json(os.path.join(path_model, "nn_architecture.json"))
     else:
         nn_archi = TestLeapNet_NNParam(**kwargs_archi)
+        # because i was lazy enough not to copy paste all the dimensions there
+        nn_archi.compute_dims(env)
+        # because i want data approximately reduced (for the learning process to be smoother)
+        nn_archi.center_reduce(env)
 
     baseline = TestLeapNet(action_space=env.action_space,
                             nn_archi=nn_archi,
@@ -313,9 +317,13 @@ if __name__ == "__main__":
                chronics_class=MultifolderWithCache
                )
 
-
-    # env.chronics_handler.real_data.set_filter(lambda x: re.match(".*Scenario_february_.*$", x) is not None)
-    # env.chronics_handler.real_data.reset()
+    if env.name == "l2rpn_wcci_2020":
+        env.chronics_handler.real_data.set_filter(lambda x: re.match(".*Scenario_february_.*$", x) is not None)
+        env.chronics_handler.real_data.reset()
+    elif env.name == "l2rpn_case124_sandbox":
+        # all data can be loaded into memory
+        env.chronics_handler.real_data.set_filter(lambda x: True)
+        env.chronics_handler.real_data.reset()
 
     # env.chronics_handler.real_data.
     env_init = env
@@ -341,9 +349,9 @@ if __name__ == "__main__":
     tp.update_freq = tp.minibatch_size / 2
 
     # limit the number of time steps played per scenarios
-    tp.step_increase_nb_iter = 100  # None to deactivate it
-    tp.min_iter = 10
-    tp.update_nb_iter = 100  # once 100 scenarios are solved, increase of "step_increase_nb_iter"
+    tp.step_increase_nb_iter = None  # None to deactivate it
+    tp.min_iter = None
+    tp.update_nb_iter = None  # once 100 scenarios are solved, increase of "step_increase_nb_iter"
 
     # oversampling hard scenarios
     tp.oversampling_rate = None  # None to deactivate it
@@ -356,6 +364,7 @@ if __name__ == "__main__":
     tp.initial_epsilon = 0.2
     tp.final_epsilon = 1./(288.)
     tp.step_for_final_epsilon = int(1e5)
+    # TODO add the "i dont do anything for a few time steps at the beginning of the training"
 
     # don't start always at the same hour (if not None) otherwise random sampling, see docs
     tp.random_sample_datetime_start = None
@@ -365,63 +374,61 @@ if __name__ == "__main__":
     tp.update_tensorboard_freq = 256
 
     # which actions i keep
-    kwargs_converters = {"all_actions": None,
-                         "set_line_status": False,
-                         "change_line_status": True,
-                         "change_bus_vect": False,
-                         "set_topo_vect": False,
-                         "redispacth": False
-                         }
+    if env.name == "l2rpn_case14_sandbox":
+        kwargs_converters = {"all_actions": None,
+                             "set_line_status": False,
+                             "change_line_status": True,
+                             "change_bus_vect": True,
+                             "set_topo_vect": False,
+                             "redispacth": False
+                             }
+    else:
+        kwargs_converters = {"all_actions": None,
+                             "set_line_status": False,
+                             "change_line_status": True,
+                             "change_bus_vect": False,
+                             "set_topo_vect": False,
+                             "redispacth": False
+                             }
 
     # nn architecture
     li_attr_obs_X = ["prod_p", "prod_v", "load_p", "load_q"]
     li_attr_obs_input_q = ["time_before_cooldown_line",
                            "time_before_cooldown_sub",
                            "actual_dispatch",
-                           "target_dispatch"]
+                           "target_dispatch",
+                           "day_of_week",
+                           "hour_of_day",
+                           "minute_of_hour"]
     li_attr_obs_Tau = ["line_status", "timestep_overflow"]
-    list_attr_gm_out = ["a_or", "a_ex", "p_or", "p_ex", "q_or", "q_ex", "prod_q", "load_v"]
+    list_attr_gm_out = ["a_or", "a_ex", "p_or", "p_ex", "q_or", "q_ex", "prod_q", "load_v"] + li_attr_obs_X
     sizes = [512, 512, 256, 256]
 
     # TODO make all that in the constructor instead
     x_dim = TestLeapNet_NNParam.get_obs_size(env_init, li_attr_obs_X)
 
-    x_dims = [TestLeapNet_NNParam.get_obs_size(env_init, [el]) for el in li_attr_obs_X]
-    input_q_dims = [TestLeapNet_NNParam.get_obs_size(env_init, [el]) for el in li_attr_obs_input_q]
-    tau_dims = [TestLeapNet_NNParam.get_obs_size(env_init, [el]) for el in li_attr_obs_Tau]
-    gm_out_dims = [TestLeapNet_NNParam.get_obs_size(env_init, [el]) for el in list_attr_gm_out]
-
     kwargs_archi = {'sizes': sizes,
                     'activs': ["relu" for _ in sizes],
                     'x_dim': x_dim,
+
                     "list_attr_obs": li_attr_obs_X,
-
                     "list_attr_obs_tau": li_attr_obs_Tau,
-                    'tau_dims': tau_dims,
-                    'tau_adds': [0.0 for _ in tau_dims],  # add some value to taus
-                    'tau_mults': [1.0 for _ in tau_dims],  # divide by some value for tau (after adding)
-
                     "list_attr_obs_x": li_attr_obs_X,
-                    "x_dims": x_dims,
-                    "x_adds": [0.0 for _ in x_dims],
-                    "x_mults": [1.0 for _ in x_dims],
-
                     "list_attr_obs_input_q": li_attr_obs_input_q,
-                    "input_q_dims": input_q_dims,
-                    "input_q_adds": [0.0 for _ in input_q_dims],
-                    "input_q_mults": [1.0 for _ in input_q_dims],
 
                     "list_attr_gm_out": list_attr_gm_out,
-                    "gm_out_dims": gm_out_dims,
-                    "gm_out_adds": [0.0 for _ in gm_out_dims],
-                    "gm_out_mults": [1.0 for _ in gm_out_dims],
 
                     'dim_topo': env.dim_topo,
-                    "dim_flow": env.n_line
+                    "dim_flow": env.n_line,
+
+                    "sizes_enc": (50, 50, 50),
+                    "sizes_main": (300, 300, 300, 300),
+                    "sizes_out_gm": (100, ),
+                    "sizes_Qnet": (200, 200, 200)
                     }
 
     nm_ = args.name if args.name is not None else DEFAULT_NAME
-    # python3 train.py --env_name="l2rpn_case14_sandbox" --save_path="model_saved" --logs_dir="tf_logs" --num_train_steps=1000 --name="InitialTest"
+    # python3 train.py --env_name="l2rpn_wcci_2020" --save_path="model_saved" --logs_dir="tf_logs" --num_train_steps=10000 --name="InitialTest4
     try:
         train(env,
               name=nm_,

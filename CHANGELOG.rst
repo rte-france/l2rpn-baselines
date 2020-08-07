@@ -4,6 +4,13 @@ Change Log
 --------
 - stack multiple states in `utils/DeepQAgent`
 
+[0.4.5] - 2020-08-??
+--------------------
+- [FIXED] the counting of the action types frequency in tensorboard (for some baselines)
+- [FIXED] a broken Replay buffer `utils.ReplayBuffer` (used in some baselines)
+- [IMPROVED] descriptions and computation of the tensorboard information (for some baselines)
+- [ADDED] better serializing as json of the `utils.NNParam` class
+
 [0.4.4] - 2020-07-07
 --------------------
 - [FIXED] now the baselines can fully support the grid2op MultiMix environment.

@@ -54,6 +54,8 @@ class TestLeapNet_NN(BaseDeepQ):
         self.grid_model = None
         self._schedule_grid_model = None
         self._optimizer_grid_model = None
+        self._qnet_variables = []
+        self.grid_model_losses_npy = None
 
         self.construct_q_network()
 
@@ -74,7 +76,7 @@ class TestLeapNet_NN(BaseDeepQ):
                     zip(self._nn_archi.input_q_dims, self._nn_archi.list_attr_obs_input_q)]
         inputs_tau = [Input(shape=(el,), name="tau_{}".format(nm_)) for el, nm_ in
                       zip(self._nn_archi.tau_dims, self._nn_archi.list_attr_obs_tau)]
-        input_topo = Input(shape=(self._nn_archi.dim_topo,), name="topo")
+        input_topo = Input(shape=(2*self._nn_archi.dim_topo,), name="topo")
         models_all_inputs = [*inputs_x, *inputs_q, *inputs_tau, input_topo]
 
         # encode each data type in initial layers
@@ -96,43 +98,56 @@ class TestLeapNet_NN(BaseDeepQ):
             lay = Activation("relu")(lay)
 
         # now i do the leap net to encode the state
-        encoded_state = lay + LtauBis(name="leap_topo")([lay, input_topo])
-        self.encoded_state = encoded_state
+        encoded_state = tf.keras.layers.add([lay, LtauBis(name="leap_topo")([lay, input_topo])],
+                                            name="encoded_state")
+        self.encoded_state = tf.keras.backend.stop_gradient(encoded_state)
 
         # i predict the flows, that i should be able to do
         outputs_gm = []
+        grid_model_losses = {}
+        lossWeights = {}  # TODO
         for sz_out, nm_ in zip(self._nn_archi.gm_out_dims,
-                               self._nn_archi.list_attr_gm_out):
+                               self._nn_archi.list_attr_obs_gm_out):
             lay = encoded_state
             for i, size in enumerate(self._nn_archi.sizes_out_gm):
                 lay = Dense(size, name="{}_{}".format(nm_, i))(lay)
                 lay = Activation("relu")(lay)
 
             # predict now the variable
-            pred_ = Dense(sz_out, name="{}_hat".format(nm_))(lay)
+            name_output = "{}_hat".format(nm_)
+            pred_ = Dense(sz_out, name=name_output)(lay)
             outputs_gm.append(pred_)
+            grid_model_losses[name_output] = "mse"
 
         # NB grid_model does not use inputs_tau
-        self.grid_model = Model(inputs=models_all_inputs, outputs=outputs_gm)
+        self.grid_model = Model(inputs=models_all_inputs, outputs=outputs_gm, name="grid_model")
         self._schedule_grid_model, self._optimizer_grid_model = self.make_optimiser()
-        self.grid_model.compile(loss='mse', optimizer=self._optimizer_grid_model)
+        self.grid_model.compile(loss=grid_model_losses, optimizer=self._optimizer_grid_model) # , loss_weights=lossWeights
 
-        # And now let's predict the Q value of the action.
+        # And now let's predict the Q values of each actions given the encoded grid state
         input_Qnet = inputs_q + [self.encoded_state]
-         # TODO do i pre process the data coming from inputs_q ???
+        # TODO do i pre process the data coming from inputs_q ???
 
-        lay = tf.keras.layers.concatenate(input_Qnet)
+        lay = tf.keras.layers.concatenate(input_Qnet, name="input_Q_network")
         for i, size in enumerate(self._nn_archi.sizes_Qnet):
-            lay = Dense(size, name="qvalue_{}".format(i))(lay)  # TODO resnet instead of Dense
+            tmp = Dense(size, name="qvalue_{}".format(i))  # TODO resnet instead of Dense
+            lay = tmp(lay)
             lay = Activation("relu")(lay)
+            self._qnet_variables += tmp.trainable_weights
 
         # And i predict the Q value of the action
         l_tau = lay
         for el, nm_ in zip(inputs_tau, self._nn_archi.list_attr_obs_tau):
-            l_tau = l_tau + LtauBis(name="leap_{}".format(nm_))([lay, el])
+            tmp = LtauBis(name="leap_{}".format(nm_))
+            l_tau = l_tau + tmp([lay, el])
+            self._qnet_variables += tmp.trainable_weights
 
-        advantage = Dense(self._action_size)(l_tau)
-        value = Dense(1, name="value")(l_tau)
+        tmp = Dense(self._action_size)
+        advantage = tmp(l_tau)
+        self._qnet_variables += tmp.trainable_weights
+        tmp = Dense(1, name="value")
+        value = tmp(l_tau)
+        self._qnet_variables += tmp.trainable_weights
 
         meaner = Lambda(lambda x: K.mean(x, axis=1))
         mn_ = meaner(advantage)
@@ -174,7 +189,7 @@ class TestLeapNet_NN(BaseDeepQ):
             prev += sz
 
         # TODO pre process that into different vector
-        data_topo = data[:, prev:(prev+self._nn_archi.dim_topo)]
+        data_topo = self._process_topo(data[:, prev:(prev+self._nn_archi.dim_topo)])
 
         prev += self._nn_archi.dim_topo
         # TODO predict also gen_q and load_v here, and p_or and q_or and p_ex and q_ex
@@ -186,6 +201,28 @@ class TestLeapNet_NN(BaseDeepQ):
             prev += sz
 
         res = [*data_x, *data_q, *data_tau, data_topo], data_flow
+        return res
+
+    def _process_topo(self, topo_vect):
+        """process the topology vector.
+
+         As input grid2op encode it:
+         - -1 disconnected
+         - 1 connected to bus 1
+         - 2 connected to bus 2
+
+         I transform it in a vector having twice as many component with the encoding, if we move
+         "by pairs":
+         - [0,0] -> disconnected
+         - [1,0] -> connected to bus 1
+         - [0,1] -> connected to bus 2
+         """
+        res = np.zeros((topo_vect.shape[0], 2*topo_vect.shape[1]),
+                       dtype=np.float32)
+        tmp_ = np.where(topo_vect == 1.)
+        res[tmp_[0], 2*tmp_[1]] = 1.
+        tmp_ = np.where(topo_vect == 2.)
+        res[tmp_[0], 2*tmp_[1]+1] = 1.
         return res
 
     def predict_movement(self, data, epsilon, batch_size=None):
@@ -216,7 +253,9 @@ class TestLeapNet_NN(BaseDeepQ):
                             data_nn2,
                             tf_writer=tf_writer,
                             batch_size=batch_size)
-        return loss1 + loss2
+
+        self.grid_model_losses_npy = 0.5*(np.array(loss1) + np.array(loss2))
+        return res
 
     def train_on_batch(self, model, optimizer_model, x, y_true):
         """
@@ -233,18 +272,20 @@ class TestLeapNet_NN(BaseDeepQ):
         loss_npy = loss.numpy()
 
         # Compute gradients
-        grads = tape.gradient(loss, model.trainable_variables)
+        grads = tape.gradient(loss, self._qnet_variables)
 
         # clip gradients
         if self._max_global_norm_grad is not None:
             grads, _ = tf.clip_by_global_norm(grads, self._max_global_norm_grad)
         if self._max_value_grad is not None:
-            grads = [tf.clip_by_value(grad, -self._max_value_grad, self._max_value_grad) for grad in grads]
+            grads = [tf.clip_by_value(grad, -self._max_value_grad, self._max_value_grad)
+                     for grad in grads]
 
         # Apply gradients
-        optimizer_model.apply_gradients(zip(grads, model.trainable_variables))
+        optimizer_model.apply_gradients(zip(grads, self._qnet_variables))
         # Store LR
         self.train_lr = optimizer_model._decayed_lr('float32').numpy()
+
         # Return loss scalar
         return loss_npy
 
@@ -256,3 +297,13 @@ class TestLeapNet_NN(BaseDeepQ):
         else:
             res = batch_sq_error
         return res
+
+    def save_tensorboard(self, current_step):
+        if self.grid_model_losses_npy is not None:
+            for i, el in enumerate(self._nn_archi.list_attr_obs_gm_out):
+                tf.summary.scalar("loss_gridmodel_{}".format(el),
+                                  self.grid_model_losses_npy[i],
+                                  current_step,
+                                  description="Loss of the neural network representing the powergrid "
+                                              "for predicting {}"
+                                              "".format(el))

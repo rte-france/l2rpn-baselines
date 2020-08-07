@@ -48,10 +48,14 @@ class TestLeapNet_NNParam(NNParam):
     _list_str = copy.deepcopy(NNParam._list_str)
     _list_int = copy.deepcopy(NNParam._list_int)
 
-    _int_attr += ["x_dim"]
-    _list_str += ["list_attr_obs_tau", "list_attr_obs_x"]
-    _list_float += ["tau_adds", "tau_mults", "x_adds", "x_mults"]
-    _list_int += ["tau_dims", "x_dims"]
+    _int_attr += ["x_dim", "dim_topo", "dim_flow"]
+    _list_str += ["list_attr_obs_tau", "list_attr_obs_x", "list_attr_obs_input_q",
+                  "list_attr_obs_gm_out"]
+    _list_float += ["tau_adds", "tau_mults", "x_adds", "x_mults",
+                    "input_q_adds", "input_q_mults",
+                    "gm_out_adds", "gm_out_mults"]
+    _list_int += ["tau_dims", "x_dims", "gm_out_dims", "input_q_dims",
+                  "sizes_enc", "sizes_main", "sizes_out_gm", "sizes_Qnet"]
     nn_class = TestLeapNet_NN
 
     def __init__(self,
@@ -60,71 +64,95 @@ class TestLeapNet_NNParam(NNParam):
                  sizes,
                  activs,
                  x_dim,
+
                  list_attr_obs,
-
-                 tau_dims,
-                 tau_adds,
-                 tau_mults,
                  list_attr_obs_tau,
-
-                 x_dims,
-                 x_adds,
-                 x_mults,
                  list_attr_obs_x,
-
-                 input_q_dims,
-                 input_q_adds,
-                 input_q_mults,
                  list_attr_obs_input_q,
-
                  list_attr_gm_out,
-                 gm_out_dims,
-                 gm_out_adds,
-                 gm_out_mults,
 
                  dim_topo,
                  dim_flow,
+
+                 sizes_enc=(20, 20, 20),
+                 sizes_main=(150, 150, 150),
+                 sizes_out_gm=(100, 40),
+                 sizes_Qnet=(100, 100, 100),
+
+                 input_q_adds=None,
+                 input_q_mults=None,
+                 gm_out_adds=None,
+                 gm_out_mults=None,
+                 tau_adds=None,
+                 tau_mults=None,
+                 x_adds=None,
+                 x_mults=None,
+
+                 tau_dims=None,
+                 x_dims=None,
+                 gm_out_dims=None,
+                 input_q_dims=None,
                  ):
         NNParam.__init__(self,
                          action_size,
-                         observation_size=x_dim + np.sum(tau_dims),
+                         observation_size=0,  # not used
                          sizes=sizes,
                          activs=activs,
                          list_attr_obs=list_attr_obs
                          )
-        self.tau_dims = [int(el) for el in tau_dims]
 
         self.x_dim = x_dim
-        self.tau_adds = tau_adds
-        self.tau_mults = tau_mults
+
         self.list_attr_obs_tau = [str(el) for el in list_attr_obs_tau]
+        self._define_adds_mults(tau_adds, "tau_adds", list_attr_obs_tau, 0.)
+        self._define_adds_mults(tau_mults, "tau_mults", list_attr_obs_tau, 1.)
 
-        self.x_adds = x_adds
-        self.x_mults = x_mults
         self.list_attr_obs_x = [str(el) for el in list_attr_obs_x]
-        self.x_dims = [int(el) for el in x_dims]
+        self._define_adds_mults(x_adds, "x_adds", list_attr_obs_x, 0.)
+        self._define_adds_mults(x_mults, "x_mults", list_attr_obs_x, 1.)
 
-        # TODO add that for serializing
-        self.sizes_enc = [20, 20, 20]
-        self.sizes_main = [150, 150, 150]
-        self.sizes_out_gm = [100, 40]
-        self.sizes_Qnet = [100, 100, 100]
+        self.list_attr_obs_input_q = [str(el) for el in list_attr_obs_input_q]
+        self._define_adds_mults(input_q_adds, "input_q_adds", list_attr_obs_input_q, 0.)
+        self._define_adds_mults(input_q_mults, "input_q_mults", list_attr_obs_input_q, 1.)
 
+        self.list_attr_obs_gm_out = [str(el) for el in list_attr_gm_out]
+        self._define_adds_mults(gm_out_adds, "gm_out_adds", list_attr_gm_out, 0.)
+        self._define_adds_mults(gm_out_mults, "gm_out_mults", list_attr_gm_out, 1.)
+
+        # sizes of the neural network "blccks"
+        self.sizes_enc = sizes_enc
+        self.sizes_main = sizes_main
+        self.sizes_out_gm = sizes_out_gm
+        self.sizes_Qnet = sizes_Qnet
+
+        # dimension of the topogly and number of powerline
         self.dim_topo = dim_topo
         self.dim_flow = dim_flow
 
-        self.list_attr_obs_input_q = list_attr_obs_input_q
+        # dimension of the space (can be computed in the self.compute_dims)
         self.input_q_dims = input_q_dims
-        self.input_q_adds = input_q_adds
-        self.input_q_mults = input_q_mults
-
-        # grid model output (gm = grid model)
-        self.list_attr_gm_out = list_attr_gm_out
         self.gm_out_dims = gm_out_dims
-        self.gm_out_adds = gm_out_adds
-        self.gm_out_mults = gm_out_mults
+        self.x_dims = x_dims
+        self.tau_dims = tau_dims
 
     def get_obs_attr(self):
-        res = self.list_attr_obs + self.list_attr_obs_input_q
-        res += self.list_attr_obs_tau + ["topo_vect"] + self.list_attr_gm_out
+        res = self.list_attr_obs_x + self.list_attr_obs_input_q
+        res += self.list_attr_obs_tau + ["topo_vect"] + self.list_attr_obs_gm_out
         return res
+
+    def compute_dims(self, env):
+        self.tau_dims = [int(TestLeapNet_NNParam.get_obs_size(env, [el])) for el in self.list_attr_obs_tau]
+        self.x_dims = [int(TestLeapNet_NNParam.get_obs_size(env, [el])) for el in self.list_attr_obs_x]
+        self.gm_out_dims = [int(TestLeapNet_NNParam.get_obs_size(env, [el])) for el in self.list_attr_obs_gm_out]
+        self.input_q_dims = [int(TestLeapNet_NNParam.get_obs_size(env, [el])) for el in self.list_attr_obs_input_q]
+
+    def _define_adds_mults(self, vector, varname, attr_composed, default_val):
+        if vector is None:
+            vector = [float(default_val) for _ in attr_composed]
+        setattr(self, varname, vector)
+
+    def center_reduce(self, env):
+        self._center_reduce_vect(env.get_obs(), "x")
+        self._center_reduce_vect(env.get_obs(), "tau")
+        self._center_reduce_vect(env.get_obs(), "gm_out")
+        self._center_reduce_vect(env.get_obs(), "input_q")
