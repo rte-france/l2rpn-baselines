@@ -135,6 +135,9 @@ class BaseDeepQ(ABC):
             says whether or not the episode was over
         r_batch:
             the reward obtained this step
+
+        see https://towardsdatascience.com/dueling-double-deep-q-learning-using-tensorflow-2-x-7bbbcec06a2a
+        for the update rules
         """
         if batch_size is None:
             batch_size = s_batch.shape[0]
@@ -142,20 +145,22 @@ class BaseDeepQ(ABC):
         # Save the graph just the first time
         if tf_writer is not None:
             tf.summary.trace_on()
-        targets = self._model.predict(s_batch, batch_size=batch_size)
+        target = self._model.predict(s_batch, batch_size=batch_size)
+        fut_action = self._model.predict(s2_batch, batch_size=batch_size)
         if tf_writer is not None:
             with tf_writer.as_default():
                 tf.summary.trace_export("model-graph", 0)
             tf.summary.trace_off()
-        fut_action = self._target_model.predict(s2_batch, batch_size=batch_size)
+        target_next = self._target_model.predict(s2_batch, batch_size=batch_size)
 
-        targets[:, a_batch.flatten()] = r_batch
+        idx = np.arange(batch_size)
+        target[idx, a_batch] = r_batch
         # update the value for not done episode
-        nd_batch = ~d_batch
-        targets[nd_batch, a_batch[nd_batch]] += self._training_param.discount_factor * \
-                                                np.max(fut_action[nd_batch], axis=-1)
-
-        loss = self.train_on_batch(self._model, self._optimizer_model, s_batch, targets)
+        nd_batch = ~d_batch  # update with this rule only batch that did not game over
+        next_a = np.argmax(fut_action, axis=-1)  # compute the future action i will take in the next state
+        fut_Q = target_next[idx, next_a]  # get its Q value
+        target[nd_batch, a_batch[nd_batch]] += self._training_param.discount_factor * fut_Q[nd_batch]
+        loss = self.train_on_batch(self._model, self._optimizer_model, s_batch, target)
         return loss
 
     def train_on_batch(self, model, optimizer_model, x, y_true):

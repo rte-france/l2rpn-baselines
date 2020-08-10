@@ -322,7 +322,7 @@ if __name__ == "__main__":
         env.chronics_handler.real_data.reset()
     elif env.name == "l2rpn_case14_sandbox":
         # all data can be loaded into memory
-        env.chronics_handler.real_data.set_filter(lambda x: True)
+        # env.chronics_handler.real_data.set_filter(lambda x: True)
         env.chronics_handler.real_data.reset()
 
     # env.chronics_handler.real_data.

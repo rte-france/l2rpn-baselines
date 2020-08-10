@@ -175,18 +175,25 @@ class SAC_NN(BaseDeepQ):
         if batch_size is None:
             batch_size = s_batch.shape[0]
         target = np.zeros((batch_size, 1))
+
         # training of the action state value networks
         last_action = np.zeros((batch_size, self._action_size))
+
         # Save the graph just the first time
         if tf_writer is not None:
             tf.summary.trace_on()
+        # TODO is it s2 or s ? For me it should be s...
         fut_action = self.model_value_target.predict(s2_batch, batch_size=batch_size).reshape(-1)
+        # TODO ***_target should be for the Q function instead imho
+
         if tf_writer is not None:
             with tf_writer.as_default():
                 tf.summary.trace_export("model_value_target-graph", 0)
             tf.summary.trace_off()
 
-        target[:, 0] = r_batch + (1 - d_batch) * self._training_param.discount_factor * fut_action
+        # TODO is it rather `targets[:, a_batch]`
+        # target[:, 0] = r_batch + (1 - d_batch) * self._training_param.discount_factor * fut_action
+        target[:, a_batch] = r_batch + (1 - d_batch) * self._training_param.discount_factor * fut_action
         loss = self.model_Q.train_on_batch([s_batch, last_action], target)
         loss_2 = self.model_Q2.train_on_batch([s_batch, last_action], target)
 
