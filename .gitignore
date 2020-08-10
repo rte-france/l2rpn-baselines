@@ -159,3 +159,4 @@ l2rpn_baselines/DuelQSimple/saved_baseline/
 l2rpn_baselines/SAC/saved_baseline/
 l2rpn_baselines/TestLeapNet/model_saved/
 l2rpn_baselines/TestLeapNet/tf_logs/
+l2rpn_baselines/TestLeapNet/logs-eval/

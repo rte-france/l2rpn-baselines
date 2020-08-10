@@ -8,6 +8,8 @@ Change Log
 --------------------
 - [FIXED] the counting of the action types frequency in tensorboard (for some baselines)
 - [FIXED] a broken Replay buffer `utils.ReplayBuffer` (used in some baselines)
+- [FIXED] a bug in using multiple environments for some baselines
+- [FIXED] wrong q value update for some baselines
 - [IMPROVED] descriptions and computation of the tensorboard information (for some baselines)
 - [ADDED] better serializing as json of the `utils.NNParam` class
 

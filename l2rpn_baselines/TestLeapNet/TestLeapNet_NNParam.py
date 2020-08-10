@@ -69,7 +69,7 @@ class TestLeapNet_NNParam(NNParam):
                  list_attr_obs_tau,
                  list_attr_obs_x,
                  list_attr_obs_input_q,
-                 list_attr_gm_out,
+                 list_attr_obs_gm_out,
 
                  dim_topo,
                  dim_flow,
@@ -115,9 +115,9 @@ class TestLeapNet_NNParam(NNParam):
         self._define_adds_mults(input_q_adds, "input_q_adds", list_attr_obs_input_q, 0.)
         self._define_adds_mults(input_q_mults, "input_q_mults", list_attr_obs_input_q, 1.)
 
-        self.list_attr_obs_gm_out = [str(el) for el in list_attr_gm_out]
-        self._define_adds_mults(gm_out_adds, "gm_out_adds", list_attr_gm_out, 0.)
-        self._define_adds_mults(gm_out_mults, "gm_out_mults", list_attr_gm_out, 1.)
+        self.list_attr_obs_gm_out = [str(el) for el in list_attr_obs_gm_out]
+        self._define_adds_mults(gm_out_adds, "gm_out_adds", list_attr_obs_gm_out, 0.)
+        self._define_adds_mults(gm_out_mults, "gm_out_mults", list_attr_obs_gm_out, 1.)
 
         # sizes of the neural network "blccks"
         self.sizes_enc = sizes_enc

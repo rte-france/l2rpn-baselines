@@ -114,11 +114,11 @@ class TrainingParam(object):
     _tol_float_equal = float(1e-8)
 
     _int_attr = ["buffer_size", "minibatch_size", "step_for_final_epsilon",
-                  "min_observation", "last_step", "num_frames", "update_freq",
+                 "min_observation", "last_step", "num_frames", "update_freq",
                  "min_iter", "max_iter", "update_tensorboard_freq", "save_model_each", "_update_nb_iter",
-                 "step_increase_nb_iter"]
+                 "step_increase_nb_iter", "min_observe"]
     _float_attr = ["_final_epsilon", "_initial_epsilon", "lr", "lr_decay_steps", "lr_decay_rate",
-                    "discount_factor", "tau", "oversampling_rate",
+                   "discount_factor", "tau", "oversampling_rate",
                    "max_global_norm_grad", "max_value_grad", "max_loss"]
 
     def __init__(self,
@@ -145,7 +145,11 @@ class TrainingParam(object):
                  oversampling_rate=None,
                  max_global_norm_grad=None,
                  max_value_grad=None,
-                 max_loss=None
+                 max_loss=None,
+
+                 # observer: let the neural network "observe" for a given amount of time
+                 # all actions are replaced by a do nothing
+                 min_observe=None,
                  ):
 
         self.random_sample_datetime_start = random_sample_datetime_start
@@ -164,6 +168,9 @@ class TrainingParam(object):
         self.max_global_norm_grad = max_global_norm_grad
         self.max_value_grad = max_value_grad
         self.max_loss = max_loss
+
+        # observer
+        self.min_observe = min_observe
 
         self.last_step = int(0)
         self.num_frames = int(num_frames)
@@ -267,9 +274,9 @@ class TrainingParam(object):
 
     @staticmethod
     def from_dict(tmp):
-        """initialize this instance from a dictionnary"""
+        """initialize this instance from a dictionary"""
         if not isinstance(tmp, dict):
-            raise RuntimeError("TrainingParam from dict must be called with a dictionnary, and not {}".format(tmp))
+            raise RuntimeError("TrainingParam from dict must be called with a dictionary, and not {}".format(tmp))
         res = TrainingParam()
         for attr_nm in TrainingParam._int_attr:
             if attr_nm in tmp:

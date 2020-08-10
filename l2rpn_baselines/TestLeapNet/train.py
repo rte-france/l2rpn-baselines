@@ -292,9 +292,9 @@ if __name__ == "__main__":
                 res /= env.n_line
                 if is_illegal:
                     if res > 0.:
-                        res *= 0.5  # divide by two reward for illegal actions
+                        res *= 0.1  # divide by 10 reward for illegal actions
                     else:
-                        res *= 1.5
+                        res *= 10.
                 if not np.isfinite(res):
                     res = self.reward_min
 
@@ -320,7 +320,7 @@ if __name__ == "__main__":
     if env.name == "l2rpn_wcci_2020":
         env.chronics_handler.real_data.set_filter(lambda x: re.match(".*Scenario_february_.*$", x) is not None)
         env.chronics_handler.real_data.reset()
-    elif env.name == "l2rpn_case124_sandbox":
+    elif env.name == "l2rpn_case14_sandbox":
         # all data can be loaded into memory
         env.chronics_handler.real_data.set_filter(lambda x: True)
         env.chronics_handler.real_data.reset()
@@ -328,20 +328,10 @@ if __name__ == "__main__":
     # env.chronics_handler.real_data.
     env_init = env
     if args.nb_env > 1:
-        # from grid2op.Environment import MultiEnvironment
-        # env = MultiEnvironment(int(args.nb_env), env)
-        # # TODO hack i'll fix in 1.0.0
-        # env.action_space = env_init.action_space
-        # env.observation_space = env_init.observation_space
-        # env.fast_forward_chronics = lambda x: None
-        # env.chronics_handler = env_init.chronics_handler
-        # env.current_obs = env_init.current_obs
-        # env.set_ff()
         from l2rpn_baselines.utils import make_multi_env
         env = make_multi_env(env_init=env_init, nb_env=int(args.nb_env))
 
     tp = TrainingParam()
-
     # NN training
     tp.lr = 3e-4
     tp.lr_decay_steps = 300000
@@ -358,6 +348,9 @@ if __name__ == "__main__":
 
     # experience replay
     tp.buffer_size = 1000000
+
+    # just observe the data for a while
+    tp.min_observe = None  # int(10000)
 
     # e greedy
     tp.min_observation = 128
@@ -399,7 +392,8 @@ if __name__ == "__main__":
                            "target_dispatch",
                            "day_of_week",
                            "hour_of_day",
-                           "minute_of_hour"]
+                           "minute_of_hour",
+                           "rho"]
     li_attr_obs_Tau = ["line_status", "timestep_overflow"]
     list_attr_gm_out = ["a_or", "a_ex", "p_or", "p_ex", "q_or", "q_ex", "prod_q", "load_v"] + li_attr_obs_X
     sizes = [512, 512, 256, 256]
@@ -415,16 +409,15 @@ if __name__ == "__main__":
                     "list_attr_obs_tau": li_attr_obs_Tau,
                     "list_attr_obs_x": li_attr_obs_X,
                     "list_attr_obs_input_q": li_attr_obs_input_q,
+                    "list_attr_obs_gm_out": list_attr_gm_out,
 
-                    "list_attr_gm_out": list_attr_gm_out,
+                    'dim_topo': env_init.dim_topo,
+                    "dim_flow": env_init.n_line,
 
-                    'dim_topo': env.dim_topo,
-                    "dim_flow": env.n_line,
-
-                    "sizes_enc": (50, 50, 50),
+                    "sizes_enc": (50, 50, 50, 50),
                     "sizes_main": (300, 300, 300, 300),
                     "sizes_out_gm": (100, ),
-                    "sizes_Qnet": (200, 200, 200)
+                    "sizes_Qnet": (200, 200, 200, 200, 200, 200)
                     }
 
     nm_ = args.name if args.name is not None else DEFAULT_NAME

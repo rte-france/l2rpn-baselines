@@ -7,6 +7,7 @@
 # This file is part of L2RPN Baselines, L2RPN Baselines a repository to host baselines for l2rpn competitions.
 
 import numpy as np
+import os
 
 # tf2.0 friendly
 import warnings
@@ -102,13 +103,13 @@ class TestLeapNet_NN(BaseDeepQ):
                                             name="encoded_state")
         self.encoded_state = tf.keras.backend.stop_gradient(encoded_state)
 
-        # i predict the flows, that i should be able to do
+        # i predict the full state of the grid given the "control" variables
         outputs_gm = []
         grid_model_losses = {}
         lossWeights = {}  # TODO
         for sz_out, nm_ in zip(self._nn_archi.gm_out_dims,
                                self._nn_archi.list_attr_obs_gm_out):
-            lay = encoded_state
+            lay = encoded_state  # carefull i need my gradients here ! (don't use self.encoded_state)
             for i, size in enumerate(self._nn_archi.sizes_out_gm):
                 lay = Dense(size, name="{}_{}".format(nm_, i))(lay)
                 lay = Activation("relu")(lay)
@@ -307,3 +308,34 @@ class TestLeapNet_NN(BaseDeepQ):
                                   description="Loss of the neural network representing the powergrid "
                                               "for predicting {}"
                                               "".format(el))
+
+    @staticmethod
+    def _get_path_model(path, name=None):
+        if name is None:
+            path_model = path
+        else:
+            path_model = os.path.join(path, name)
+        path_target_model = "{}_target".format(path_model)
+        path_grid_model = "{}_grid_model".format(path_model)
+        return path_model, path_target_model, path_grid_model
+
+    def save_network(self, path, name=None, ext="h5"):
+        """
+        Saves all the models with unique names
+        """
+        path_model, path_target_model, path_grid_model = self._get_path_model(path, name)
+        self._model.save('{}.{}'.format(path_model, ext))
+        self._target_model.save('{}.{}'.format(path_target_model, ext))
+        self.grid_model.save('{}.{}'.format(path_grid_model, ext))
+
+    def load_network(self, path, name=None, ext="h5"):
+        """
+        We load all the models using the keras "load_model" function.
+        """
+        path_model, path_target_model, path_grid_model = self._get_path_model(path, name)
+        self.construct_q_network()
+        self._model.load_weights('{}.{}'.format(path_model, ext))
+        self._target_model.load_weights('{}.{}'.format(path_target_model, ext))
+        self.grid_model.load_weights('{}.{}'.format(path_grid_model, ext))
+        if self.verbose:
+            print("Succesfully loaded network.")

@@ -114,15 +114,28 @@ class BaseDeepQ(ABC):
         if batch_size is None:
             batch_size = data.shape[0]
 
-        rand_val = np.random.random(batch_size)
-        q_actions = self._model.predict(data, batch_size=batch_size)
-
-        opt_policy = np.argmax(np.abs(q_actions), axis=-1)
-        opt_policy[rand_val < epsilon] = np.random.randint(0, self._action_size, size=(np.sum(rand_val < epsilon)))
-        return opt_policy, q_actions[0, opt_policy]
+        q_actions = self._model.predict(data, batch_size=batch_size)  # q value of each action
+        opt_policy = np.argmax(q_actions, axis=-1)
+        if epsilon > 0.:
+            rand_val = np.random.random(batch_size)
+            opt_policy[rand_val < epsilon] = np.random.randint(0, self._action_size, size=(np.sum(rand_val < epsilon)))
+        return opt_policy, q_actions[np.arange(batch_size), opt_policy], q_actions
 
     def train(self, s_batch, a_batch, r_batch, d_batch, s2_batch, tf_writer=None, batch_size=None):
-        """Trains network to fit given parameters"""
+        """Trains network to fit given parameters:
+        Parameters
+        ----------
+        s_batch:
+            the state vector (before the action is taken)
+        a_batch:
+            the action taken
+        s2_batch:
+            the state vector (after the action is taken)
+        d_batch:
+            says whether or not the episode was over
+        r_batch:
+            the reward obtained this step
+        """
         if batch_size is None:
             batch_size = s_batch.shape[0]
 
@@ -137,7 +150,10 @@ class BaseDeepQ(ABC):
         fut_action = self._target_model.predict(s2_batch, batch_size=batch_size)
 
         targets[:, a_batch.flatten()] = r_batch
-        targets[d_batch, a_batch[d_batch]] += self._training_param.discount_factor * np.max(fut_action[d_batch], axis=-1)
+        # update the value for not done episode
+        nd_batch = ~d_batch
+        targets[nd_batch, a_batch[nd_batch]] += self._training_param.discount_factor * \
+                                                np.max(fut_action[nd_batch], axis=-1)
 
         loss = self.train_on_batch(self._model, self._optimizer_model, s_batch, targets)
         return loss
@@ -213,16 +229,17 @@ class BaseDeepQ(ABC):
         if self.verbose:
             print("Succesfully loaded network.")
 
-    def target_train(self):
+    def target_train(self, tau=None):
         """
         update the target model with the parameters given in the :attr:`BaseDeepQ._training_param`.
         """
-        # nothing has changed from the original implementation
+        if tau is None:
+            tau = self._training_param.tau
+
         model_weights = self._model.get_weights()
         target_model_weights = self._target_model.get_weights()
         for i in range(len(model_weights)):
-            target_model_weights[i] = self._training_param.tau * model_weights[i] + (1 - self._training_param.tau) * \
-                                      target_model_weights[i]
+            target_model_weights[i] = tau * model_weights[i] + (1. - tau) * target_model_weights[i]
         self._target_model.set_weights(target_model_weights)
 
     def save_tensorboard(self, current_step):

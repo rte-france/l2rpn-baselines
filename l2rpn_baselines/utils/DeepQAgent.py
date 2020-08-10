@@ -500,7 +500,7 @@ class DeepQAgent(AgentWithConverter):
                 self.epsilon = self._training_param.get_next_epsilon(current_step=training_step)
 
                 # then we need to predict the next moves. Agents have been adapted to predict a batch of data
-                pm_i, pq_v, act = self._next_move(initial_state, self.epsilon)
+                pm_i, pq_v, act = self._next_move(initial_state, self.epsilon, training_step)
 
                 # todo store the illegal / ambiguous / ... actions
                 reward, done = self._init_local_train_loop()
@@ -688,7 +688,7 @@ class DeepQAgent(AgentWithConverter):
     def _need_reset(self, env, observation_num, epoch_num, done, new_state):
         """perform the proper reset of the environment"""
         if self._training_param.step_increase_nb_iter is not None and \
-            self._training_param.step_increase_nb_iter > 0:
+           self._training_param.step_increase_nb_iter > 0:
             self._max_iter_env(min(max(self._training_param.min_iter,
                                        self._training_param.max_iter_fun(self._total_sucesses)),
                                    self._training_param.max_iter))  # TODO
@@ -773,8 +773,16 @@ class DeepQAgent(AgentWithConverter):
         """update the number of maximum iteration allowed."""
         self._max_iter_env_ = new_max_iter
 
-    def _next_move(self, curr_state, epsilon):
-        pm_i, pq_v = self.deep_q.predict_movement(curr_state, epsilon)
+    def _next_move(self, curr_state, epsilon, training_step):
+        # supposes that 0 encodes for do nothing, otherwise it will NOT work (for the observer)
+        pm_i, pq_v, q_actions = self.deep_q.predict_movement(curr_state, epsilon)
+
+        if self._training_param.min_observe is not None and \
+                training_step < self._training_param.min_observe:
+            # action is replaced by do nothing due to the "observe only" specification
+            pm_i[:] = 0
+            pq_v[:] = q_actions[:, 0]
+        # TODO implement the "max XXX random action per scenarios"
         act = self._convert_all_act(pm_i)
         return pm_i, pq_v, act
 

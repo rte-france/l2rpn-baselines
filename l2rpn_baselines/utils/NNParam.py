@@ -10,6 +10,7 @@ import json
 import numpy as np
 from collections.abc import Iterable
 
+import grid2op
 from l2rpn_baselines.utils.BaseDeepQ import BaseDeepQ
 
 
@@ -127,16 +128,17 @@ class NNParam(object):
             res[attr_nm] = self._convert_list_to_json(tmp, str)
         return res
 
-    def _convert_list_to_json(self, obj, type_):
+    @classmethod
+    def _convert_list_to_json(cls, obj, type_):
         if isinstance(obj, type_):
             res = obj
         elif isinstance(obj, np.ndarray):
             if len(obj.shape) == 1:
                 res = [type_(el) for el in obj]
             else:
-                res = [self._convert_list_to_json(el, type_) for el in obj]
+                res = [cls._convert_list_to_json(el, type_) for el in obj]
         elif isinstance(obj, Iterable):
-            res = [self._convert_list_to_json(el, type_) for el in obj]
+            res = [cls._convert_list_to_json(el, type_) for el in obj]
         else:
             res = type_(obj)
         return res
@@ -146,7 +148,7 @@ class NNParam(object):
         if isinstance(json, type_):
             res = json
         elif isinstance(json, list):
-            res = [cls._convert_list_to_json(el, type_) for el in json]
+            res = [cls._convert_list_to_json(obj=el, type_=type_) for el in json]
         else:
             res = type_(json)
         return res
@@ -227,6 +229,11 @@ class NNParam(object):
         compute the xxxx_adds and xxxx_mults for one part of the neural network called nn_part,
         depending on what attribute of the observation is extracted
         """
+        if not isinstance(obs, grid2op.Observation.BaseObservation):
+            # in multi processing i receive a set of observation there so i might need
+            # to extract only the first one
+            obs = obs[0]
+
         li_attr_obs = getattr(self, "list_attr_obs_{}".format(nn_part))
         adds = []
         mults = []
