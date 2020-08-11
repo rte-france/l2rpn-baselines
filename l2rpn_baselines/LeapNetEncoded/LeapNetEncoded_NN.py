@@ -237,13 +237,13 @@ class LeapNetEncoded_NN(BaseDeepQ):
         res[tmp_[0], 2*tmp_[1]+1] = 1.
         return res
 
-    def predict_movement(self, data, epsilon, batch_size=None):
+    def predict_movement(self, data, epsilon, batch_size=None, training=False):
         """Predict movement of game controller where is epsilon
         probability randomly move."""
         if batch_size is None:
             batch_size = data.shape[0]
         data_nn, true_output_grid = self._make_x_tau(data)
-        res = super().predict_movement(data_nn, epsilon=epsilon, batch_size=batch_size)
+        res = super().predict_movement(data_nn, epsilon=epsilon, batch_size=batch_size, training=False)
         return res
 
     def train(self, s_batch, a_batch, r_batch, d_batch, s2_batch, tf_writer=None, batch_size=None):

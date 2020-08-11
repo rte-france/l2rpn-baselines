@@ -11,6 +11,7 @@ Change Log
 - [FIXED] a bug in using multiple environments for some baselines
 - [FIXED] wrong q value update for some baselines
 - [IMPROVED] descriptions and computation of the tensorboard information (for some baselines)
+- [IMPROVED] performance optimization for training and usage of some baselines
 - [ADDED] better serializing as json of the `utils.NNParam` class
 - [ADDED] the LeapNetEncoded baselines that uses a leap neural network (leap net) to create an
   embedding of the state of the powergrid.

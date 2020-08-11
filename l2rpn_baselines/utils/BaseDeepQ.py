@@ -108,13 +108,14 @@ class BaseDeepQ(ABC):
         """
         raise NotImplementedError("Not implemented")
 
-    def predict_movement(self, data, epsilon, batch_size=None):
+    def predict_movement(self, data, epsilon, batch_size=None, training=False):
         """
         Predict movement of game controler where is epsilon probability randomly move."""
         if batch_size is None:
             batch_size = data.shape[0]
 
-        q_actions = self._model.predict(data, batch_size=batch_size)  # q value of each action
+        # q_actions = self._model.predict(data, batch_size=batch_size)  # q value of each action
+        q_actions = self._model(data, training=training).numpy()
         opt_policy = np.argmax(q_actions, axis=-1)
         if epsilon > 0.:
             rand_val = np.random.random(batch_size)
@@ -145,13 +146,13 @@ class BaseDeepQ(ABC):
         # Save the graph just the first time
         if tf_writer is not None:
             tf.summary.trace_on()
-        target = self._model.predict(s_batch, batch_size=batch_size)
-        fut_action = self._model.predict(s2_batch, batch_size=batch_size)
+        target = self._model(s_batch, training=True).numpy()
+        fut_action = self._model(s2_batch, training=True).numpy()
         if tf_writer is not None:
             with tf_writer.as_default():
                 tf.summary.trace_export("model-graph", 0)
             tf.summary.trace_off()
-        target_next = self._target_model.predict(s2_batch, batch_size=batch_size)
+        target_next = self._target_model(s2_batch, training=True).numpy()
 
         idx = np.arange(batch_size)
         target[idx, a_batch] = r_batch
@@ -240,12 +241,15 @@ class BaseDeepQ(ABC):
         """
         if tau is None:
             tau = self._training_param.tau
+        tau_inv = 1.0 - tau
 
-        model_weights = self._model.get_weights()
-        target_model_weights = self._target_model.get_weights()
-        for i in range(len(model_weights)):
-            target_model_weights[i] = tau * model_weights[i] + (1. - tau) * target_model_weights[i]
-        self._target_model.set_weights(target_model_weights)
+        target_params = self._target_model.trainable_variables
+        source_params = self._model.trainable_variables
+        for src, dest in zip(source_params, target_params):
+            # Polyak averaging
+            var_update = src.value() * tau
+            var_persist = dest.value() * tau_inv
+            dest.assign(var_update + var_persist)
 
     def save_tensorboard(self, current_step):
         """function used to save other information to tensorboard"""

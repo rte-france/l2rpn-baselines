@@ -331,7 +331,7 @@ if __name__ == "__main__":
     # NN training
     tp.lr = 1e-5
     tp.lr_decay_steps = 300000
-    tp.minibatch_size = 32
+    tp.minibatch_size = 32 * int(args.nb_env)
     tp.update_freq = tp.minibatch_size / 2
 
     # limit the number of time steps played per scenarios

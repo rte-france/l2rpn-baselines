@@ -243,7 +243,9 @@ class DeepQAgent(AgentWithConverter):
             The id the action taken.
 
         """
-        predict_movement_int, *_ = self.deep_q.predict_movement(transformed_observation, epsilon=0.0)
+        predict_movement_int, *_ = self.deep_q.predict_movement(transformed_observation,
+                                                                epsilon=0.0,
+                                                                training=False)
         res = int(predict_movement_int)
         self._store_action_played(res)
         return res
@@ -775,7 +777,7 @@ class DeepQAgent(AgentWithConverter):
 
     def _next_move(self, curr_state, epsilon, training_step):
         # supposes that 0 encodes for do nothing, otherwise it will NOT work (for the observer)
-        pm_i, pq_v, q_actions = self.deep_q.predict_movement(curr_state, epsilon)
+        pm_i, pq_v, q_actions = self.deep_q.predict_movement(curr_state, epsilon, training=True)
 
         if self._training_param.min_observe is not None and \
                 training_step < self._training_param.min_observe:

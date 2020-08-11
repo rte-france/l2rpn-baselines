@@ -165,13 +165,13 @@ class DuelQLeapNet_NN(BaseDeepQ):
         res = [data_x, *data_tau]
         return res
 
-    def predict_movement(self, data, epsilon, batch_size=None):
+    def predict_movement(self, data, epsilon, batch_size=None, training=False):
         """Predict movement of game controler where is epsilon
         probability randomly move."""
         if batch_size is None:
             batch_size = data.shape[0]
         data_split = self._make_x_tau(data)
-        res = super().predict_movement(data_split, epsilon=epsilon, batch_size=batch_size)
+        res = super().predict_movement(data_split, epsilon=epsilon, batch_size=batch_size, training=training)
         return res
 
     def train(self, s_batch, a_batch, r_batch, d_batch, s2_batch, tf_writer=None, batch_size=None):

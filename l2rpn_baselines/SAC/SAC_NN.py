@@ -155,19 +155,20 @@ class SAC_NN(BaseDeepQ):
             self.previous_size = batch_size
         return self.previous_eyes, self.previous_arange
 
-    def predict_movement(self, data, epsilon, batch_size=None):
+    def predict_movement(self, data, epsilon, batch_size=None, training=False):
         """
         predict the next movements in a vectorized fashion
         """
         if batch_size is None:
             batch_size = data.shape[0]
         rand_val = np.random.random(data.shape[0])
-        p_actions = self.model_policy.predict(data, batch_size=batch_size)
+        p_actions = self.model_policy(data, training=training).numpy()
         opt_policy_orig = np.argmax(np.abs(p_actions), axis=-1)
         opt_policy = 1.0 * opt_policy_orig
         opt_policy[rand_val < epsilon] = np.random.randint(0, self._action_size, size=(np.sum(rand_val < epsilon)))
         opt_policy = opt_policy.astype(np.int)
-        return opt_policy, p_actions[:, opt_policy], p_actions
+        idx = np.arange(batch_size)
+        return opt_policy, p_actions[idx, opt_policy], p_actions
 
     def _get_eye_train(self, batch_size):
         if batch_size != self.previous_size_train:
@@ -191,7 +192,7 @@ class SAC_NN(BaseDeepQ):
         if tf_writer is not None:
             tf.summary.trace_on()
         # TODO is it s2 or s ? For me it should be s...
-        fut_action = self.model_value_target.predict(s2_batch, batch_size=batch_size).reshape(-1)
+        fut_action = self.model_value_target(s2_batch, training=True).numpy().reshape(-1)
         # TODO ***_target should be for the Q function instead imho
 
         if tf_writer is not None:
