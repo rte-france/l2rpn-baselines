@@ -50,6 +50,16 @@ class TestSAC(TestImport, unittest.TestCase):
         return "SAC"
 
 
+class TestSACOld(TestImport, unittest.TestCase):
+    def load_module(self):
+        return "SACOld"
+
+
+class TestLeapNetEnc(TestImport, unittest.TestCase):
+    def load_module(self):
+        return "LeapNetEncoded"
+
+
 class TestDuelQSimple(TestImport, unittest.TestCase):
     def load_module(self):
         return "DuelQSimple"

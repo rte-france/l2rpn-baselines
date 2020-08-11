@@ -39,6 +39,16 @@ More advanced baselines
 
    DuelQLeapNet
    DoubleDuelingRDQN
+   LeapNetEncoded
+
+
+Deprecated baselines
+---------------------------
+
+.. toctree::
+   :maxdepth: 2
+
+   SACOld
 
 
 Contributions

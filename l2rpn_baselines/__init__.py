@@ -7,6 +7,9 @@ __all__ = [
     "DeepQSimple",
     "DuelQSimple",
     "SAC",
+    "LeapNetEncoded",
+    # Backward compatibility
+    "SACOld",
     # contribution
     "PandapowerOPFAgent",
     "Geirina",

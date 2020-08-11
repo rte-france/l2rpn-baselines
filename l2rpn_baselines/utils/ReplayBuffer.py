@@ -12,6 +12,7 @@
 from collections import deque
 import numpy as np
 import random
+import copy
 import pdb
 
 
@@ -34,6 +35,7 @@ class ReplayBuffer:
             raise RuntimeError("Infinite value somwhere in at least one of the state")
 
         experience = (s, a, r, d, s2)
+        experience = copy.deepcopy(experience)
         if self.count < self.buffer_size:
             self.buffer.append(experience)
             self.count += 1
