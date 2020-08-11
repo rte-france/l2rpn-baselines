@@ -17,9 +17,9 @@ from grid2op.MakeEnv import make
 from grid2op.Reward import *
 from grid2op.Action import *
 
-from l2rpn_baselines.TestLeapNet.TestLeapNet import TestLeapNet, DEFAULT_NAME
-from l2rpn_baselines.TestLeapNet.TestLeapNet_NNParam import TestLeapNet_NNParam
-from l2rpn_baselines.TestLeapNet.TestLeapNet_NN import TestLeapNet_NN
+from l2rpn_baselines.LeapNetEncoded.LeapNetEncoded import LeapNetEncoded, DEFAULT_NAME
+from l2rpn_baselines.LeapNetEncoded.LeapNetEncoded_NNParam import TestLeapNet_NNParam
+from l2rpn_baselines.LeapNetEncoded.LeapNetEncoded_NN import LeapNetEncoded_NN
 
 import pdb
 
@@ -29,7 +29,6 @@ DEFAULT_NB_PROCESS = 1
 DEFAULT_MAX_STEPS = -1
 
 
-"""study the prediction of the grid_model"""
 def study(env,
              name=DEFAULT_NAME,
              load_path=None,
@@ -39,6 +38,7 @@ def study(env,
              max_steps=DEFAULT_MAX_STEPS,
              verbose=False,
              save_gif=False):
+    """study the prediction of the grid_model"""
 
     # Limit gpu usage
     physical_devices = tf.config.list_physical_devices('GPU')
@@ -50,12 +50,12 @@ def study(env,
 
     if load_path is None:
         raise RuntimeError("Cannot evaluate a model if there is nothing to be loaded.")
-    path_model, path_target_model = TestLeapNet_NN.get_path_model(load_path, name)
+    path_model, path_target_model = LeapNetEncoded_NN.get_path_model(load_path, name)
     nn_archi = TestLeapNet_NNParam.from_json(os.path.join(path_model, "nn_architecture.json"))
 
     # Run
     # Create agent
-    agent = TestLeapNet(action_space=env.action_space,
+    agent = LeapNetEncoded(action_space=env.action_space,
                         name=name,
                         store_action=nb_process == 1,
                         nn_archi=nn_archi,

@@ -30,10 +30,21 @@ from tensorflow.keras.layers import Dense
 from l2rpn_baselines.DuelQLeapNet.DuelQLeapNet_NN import LtauBis
 
 
-class TestLeapNet_NN(BaseDeepQ):
+class LeapNetEncoded_NN(BaseDeepQ):
     """
-    Constructs the desired duelling deep q learning network with a leap neural network as a modeling
-    of the q function
+    Constructs the desired neural networks.
+
+    More information on the leap net can be found at `Leap Net on Github <https://github.com/BDonnot/leap_net>`_
+
+    These are:
+
+    - a "state encoder" that uses a leap net to "encode" the observation, or at least the part
+      related to powergrid
+    - a q network, that uses the output of the state encoder to predict which action is best.
+
+    The Q network can have other types of input, and can also be a leap net, see the class
+    :class:`l2rpn_baselines.LeapNetEncoded_NNParam.LeapNetEncoded_NNParam` for more information
+
     """
     def __init__(self,
                  nn_params,
@@ -227,7 +238,7 @@ class TestLeapNet_NN(BaseDeepQ):
         return res
 
     def predict_movement(self, data, epsilon, batch_size=None):
-        """Predict movement of game controler where is epsilon
+        """Predict movement of game controller where is epsilon
         probability randomly move."""
         if batch_size is None:
             batch_size = data.shape[0]

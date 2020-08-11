@@ -17,9 +17,9 @@ from grid2op.Reward import *
 from grid2op.Action import *
 
 from l2rpn_baselines.utils.save_log_gif import save_log_gif
-from l2rpn_baselines.TestLeapNet.TestLeapNet import TestLeapNet, DEFAULT_NAME
-from l2rpn_baselines.TestLeapNet.TestLeapNet_NNParam import TestLeapNet_NNParam
-from l2rpn_baselines.TestLeapNet.TestLeapNet_NN import TestLeapNet_NN
+from l2rpn_baselines.LeapNetEncoded.LeapNetEncoded import LeapNetEncoded, DEFAULT_NAME
+from l2rpn_baselines.LeapNetEncoded.LeapNetEncoded_NNParam import LeapNetEncoded_NNParam
+from l2rpn_baselines.LeapNetEncoded.LeapNetEncoded_NN import LeapNetEncoded_NN
 
 import pdb
 
@@ -88,7 +88,7 @@ def evaluate(env,
     .. code-block:: python
 
         from grid2op.Reward import L2RPNSandBoxScore, L2RPNReward
-        from l2rpn_baselines.DuelQLeapNet import eval
+        from l2rpn_baselines.LeapNetEncoded import eval
 
         # Create dataset env
         env = make("l2rpn_case14_sandbox",
@@ -121,12 +121,12 @@ def evaluate(env,
 
     if load_path is None:
         raise RuntimeError("Cannot evaluate a model if there is nothing to be loaded.")
-    path_model, path_target_model = TestLeapNet_NN.get_path_model(load_path, name)
-    nn_archi = TestLeapNet_NNParam.from_json(os.path.join(path_model, "nn_architecture.json"))
+    path_model, path_target_model = LeapNetEncoded_NN.get_path_model(load_path, name)
+    nn_archi = LeapNetEncoded_NNParam.from_json(os.path.join(path_model, "nn_architecture.json"))
 
     # Run
     # Create agent
-    agent = TestLeapNet(action_space=env.action_space,
+    agent = LeapNetEncoded(action_space=env.action_space,
                          name=name,
                          store_action=nb_process == 1,
                          nn_archi=nn_archi,

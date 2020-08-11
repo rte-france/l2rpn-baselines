@@ -25,15 +25,18 @@ from l2rpn_baselines.utils import BaseDeepQ, TrainingParam
 # This class implements the "Sof Actor Critic" model.
 # It is a custom implementation, courtesy to Clement Goubet
 # The original paper is: https://arxiv.org/abs/1801.01290
-class SAC_NN(BaseDeepQ):
+class SACOld_NN(BaseDeepQ):
     """
     Constructs the desired soft actor critic network.
 
     Compared to other baselines shown elsewhere (*eg* :class:`l2rpn_baselines.DeepQSimple` or
-    :class:`l2rpn_baselines.DeepQSimple`) the implementation of the SAC is a bit more tricky.
+    :class:`l2rpn_baselines.DeepQSimple`) the implementation of the SAC is a bit more tricky
+    (and was most likely NOT done properly in this class). For a more correct implementation
+    of SAC please look at the :class:`l2rpn_baselines.SAC.SAC` instead. This class is only
+    present for backward compatibility.
 
     However, we demonstrate here that the use of :class:`l2rpn_baselines.utils.BaseDeepQ` with custom
-    parameters class (in this calse :class:`SAC_NNParam` is flexible enough to meet our needs.
+    parameters class (in this case :class:`SACOld_NNParam` is flexible enough to meet our needs.
 
     References
     -----------

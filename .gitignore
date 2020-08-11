@@ -160,3 +160,6 @@ l2rpn_baselines/SAC/saved_baseline/
 l2rpn_baselines/TestLeapNet/model_saved/
 l2rpn_baselines/TestLeapNet/tf_logs/
 l2rpn_baselines/TestLeapNet/logs-eval/
+l2rpn_baselines/LeapNetEncoded/logs-eval/
+l2rpn_baselines/LeapNetEncoded/model_saved/
+l2rpn_baselines/LeapNetEncoded/tf_logs/

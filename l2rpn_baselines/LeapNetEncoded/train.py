@@ -13,10 +13,10 @@ import warnings
 import tensorflow as tf
 
 from l2rpn_baselines.utils import cli_train
-from l2rpn_baselines.TestLeapNet.TestLeapNet import TestLeapNet, DEFAULT_NAME
-from l2rpn_baselines.TestLeapNet.TestLeapNet_NN import TestLeapNet_NN
+from l2rpn_baselines.LeapNetEncoded.LeapNetEncoded import LeapNetEncoded, DEFAULT_NAME
+from l2rpn_baselines.LeapNetEncoded.LeapNetEncoded_NN import LeapNetEncoded_NN
 from l2rpn_baselines.utils import TrainingParam
-from l2rpn_baselines.TestLeapNet.TestLeapNet_NNParam import TestLeapNet_NNParam
+from l2rpn_baselines.LeapNetEncoded.LeapNetEncoded_NNParam import LeapNetEncoded_NNParam
 from l2rpn_baselines.utils.waring_msgs import _WARN_GPU_MEMORY
 
 
@@ -32,7 +32,9 @@ def train(env,
           kwargs_converters={},
           kwargs_archi={}):
     """
-    This function implements the "training" part of the balines "DuelQLeapNet".
+    This function implements the "training" part of the baselines "SAC". This is the "old" implementation
+    that most likely had bugs. We keep it here for backward compatibility, but it is not recommended to
+    use it on new projects.
 
     Parameters
     ----------
@@ -80,7 +82,7 @@ def train(env,
         The trained baseline.
 
 
-    .. _Example-leapnet:
+    .. _Example-leapnetenc:
 
     Examples
     ---------
@@ -93,7 +95,7 @@ def train(env,
         import grid2op
         from grid2op.Reward import L2RPNReward
         from l2rpn_baselines.utils import TrainingParam
-        from l2rpn_baselines.DuelQLeapNet import train, LeapNet_NNParam
+        from l2rpn_baselines.LeapNetEncoded import train
 
         # define the environment
         env = grid2op.make("l2rpn_case14_sandbox",
@@ -102,55 +104,49 @@ def train(env,
         # use the default training parameters
         tp = TrainingParam()
 
-        # this will be the list of what part of the observation I want to keep
-        # more information on https://grid2op.readthedocs.io/en/latest/observation.html#main-observation-attributes
-        li_attr_obs_X = ["day_of_week", "hour_of_day", "minute_of_hour", "prod_p", "prod_v", "load_p", "load_q",
-                         "actual_dispatch", "target_dispatch", "topo_vect", "time_before_cooldown_line",
-                         "time_before_cooldown_sub", "rho", "timestep_overflow", "line_status"]
-
-        # neural network architecture
-        li_attr_obs_X = ["day_of_week", "hour_of_day", "minute_of_hour", "prod_p", "prod_v", "load_p", "load_q",
-                         "actual_dispatch", "target_dispatch", "topo_vect", "time_before_cooldown_line",
-                         "time_before_cooldown_sub", "timestep_overflow", "line_status", "rho"]
-        # compared to the other baseline, we have different inputs at different place, this is how we split it
-        li_attr_obs_Tau = ["rho", "line_status"]
-        sizes = [800, 800, 800, 494, 494, 494]
-
         # nn architecture
-        x_dim = LeapNet_NNParam.get_obs_size(env, li_attr_obs_X)
-        tau_dims = [LeapNet_NNParam.get_obs_size(env, [el]) for el in li_attr_obs_Tau]
+        li_attr_obs_X = ["prod_p", "prod_v", "load_p", "load_q"]
+        li_attr_obs_input_q = ["time_before_cooldown_line",
+                               "time_before_cooldown_sub",
+                               "actual_dispatch",
+                               "target_dispatch",
+                               "day_of_week",
+                               "hour_of_day",
+                               "minute_of_hour",
+                               "rho"]
+        li_attr_obs_Tau = ["line_status", "timestep_overflow"]
+        list_attr_gm_out = ["a_or", "a_ex", "p_or", "p_ex", "q_or", "q_ex", "prod_q", "load_v"] + li_attr_obs_X
 
-        kwargs_archi = {'sizes': sizes,
-                        'activs': ["relu" for _ in sizes],
-                        'x_dim': x_dim,
-                        'tau_dims': tau_dims,
-                        'tau_adds': [0.0 for _ in range(len(tau_dims))],  # add some value to taus
-                        'tau_mults': [1.0 for _ in range(len(tau_dims))],  # divide by some value for tau (after adding)
+        kwargs_archi = {'sizes': [],
+                        'activs': [],
+                        'x_dim': -1,
+
                         "list_attr_obs": li_attr_obs_X,
-                        "list_attr_obs_tau": li_attr_obs_Tau
+                        "list_attr_obs_tau": li_attr_obs_Tau,
+                        "list_attr_obs_x": li_attr_obs_X,
+                        "list_attr_obs_input_q": li_attr_obs_input_q,
+                        "list_attr_obs_gm_out": list_attr_gm_out,
+
+                        'dim_topo': env.dim_topo,
+
+                        "sizes_enc": (50, 50, 50, 50),
+                        "sizes_main": (300, 300, 300),
+                        "sizes_out_gm": (100, ),
+                        "sizes_Qnet": (200, 200, 200)
                         }
 
-        # select some part of the action
-        # more information at https://grid2op.readthedocs.io/en/latest/converter.html#grid2op.Converter.IdToAct.init_converter
-        kwargs_converters = {"all_actions": None,
-                             "set_line_status": False,
-                             "change_bus_vect": True,
-                             "set_topo_vect": False
-                             }
-        # define the name of the model
-        nm_ = "AnneOnymous"
-        save_path = "/WHERE/I/SAVED/THE/MODEL"
-        logs_dir = "/WHERE/I/SAVED/THE/LOGS"
+        nm_ = args.name if args.name is not None else DEFAULT_NAME
         try:
             train(env,
                   name=nm_,
-                  iterations=10000,
-                  save_path=save_path,
-                  load_path=None,
-                  logs_dir=logs_dir,
+                  iterations=args.num_train_steps,
+                  save_path=args.save_path,
+                  load_path=args.load_path,
+                  logs_dir=args.logs_dir,
                   training_param=tp,
                   kwargs_converters=kwargs_converters,
-                  kwargs_archi=kwargs_archi)
+                  kwargs_archi=kwargs_archi,
+                  verbose=True)
         finally:
             env.close()
 
@@ -176,21 +172,21 @@ def train(env,
         training_param = TrainingParam()
 
     # get the size of the action space
-    kwargs_archi["action_size"] = TestLeapNet.get_action_size(env.action_space, filter_action_fun, kwargs_converters)
+    kwargs_archi["action_size"] = LeapNetEncoded.get_action_size(env.action_space, filter_action_fun, kwargs_converters)
     kwargs_archi["observation_size"] = 0  # this is not used anyway
     if load_path is not None:
         # TODO test that
-        path_model, path_target_model = TestLeapNet_NN.get_path_model(load_path, name)
+        path_model, path_target_model = LeapNetEncoded_NN.get_path_model(load_path, name)
         print("INFO: Reloading a model, the architecture parameters will be ignored")
-        nn_archi = TestLeapNet_NNParam.from_json(os.path.join(path_model, "nn_architecture.json"))
+        nn_archi = LeapNetEncoded_NNParam.from_json(os.path.join(path_model, "nn_architecture.json"))
     else:
-        nn_archi = TestLeapNet_NNParam(**kwargs_archi)
+        nn_archi = LeapNetEncoded_NNParam(**kwargs_archi)
         # because i was lazy enough not to copy paste all the dimensions there
         nn_archi.compute_dims(env)
         # because i want data approximately reduced (for the learning process to be smoother)
         nn_archi.center_reduce(env)
 
-    baseline = TestLeapNet(action_space=env.action_space,
+    baseline = LeapNetEncoded(action_space=env.action_space,
                             nn_archi=nn_archi,
                             name=name,
                             istraining=True,
@@ -396,14 +392,10 @@ if __name__ == "__main__":
                            "rho"]
     li_attr_obs_Tau = ["line_status", "timestep_overflow"]
     list_attr_gm_out = ["a_or", "a_ex", "p_or", "p_ex", "q_or", "q_ex", "prod_q", "load_v"] + li_attr_obs_X
-    sizes = [512, 512, 256, 256]
 
-    # TODO make all that in the constructor instead
-    x_dim = TestLeapNet_NNParam.get_obs_size(env_init, li_attr_obs_X)
-
-    kwargs_archi = {'sizes': sizes,
-                    'activs': ["relu" for _ in sizes],
-                    'x_dim': x_dim,
+    kwargs_archi = {'sizes': [],
+                    'activs': [],
+                    'x_dim': -1,
 
                     "list_attr_obs": li_attr_obs_X,
                     "list_attr_obs_tau": li_attr_obs_Tau,
@@ -412,7 +404,6 @@ if __name__ == "__main__":
                     "list_attr_obs_gm_out": list_attr_gm_out,
 
                     'dim_topo': env_init.dim_topo,
-                    "dim_flow": env_init.n_line,
 
                     "sizes_enc": (50, 50, 50, 50),
                     "sizes_main": (300, 300, 300),

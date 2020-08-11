@@ -4,7 +4,7 @@ Change Log
 --------
 - stack multiple states in `utils/DeepQAgent`
 
-[0.4.5] - 2020-08-??
+[0.5.0] - 2020-08-??
 --------------------
 - [FIXED] the counting of the action types frequency in tensorboard (for some baselines)
 - [FIXED] a broken Replay buffer `utils.ReplayBuffer` (used in some baselines)
@@ -12,6 +12,8 @@ Change Log
 - [FIXED] wrong q value update for some baselines
 - [IMPROVED] descriptions and computation of the tensorboard information (for some baselines)
 - [ADDED] better serializing as json of the `utils.NNParam` class
+- [ADDED] the LeapNetEncoded baselines that uses a leap neural network (leap net) to create an
+  embedding of the state of the powergrid.
 
 [0.4.4] - 2020-07-07
 --------------------

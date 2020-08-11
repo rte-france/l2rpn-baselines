@@ -9,10 +9,10 @@
 
 from l2rpn_baselines.utils import DeepQAgent
 
-DEFAULT_NAME = "TestLeapNet"
+DEFAULT_NAME = "LeapNetEncoded"
 
 
-class TestLeapNet(DeepQAgent):
+class LeapNetEncoded(DeepQAgent):
     """
     Inheriting from :class:`l2rpn_baselines.DeepQAgent` this class implements the  particular agent used for the
     Double Duelling Deep Q network baseline, with the particularity that the Q network is encoded with a leap net.

@@ -10,10 +10,10 @@ import numpy as np
 import copy
 
 from l2rpn_baselines.utils import NNParam
-from l2rpn_baselines.TestLeapNet.TestLeapNet_NN import TestLeapNet_NN
+from l2rpn_baselines.LeapNetEncoded.LeapNetEncoded_NN import LeapNetEncoded_NN
 
 
-class TestLeapNet_NNParam(NNParam):
+class LeapNetEncoded_NNParam(NNParam):
     """
     This class implements the type of parameters used by the DuelQLeapNet model.
 
@@ -21,24 +21,45 @@ class TestLeapNet_NNParam(NNParam):
 
     Attributes
     -----------
-    x_dim: ``int``
-        Dimension of the input `x`
+    list_attr_obs:
+        currently ot used
+    sizes:
+        currently not used
+    activs:
+        currently not used
+    x_dim:
+        currently not used
 
-    list_attr_obs_tau: ``str``
-        List of the name of the observation variable that will be used as vector tau to performs the leaps.
+    list_attr_obs_x:
+        list of the attribute of the observation that serve as input of the grid model
+        (we recommend ["prod_p", "prod_v", "load_p", "load_q"])
+    list_attr_obs_gm_out:
+        list of the attribute of the observation that serve as output for the grid model
+        (we recommend ["a_or", "a_ex", "p_or", "p_ex", "q_or", "q_ex", "prod_q", "load_v"] + li_attr_obs_X)
+        though "rho" can be equally good an improve computation time
+    list_attr_obs_input_q:
+        list of the attribute of the observation that serve as input (other that the embedding of the
+        grid state) for the Q network (we recommend to have here anything "time related" for example
+        ["time_before_cooldown_line", "time_before_cooldown_sub",  "actual_dispatch",
+        "target_dispatch",  "day_of_week", "hour_of_day",  "minute_of_hour"] etc.
+    list_attr_obs_tau:
+        If you chose to encode your q network as a leap net it self, then you can put here the attribute
+        you would like the leap net to act on ( ["line_status", "timestep_overflow"] for example)
+    dim_topo: ``int``
+        Dimension of the topology vector (init it with `env.dim_topo`)
 
-    tau_dims: ``list``
-        List of ``int``. For each variable considered as a `tau` specify its dimension here.
+    Examples
+    --------
+    All other attributes need to be created once by a call to :func:`LeapNetEncoded_NNParam.compute_dims`:
 
-    tau_adds: ``list``
-        List of ``float`` if you want to add something to the value of the observation you receive. For example if you
-        know the observation you will receive is either 1 or 2 but prefer these number to be 0 and 1, you can set
-        the relevant `tau_adds` to "-1"
+    ..code-block:: python
 
-    tau_mults: ``list``
-        List of ``float``. Same as above if for multiplicative term. If you want to multiply the number you get by a
-        specific number (for example if you have numbers in the range 0,10 but would rather have numbers in the range
-        0,1, you can set the `tau_mults` number to `0.1`
+        nn_archi.compute_dims(env)
+        nn_archi.center_reduce(env)
+
+    These calls will set up all the attribute that are not set, and register this model to use
+    input data approximately in [-1,1] interval.
+
 
     """
     _int_attr = copy.deepcopy(NNParam._int_attr)
@@ -48,7 +69,7 @@ class TestLeapNet_NNParam(NNParam):
     _list_str = copy.deepcopy(NNParam._list_str)
     _list_int = copy.deepcopy(NNParam._list_int)
 
-    _int_attr += ["x_dim", "dim_topo", "dim_flow"]
+    _int_attr += ["x_dim", "dim_topo"]
     _list_str += ["list_attr_obs_tau", "list_attr_obs_x", "list_attr_obs_input_q",
                   "list_attr_obs_gm_out"]
     _list_float += ["tau_adds", "tau_mults", "x_adds", "x_mults",
@@ -56,7 +77,7 @@ class TestLeapNet_NNParam(NNParam):
                     "gm_out_adds", "gm_out_mults"]
     _list_int += ["tau_dims", "x_dims", "gm_out_dims", "input_q_dims",
                   "sizes_enc", "sizes_main", "sizes_out_gm", "sizes_Qnet"]
-    nn_class = TestLeapNet_NN
+    nn_class = LeapNetEncoded_NN
 
     def __init__(self,
                  action_size,
@@ -72,7 +93,6 @@ class TestLeapNet_NNParam(NNParam):
                  list_attr_obs_gm_out,
 
                  dim_topo,
-                 dim_flow,
 
                  sizes_enc=(20, 20, 20),
                  sizes_main=(150, 150, 150),
@@ -127,7 +147,6 @@ class TestLeapNet_NNParam(NNParam):
 
         # dimension of the topogly and number of powerline
         self.dim_topo = dim_topo
-        self.dim_flow = dim_flow
 
         # dimension of the space (can be computed in the self.compute_dims)
         self.input_q_dims = input_q_dims
@@ -141,10 +160,10 @@ class TestLeapNet_NNParam(NNParam):
         return res
 
     def compute_dims(self, env):
-        self.tau_dims = [int(TestLeapNet_NNParam.get_obs_size(env, [el])) for el in self.list_attr_obs_tau]
-        self.x_dims = [int(TestLeapNet_NNParam.get_obs_size(env, [el])) for el in self.list_attr_obs_x]
-        self.gm_out_dims = [int(TestLeapNet_NNParam.get_obs_size(env, [el])) for el in self.list_attr_obs_gm_out]
-        self.input_q_dims = [int(TestLeapNet_NNParam.get_obs_size(env, [el])) for el in self.list_attr_obs_input_q]
+        self.tau_dims = [int(LeapNetEncoded_NNParam.get_obs_size(env, [el])) for el in self.list_attr_obs_tau]
+        self.x_dims = [int(LeapNetEncoded_NNParam.get_obs_size(env, [el])) for el in self.list_attr_obs_x]
+        self.gm_out_dims = [int(LeapNetEncoded_NNParam.get_obs_size(env, [el])) for el in self.list_attr_obs_gm_out]
+        self.input_q_dims = [int(LeapNetEncoded_NNParam.get_obs_size(env, [el])) for el in self.list_attr_obs_input_q]
 
     def _define_adds_mults(self, vector, varname, attr_composed, default_val):
         if vector is None:
