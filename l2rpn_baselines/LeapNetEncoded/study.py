@@ -18,7 +18,7 @@ from grid2op.Reward import *
 from grid2op.Action import *
 
 from l2rpn_baselines.LeapNetEncoded.LeapNetEncoded import LeapNetEncoded, DEFAULT_NAME
-from l2rpn_baselines.LeapNetEncoded.LeapNetEncoded_NNParam import TestLeapNet_NNParam
+from l2rpn_baselines.LeapNetEncoded.LeapNetEncoded_NNParam import LeapNetEncoded_NNParam
 from l2rpn_baselines.LeapNetEncoded.LeapNetEncoded_NN import LeapNetEncoded_NN
 
 import pdb
@@ -51,7 +51,7 @@ def study(env,
     if load_path is None:
         raise RuntimeError("Cannot evaluate a model if there is nothing to be loaded.")
     path_model, path_target_model = LeapNetEncoded_NN.get_path_model(load_path, name)
-    nn_archi = TestLeapNet_NNParam.from_json(os.path.join(path_model, "nn_architecture.json"))
+    nn_archi = LeapNetEncoded_NNParam.from_json(os.path.join(path_model, "nn_architecture.json"))
 
     # Run
     # Create agent
