@@ -333,7 +333,7 @@ if __name__ == "__main__":
 
     tp = TrainingParam()
     # NN training
-    tp.lr = 3e-4
+    tp.lr = 1e-5
     tp.lr_decay_steps = 300000
     tp.minibatch_size = 32
     tp.update_freq = tp.minibatch_size / 2
@@ -415,9 +415,9 @@ if __name__ == "__main__":
                     "dim_flow": env_init.n_line,
 
                     "sizes_enc": (50, 50, 50, 50),
-                    "sizes_main": (300, 300, 300, 300),
+                    "sizes_main": (300, 300, 300),
                     "sizes_out_gm": (100, ),
-                    "sizes_Qnet": (200, 200, 200, 200, 200, 200)
+                    "sizes_Qnet": (200, 200, 200)
                     }
 
     nm_ = args.name if args.name is not None else DEFAULT_NAME
