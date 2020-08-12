@@ -389,7 +389,8 @@ if __name__ == "__main__":
                            "day_of_week",
                            "hour_of_day",
                            "minute_of_hour",
-                           "rho"]
+                           "rho",
+                           ]
     li_attr_obs_Tau = ["line_status", "timestep_overflow"]
     list_attr_gm_out = ["a_or", "a_ex", "p_or", "p_ex", "q_or", "q_ex", "prod_q", "load_v"] + li_attr_obs_X
 
@@ -405,7 +406,7 @@ if __name__ == "__main__":
 
                     'dim_topo': env_init.dim_topo,
 
-                    "sizes_enc": (50, 50, 50, 50),
+                    "sizes_enc": (50, 50, ),
                     "sizes_main": (300, 300, 300),
                     "sizes_out_gm": (100, ),
                     "sizes_Qnet": (200, 200, 200)

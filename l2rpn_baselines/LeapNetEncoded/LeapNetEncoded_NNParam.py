@@ -175,3 +175,12 @@ class LeapNetEncoded_NNParam(NNParam):
         self._center_reduce_vect(env.get_obs(), "tau")
         self._center_reduce_vect(env.get_obs(), "gm_out")
         self._center_reduce_vect(env.get_obs(), "input_q")
+
+    def _get_adds_mults_from_name(self, obs, attr_nm):
+        add_tmp, mult_tmp = super()._get_adds_mults_from_name(obs, attr_nm)
+        if attr_nm in ["line_status"]:
+            # transform time step overflow into (1. - timestep_overflow) [similar to the leap net papers]
+            # 0 powerline is connected, 1 powerline is NOT connected
+            add_tmp = -1.0
+            mult_tmp = -1.0
+        return add_tmp, mult_tmp

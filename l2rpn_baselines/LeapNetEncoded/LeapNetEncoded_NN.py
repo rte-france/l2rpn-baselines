@@ -243,7 +243,7 @@ class LeapNetEncoded_NN(BaseDeepQ):
         if batch_size is None:
             batch_size = data.shape[0]
         data_nn, true_output_grid = self._make_x_tau(data)
-        res = super().predict_movement(data_nn, epsilon=epsilon, batch_size=batch_size, training=False)
+        res = super().predict_movement(data_nn, epsilon=epsilon, batch_size=batch_size, training=training)
         return res
 
     def train(self, s_batch, a_batch, r_batch, d_batch, s2_batch, tf_writer=None, batch_size=None):
