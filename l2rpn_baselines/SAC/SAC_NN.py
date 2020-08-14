@@ -138,9 +138,10 @@ class SAC_NN(object):
         self.policy_opt = tfko.Adam(lr=self._cfg.lr_policy)
         self.policy.compile(optimizer=self.policy_opt)
 
-        self.target_entropy = -(self.action_shape[0] * 1.0)
-        self.log_alpha = tf.Variable(0.0)
-        self.alpha_opt = tfko.Adam(lr=self._cfg.lr_alpha)
+        if self.training:
+            self.target_entropy = -0.98 * np.log(1.0 / self.action_shape[1])
+            self.log_alpha = tf.Variable(0.0, trainable=True)
+            self.alpha_opt = tfko.Adam(lr=self._cfg.lr_alpha)
 
     def predict(self, net_observation):
         """
@@ -151,8 +152,7 @@ class SAC_NN(object):
 
     def sample(self, net_observation):
         p_actions = self.policy(net_observation)
-        alpha = tf.math.exp(self.log_alpha)
-        pd_actions = tfpd.RelaxedOneHotCategorical(alpha,
+        pd_actions = tfpd.RelaxedOneHotCategorical(self.alpha,
                                                    probs=p_actions)
         actions_samples = pd_actions.sample()
         actions = tf.argmax(actions_samples, axis=-1)
@@ -171,7 +171,8 @@ class SAC_NN(object):
         q1_next = self.target_q1([s2_batch, a_next], training=True)
         q2_next = self.target_q2([s2_batch, a_next], training=True)
         q_next_min = tf.math.minimum(q1_next, q2_next)
-        q_next = tf.reduce_mean(q_next_min - self.alpha * log_next, axis=-1)
+        q_next = q_next_min - self.alpha * log_next
+        q_next = tf.reduce_mean(q_next, axis=-1)
         q_target = r_batch + (1.0 - d_batch) * self._cfg.gamma * q_next
 
         # Train Q1
@@ -179,7 +180,7 @@ class SAC_NN(object):
             # Compute loss under gradient tape
             q1 = self.q1([s_batch, a_batch_oh])
             q1_sq_td_error = tf.square(q_target - q1)
-            q1_loss = tf.reduce_mean(q1_sq_td_error, axis=0)
+            q1_loss = tf.reduce_mean(q1_sq_td_error)
 
         # Q1 Compute & Apply gradients
         q1_vars = self.q1.trainable_variables
@@ -190,7 +191,7 @@ class SAC_NN(object):
         with tf.GradientTape() as q2_tape:
             q2 = self.q2([s_batch, a_batch_oh])
             q2_sq_td_error = tf.square(q_target - q2)
-            q2_loss = tf.reduce_mean(q2_sq_td_error, axis=0)
+            q2_loss = tf.reduce_mean(q2_sq_td_error)
 
         # Q2 Compute & Apply gradients
         q2_vars = self.q2.trainable_variables
@@ -204,7 +205,7 @@ class SAC_NN(object):
             q2_new = self.q2([s_batch, a_new])
             q_new_min = tf.math.minimum(q1_new, q2_new)
             policy_loss = self.alpha * log_new - q_new_min
-            policy_loss = tf.reduce_mean(policy_loss, axis=0)
+            policy_loss = tf.reduce_mean(policy_loss)
 
         # Policy compute & apply gradients
         policy_vars = self.policy.trainable_variables
@@ -217,7 +218,6 @@ class SAC_NN(object):
 
         # Entropy train
         with tf.GradientTape() as entropy_tape:
-            _, _, _ , log_new = self.sample(s_batch)
             alpha_loss = - (self.log_alpha * (log_new + self.target_entropy))
             alpha_loss = tf.reduce_mean(alpha_loss)
 

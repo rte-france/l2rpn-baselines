@@ -22,6 +22,7 @@ from l2rpn_baselines.SAC.SAC_NN import SAC_NN
 from l2rpn_baselines.SAC.SAC_Config_NN import SAC_Config_NN
 from l2rpn_baselines.SAC.SAC_Config_Train import SAC_Config_Train
 from l2rpn_baselines.SAC.SAC_Agent import SAC_Agent
+from l2rpn_baselines.SAC.SAC_Reward import SAC_Reward
 
 from l2rpn_baselines.utils import cli_train
 from l2rpn_baselines.utils.waring_msgs import _WARN_GPU_MEMORY
@@ -101,7 +102,7 @@ if __name__ == "__main__":
     # Create grid2op game environement
     env = make(args.dataset,
                param=game_param,
-               reward_class=L2RPNReward,
+               reward_class=SAC_Reward,
                backend=backend)
     # Handle MultiProcessing
     env_init = env

@@ -6,6 +6,8 @@
 # SPDX-License-Identifier: MPL-2.0
 # This file is part of L2RPN Baselines, L2RPN Baselines a repository to host baselines for l2rpn competitions.
 
+import os
+
 from grid2op.Agent import BaseAgent
 from l2rpn_baselines.SAC.SAC_NN import SAC_NN
 from l2rpn_baselines.SAC.SAC_Obs import *
@@ -53,12 +55,13 @@ class SAC_Agent(BaseAgent):
         return sac_convert_obs(observation_grid2op)
 
     def danger(self, observation_grid2op):
-        return True
+        return np.any(observation_grid2op.rho > 0.95)
 
     def set_target(self, nn_target):
         self.has_target = True
         self.target_topo = np.array(nn_target)
         self.target_topo[nn_target == 0] = -1
+        print ("New target = ", self.target_topo)
     
     def consume_target(self, observation_grid2op):
         current = observation_grid2op.topo_vect
@@ -141,6 +144,10 @@ class SAC_Agent(BaseAgent):
         reward = 0.0
         info = {}
 
+        # Init logger
+        logpath = os.path.join(logs_path, self.name)
+        logger = tf.summary.create_file_writer(logpath, name=self.name)
+
         # Do iterations updates
         while update_step < iterations:
             if done:
@@ -157,18 +164,27 @@ class SAC_Agent(BaseAgent):
                 replay_buffer.add(obs_nn, act_nn, reward, done, obs_nn_next)
                 target_step += 1
 
+                if replay_buffer.size() >= train_cfg.batch_size:
+                    batch = replay_buffer.sample(train_cfg.batch_size)
+                    losses = self.nn.train(*batch)
+                    update_step += 1
+
+                    with logger.as_default():
+                        tf.summary.scalar("1-loss_q1", losses[0], update_step)
+                        tf.summary.scalar("2-loss_q2", losses[1], update_step)
+                        tf.summary.scalar("3-loss_policy", losses[2],
+                                          update_step)
+                        tf.summary.scalar("4-loss_alpha", losses[3],
+                                          update_step)
+                        tf.summary.scalar("5-alpha", self.nn.alpha,
+                                          update_step)
+
+                    if update_step % train_cfg.save_freq == 0:
+                        self.checkpoint(save_path, update_step)
+
             obs = obs_next
             obs_nn = obs_nn_next
             step += 1
-
-            if replay_buffer.size() >= train_cfg.batch_size and \
-               target_step % train_cfg.update_freq == 0:
-                batch = replay_buffer.sample(train_cfg.batch_size)
-                self.nn.train(*batch)
-                update_step += 1
-
-                if update_step % train_cfg.save_freq == 0:
-                    self.checkpoint(save_path, update_step)
 
         # Save after all training steps
         self.nn.save_network(save_path, name=self.name)
