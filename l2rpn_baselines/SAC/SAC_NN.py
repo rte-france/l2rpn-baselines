@@ -14,11 +14,11 @@ import tensorflow.keras.layers as tfkl
 import tensorflow.keras.optimizers as tfko
 import tensorflow.keras.models as tfkm
 import tensorflow_probability as tfp
-import tensorflow_probability.distributions as tfpd
+from tensorflow_probability import distributions as tfpd
 
 from l2rpn_baselines.utils import BaseDeepQ, TrainingParam
 
-class SAC_NN(BaseDeepQ):
+class SAC_NN(object):
     """
     Constructs the desired soft actor critic network.
 
@@ -39,34 +39,34 @@ class SAC_NN(BaseDeepQ):
 
     """
     def __init__(self,
-                 nn_params,
-                 training_param=None,
-                 verbose=False):
-        if training_param is None:
-            training_param = TrainingParam()
-        BaseDeepQ.__init__(self,
-                           nn_params,
-                           training_param,
-                           verbose=verbose)
-
-        self.log_std_min = -20
-        self.log_std_max = 2
-        self.tau = 1e-3
-        self.gamma = 0.99
-        self.alpha = 0.2
-
+                 observation_shape,
+                 action_shape,
+                 nn_config,
+                 training=False,
+                 verbose=True):
+        self.observation_shape = observation_shape
+        self.action_shape = action_shape
+        self._cfg = nn_config
+        self.verbose = verbose
+        
+        self.training = training
+        self.alpha = 0.01
+        if self.training:
+            self.alpha = self._cfg.alpha
+        
         self.construct_q_network()
 
     def _build_q_NN(self, model_name):
-        input_state = Input(shape=(self._observation_size,))
-        input_action = Input(shape=(self._action_size,))
+        input_state = tfkl.Input(shape=self.observation_shape)
+        input_action = tfkl.Input(shape=self.action_shape)
 
-        input_layer = tf.concat([input_state, input_action], axis=-1)
+        input_action_flat = tfkl.Flatten()(input_action)
+        input_layer = tf.concat([input_state, input_action_flat], axis=-1)
 
         lay = input_layer
-        lay_size_activ = zip(self._nn_archi.q_sizes,
-                             self._nn_archi.q_activs)
-        for lay_id, (size, act) in enumerate(lay_size_activs):
+        lay_size_activ = zip(self._cfg.sizes_critic,
+                             self._cfg.activations_critic)
+        for lay_id, (size, act) in enumerate(lay_size_activ):
             lay_name = "{}_fc_{}".format(model_name, lay_id)
             act_name = "{}_act_{}".format(model_name, lay_id)
             lay = tfkl.Dense(size, name=lay_name)(lay)
@@ -74,106 +74,110 @@ class SAC_NN(BaseDeepQ):
                 lay = tfkl.Activation(act, name=act_name)(lay)
 
         final_name = "{}_final".format(model_name)
-        Q = Dense(1, name=final_name)(lay)
+        Q = tfkl.Dense(1, name=final_name)(lay)
 
         model_inputs = [input_state, input_action]
         model_outputs = [Q]
-        model = tfk.Model(inputs=model_input,
+        model = tfk.Model(inputs=model_inputs,
                           outputs=model_outputs,
                           name=model_name)
         return model
 
     def _build_policy_NN(self, model_name, epsilon=1e-8):
-        input_state = Input(shape=(self._observation_size,))
+        input_state = tfkl.Input(shape=self.observation_shape)
 
         lay = input_state
-        lay_size_activ = zip(self._nn_archi.policy_sizes,
-                             self._nn_archi.policy_activs)
-        for lay_id, (size, act) in enumerate(lay_size_activs):
+        lay_size_activ = zip(self._cfg.sizes_policy,
+                             self._cfg.activations_policy)
+        for lay_id, (size, act) in enumerate(lay_size_activ):
             lay_name = "{}_fc_{}".format(model_name, lay_id)
             act_name = "{}_act_{}".format(model_name, lay_id)
             lay = tfkl.Dense(size, name=lay_name)(lay)
             if act is not None:
                 lay = tfkl.Activation(act, name=act_name)(lay)
 
-        mean_name = "{}_fc_mean".format(model_name)
-        mean = tfkl.Dense(self._action_size, name=mean_name)(lay)
-        log_std_name = "{}_log_std".format(model_name)
-        log_std = tfkl.Dense(self._action_size, name=log_std_name)(lay)
-        log_std = tf.clip_by_value(log_std,
-                                   self.log_std_min,
-                                   self.log_std_max)
+        action_size = np.prod(self.action_shape)
+        logits_name = "{}_fc_logits".format(model_name)
+        logits = tfkl.Dense(action_size, name=logits_name)(lay)
+
+        logits_2d = tf.reshape(logits, (-1,) + self.action_shape)
+        probs = tf.nn.softmax(logits_2d, axis=-1)
 
         model_inputs = [input_state]
-        model_outputs = [mean, log_std]
+        model_outputs = [probs]
         model = tfk.Model(inputs=model_inputs,
                           outputs=model_outputs,
                           name=model_name)
+        return model
 
     def construct_q_network(self):
         """
         This constructs all the networks needed for the SAC agent.
         """
-        self.q1 = self._build_q_NN(name="q1")
-        self.q1_schedule, self.q1_opt = self.make_optimiser()
+        self.q1 = self._build_q_NN(model_name="q1")
+        self.q1_opt = tfko.Adam(lr=self._cfg.lr_critic)
         self.q1.compile(optimizer=self.q1_opt)
 
-        self.target_q1 = self._build_q_NN(name="target-q1")
-        self.target_q1_schedule, self.target_q1_opt = self.make_optimiser()
-        self.target_q1.compile(optimizer=self.target_q1_opt)
-
-        self.q2 = self._build_q_NN(name="q2")
-        self.q2_schedule, self.q2_opt = self.make_optimiser()
+        self.q2 = self._build_q_NN(model_name="q2")
+        self.q2_opt = tfko.Adam(lr=self._cfg.lr_critic)
         self.q2.compile(optimizer=self.q2_opt)
 
-        self.target_q2 = self._build_q_NN(name="target-q2")
-        self.target_q2_schedule, self.target_q2_opt = self.make_optimiser()
-        self.target_q2.compile(optimizer=self.target_q2_opt)
+        if self.training:
+            self.target_q1 = self._build_q_NN(model_name="target-q1")
+            self.target_q1_opt = tfko.Adam(lr=self._cfg.lr_critic)
+            self.target_q1.compile(optimizer=self.target_q1_opt)
+            
+            self.target_q2 = self._build_q_NN(model_name="target-q2")
+            self.target_q2_opt = tfko.Adam(lr=self._cfg.lr_critic)
+            self.target_q2.compile(optimizer=self.target_q2_opt)
 
-        self.policy = self._build_policy_NN(name="policy")
-        self.policy_schedule, self.policy_opt = self.make_optimizer()
+            self.hard_target_update(self.q1, self.target_q1)
+            self.hard_target_update(self.q2, self.target_q2)
+
+        self.policy = self._build_policy_NN(model_name="policy")
+        self.policy_opt = tfko.Adam(lr=self._cfg.lr_policy)
         self.policy.compile(optimizer=self.policy_opt)
 
-        self.target_entropy = -(self._action_size * 1.0)
-        self.log_alpha = tf.zeros(1)
-        self.alpha_schedule, self.alpha_opt = self.make_optimizer()
+        self.target_entropy = -(self.action_shape[0] * 1.0)
+        self.log_alpha = tf.Variable(0.0)
+        self.alpha_opt = tfko.Adam(lr=self._cfg.lr_alpha)
 
-
-    def sample(self, state):
-        p_actions = self.policy(state)
-
-        pd_actions = tfpd.RelaxedOneHotCategorical(self.alpha, probs=p_actions)
-        actions = pd_actions.sample()
-        log_actions = pd_actions.log_prob(actions)
-
-        return actions, p_actions, log_actions
-
-    def predict_movement(self, data, epsilon,
-                         batch_size=None,
-                         training=False):
+    def predict(self, net_observation):
         """
         Predict the next action
         """
-        actions, _, _ = self.sample(data)
-        return policy
+        actions, _, _, _ = self.sample(net_observation)
+        return actions
 
-    def train(self,
-              s_batch, a_batch, r_batch, d_batch, s2_batch,
-              tf_writer=None,
-              batch_size=None):
-        """Trains networks to fit given parameters"""
+    def sample(self, net_observation):
+        p_actions = self.policy(net_observation)
+        alpha = tf.math.exp(self.log_alpha)
+        pd_actions = tfpd.RelaxedOneHotCategorical(alpha,
+                                                   probs=p_actions)
+        actions_samples = pd_actions.sample()
+        actions = tf.argmax(actions_samples, axis=-1)
+        actions_oh = tf.cast(
+            tf.one_hot(actions, depth=p_actions.shape[-1]),
+            tf.float32)
+        log_actions = pd_actions.log_prob(actions_samples)
+        return actions, actions_oh, p_actions, log_actions
 
+    def train(self, s_batch, a_batch, r_batch, d_batch, s2_batch):
+        """Train model on experience batch"""
+
+        a_batch_oh = tf.one_hot(a_batch, depth=self.action_shape[-1])
         # Compute Q target
-        a_next, log_next = self.sample(s2_batch)
+        _, a_next, _, log_next = self.sample(s2_batch)
         q1_next = self.target_q1([s2_batch, a_next], training=True)
         q2_next = self.target_q2([s2_batch, a_next], training=True)
-        q_next = tf.math.minimum(q1_next, q2_next) - self.alpha * log_next
-        q_target = r_batch + (1.0 - d_batch) * self.gamma * q_next
+        q_next_min = tf.math.minimum(q1_next, q2_next)
+        q_next = tf.reduce_mean(q_next_min - self.alpha * log_next, axis=-1)
+        q_target = r_batch + (1.0 - d_batch) * self._cfg.gamma * q_next
 
         # Train Q1
         with tf.GradientTape() as q1_tape:
             # Compute loss under gradient tape
-            q1 = self.q1([s_batch, a_batch])
+            q1 = self.q1([s_batch, a_batch_oh])
             q1_sq_td_error = tf.square(q_target - q1)
             q1_loss = tf.reduce_mean(q1_sq_td_error, axis=0)
 
@@ -184,7 +188,7 @@ class SAC_NN(BaseDeepQ):
 
         # Train Q2
         with tf.GradientTape() as q2_tape:
-            q2 = self.q2([s_batch, a_batch])
+            q2 = self.q2([s_batch, a_batch_oh])
             q2_sq_td_error = tf.square(q_target - q2)
             q2_loss = tf.reduce_mean(q2_sq_td_error, axis=0)
 
@@ -195,11 +199,11 @@ class SAC_NN(BaseDeepQ):
 
         # Policy train
         with tf.GradientTape() as policy_tape:
-            a_new, _, log_new = self.sample(s_batch)
+            _, a_new, _ , log_new = self.sample(s_batch)
             q1_new = self.q1([s_batch, a_new])
             q2_new = self.q2([s_batch, a_new])
-            q_new = tf.math.minimum(q1_new, q2_new)
-            policy_loss = self.alpha * log_new - min_q
+            q_new_min = tf.math.minimum(q1_new, q2_new)
+            policy_loss = self.alpha * log_new - q_new_min
             policy_loss = tf.reduce_mean(policy_loss, axis=0)
 
         # Policy compute & apply gradients
@@ -208,18 +212,19 @@ class SAC_NN(BaseDeepQ):
         self.policy_opt.apply_gradients(zip(policy_grads, policy_vars))
 
         # Q Target networks soft update
-        self.soft_target_update(self.q1, self.q1_target, tau=self.tau)
-        self.soft_target_update(self.q2, self.q2_target, tau=self.tau)
+        self.soft_target_update(self.q1, self.target_q1, tau=self._cfg.tau)
+        self.soft_target_update(self.q2, self.target_q2, tau=self._cfg.tau)
 
         # Entropy train
         with tf.GradientTape() as entropy_tape:
-            alpha_loss = self.log_alpha * (-log_new - self.target_entropy)
+            _, _, _ , log_new = self.sample(s_batch)
+            alpha_loss = - (self.log_alpha * (log_new + self.target_entropy))
             alpha_loss = tf.reduce_mean(alpha_loss)
 
         # Entropy compute & apply gradients
-        alpha_vars = self.log_alpha.trainable_variables
+        alpha_vars = self.log_alpha
         alpha_grads = entropy_tape.gradient(alpha_loss, alpha_vars)
-        self.alpha_opt.apply_gradients(zip(alpha_grads, alpha_vars))
+        self.alpha_opt.apply_gradients(zip([alpha_grads], [alpha_vars]))
 
         # Update entropy
         self.alpha = tf.math.exp(self.log_alpha)
@@ -261,11 +266,14 @@ class SAC_NN(BaseDeepQ):
         q2_path = model_paths[2]
         policy_path = model_paths[3]
         
-        os.makedirs(path_dir, exist_ok=True)
+        os.makedirs(model_dir, exist_ok=True)
 
-        self.q1.save(q1_p)
-        self.q2.save(q2_p)
-        self.policy.save(policy_p)
+        self.q1.save(q1_path)
+        self.q2.save(q2_path)
+        self.policy.save(policy_path)
+
+        if self.verbose:
+            print("Succesfully saved networks.")
 
     def load_network(self, path, name=None, ext="h5"):
         """
@@ -286,7 +294,7 @@ class SAC_NN(BaseDeepQ):
         self.hard_target_update(self.q2, self.target_q2)
 
         if self.verbose:
-            print("Succesfully loaded network.")
+            print("Succesfully loaded networks.")
 
     @staticmethod
     def soft_target_update(source, target, tau=1e-3):

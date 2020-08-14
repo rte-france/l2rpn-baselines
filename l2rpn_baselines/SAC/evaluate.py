@@ -17,8 +17,8 @@ from grid2op.Reward import *
 from grid2op.Action import *
 
 from l2rpn_baselines.utils.save_log_gif import save_log_gif
-from l2rpn_baselines.SAC.SAC import SAC, DEFAULT_NAME
-from l2rpn_baselines.SAC.SAC_NNParam import SAC_NNParam
+from l2rpn_baselines.SAC.SAC_Agent import SAC_Agent
+from l2rpn_baselines.SAC.SAC_Config_NN import SAC_Config_NN
 from l2rpn_baselines.SAC.SAC_NN import SAC_NN
 
 DEFAULT_LOGS_DIR = "./logs-eval/do-nothing-baseline"
@@ -28,7 +28,7 @@ DEFAULT_MAX_STEPS = -1
 
 
 def evaluate(env,
-             name=DEFAULT_NAME,
+             name="SAC",
              load_path=None,
              logs_path=DEFAULT_LOGS_DIR,
              nb_episode=DEFAULT_NB_EPISODE,
@@ -118,7 +118,7 @@ def evaluate(env,
     if load_path is None:
         raise RuntimeError("Cannot evaluate a model if there is nothing to be loaded.")
     path_model, path_target_model = SAC_NN.get_path_model(load_path, name)
-    nn_archi = SAC_NNParam.from_json(os.path.join(path_model, "nn_architecture.json"))
+    nn_archi = SAC_Config_NN.from_json(os.path.join(path_model, "nn_architecture.json"))
 
     # Run
     # Create agent
