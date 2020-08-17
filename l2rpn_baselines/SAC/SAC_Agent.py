@@ -49,7 +49,7 @@ class SAC_Agent(BaseAgent):
         return (obs_size,)
 
     def nn_action_shape(self, action_space):
-        return (action_space.dim_topo, 3)
+        return (action_space.dim_topo,)
 
     def observation_grid2op_to_nn(self, observation_grid2op):
         return sac_convert_obs(observation_grid2op)
@@ -59,8 +59,9 @@ class SAC_Agent(BaseAgent):
 
     def set_target(self, nn_target):
         self.has_target = True
-        self.target_topo = np.array(nn_target)
-        self.target_topo[nn_target == 0] = -1
+        self.target_topo = np.zeros_like(nn_target, dtype=int)
+        self.target_topo[nn_target > 0.0] = 1
+        self.target_topo += 1
         print ("New target = ", self.target_topo)
     
     def consume_target(self, observation_grid2op):
@@ -84,7 +85,8 @@ class SAC_Agent(BaseAgent):
 
         # Convert to NN format
         action_nn = np.array(act_v)
-        action_nn[action_nn == -1] = 0
+        action_nn -= 2
+        action_nn[action_nn == 0] = 1
         
         # Do Nothing for unchanged elements
         act_v[act_v == current] = 0

@@ -30,9 +30,9 @@ class SAC_Config_NN(BaseConfig):
         self.lr_policy = 1e-4
         self.lr_alpha = 1e-4
         self.sizes_critic = [512, 512, 256, 256, 256, 1]
-        self.activations_critic = ["relu"] * 5
+        self.activations_critic = ["elu"] * 5 + [None]
         self.sizes_policy = [512, 512, 256, 256, 256, 256]
-        self.activations_policy = ["relu"] * 5
+        self.activations_policy = ["elu"] * 5 + [None]
 
 if __name__ == "__main__":
     conf = SAC_Config_NN()

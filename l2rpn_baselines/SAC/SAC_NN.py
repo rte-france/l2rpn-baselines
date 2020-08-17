@@ -60,17 +60,18 @@ class SAC_NN(object):
         input_state = tfkl.Input(shape=self.observation_shape)
         input_action = tfkl.Input(shape=self.action_shape)
 
-        input_action_flat = tfkl.Flatten()(input_action)
-        input_layer = tf.concat([input_state, input_action_flat], axis=-1)
+        input_layer = tf.concat([input_state, input_action], axis=-1)
 
         lay = input_layer
         lay_size_activ = zip(self._cfg.sizes_critic,
                              self._cfg.activations_critic)
+        print (self._cfg.activations_critic)
+        print (list(enumerate(lay_size_activ)))
         for lay_id, (size, act) in enumerate(lay_size_activ):
             lay_name = "{}_fc_{}".format(model_name, lay_id)
             act_name = "{}_act_{}".format(model_name, lay_id)
             lay = tfkl.Dense(size, name=lay_name)(lay)
-            if act is not None:
+            if act is not None and act != 'None':
                 lay = tfkl.Activation(act, name=act_name)(lay)
 
         final_name = "{}_final".format(model_name)
@@ -83,7 +84,7 @@ class SAC_NN(object):
                           name=model_name)
         return model
 
-    def _build_policy_NN(self, model_name, epsilon=1e-8):
+    def _build_policy_NN(self, model_name):
         input_state = tfkl.Input(shape=self.observation_shape)
 
         lay = input_state
@@ -93,18 +94,21 @@ class SAC_NN(object):
             lay_name = "{}_fc_{}".format(model_name, lay_id)
             act_name = "{}_act_{}".format(model_name, lay_id)
             lay = tfkl.Dense(size, name=lay_name)(lay)
-            if act is not None:
+            if act is not None and act != 'None':
                 lay = tfkl.Activation(act, name=act_name)(lay)
 
-        action_size = np.prod(self.action_shape)
-        logits_name = "{}_fc_logits".format(model_name)
-        logits = tfkl.Dense(action_size, name=logits_name)(lay)
-
-        logits_2d = tf.reshape(logits, (-1,) + self.action_shape)
-        probs = tf.nn.softmax(logits_2d, axis=-1)
+        action_size = self.action_shape[0]
+        mean_name = "{}_fc_mean".format(model_name)
+        mean = tfkl.Dense(action_size, name=mean_name)(lay)
+        
+        log_std_name = "{}_fc_log_std".format(model_name)
+        log_std = tfkl.Dense(action_size, name=log_std_name)(lay)
+        log_std = tf.clip_by_value(log_std,
+                                   self._cfg.log_std_min,
+                                   self._cfg.log_std_max)
 
         model_inputs = [input_state]
-        model_outputs = [probs]
+        model_outputs = [mean, log_std]
         model = tfk.Model(inputs=model_inputs,
                           outputs=model_outputs,
                           name=model_name)
@@ -139,46 +143,52 @@ class SAC_NN(object):
         self.policy.compile(optimizer=self.policy_opt)
 
         if self.training:
-            self.target_entropy = -0.98 * np.log(1.0 / self.action_shape[1])
+            self.target_entropy = -(self.action_shape[0])
             self.log_alpha = tf.Variable(0.0, trainable=True)
             self.alpha_opt = tfko.Adam(lr=self._cfg.lr_alpha)
 
-    def predict(self, net_observation):
+    def predict(self, net_observation, sample=True):
         """
         Predict the next action
         """
-        actions, _, _, _ = self.sample(net_observation)
+        if sample:
+            actions, _, _, _ = self.sample(net_observation)
+        else:
+            actions = self.mean(net_observation)
         return actions
 
-    def sample(self, net_observation):
-        p_actions = self.policy(net_observation)
-        pd_actions = tfpd.RelaxedOneHotCategorical(self.alpha,
-                                                   probs=p_actions)
-        actions_samples = pd_actions.sample()
-        actions = tf.argmax(actions_samples, axis=-1)
-        actions_oh = tf.cast(
-            tf.one_hot(actions, depth=p_actions.shape[-1]),
-            tf.float32)
-        log_actions = pd_actions.log_prob(actions_samples)
-        return actions, actions_oh, p_actions, log_actions
+    def sample(self, net_observation, eps=1e-6):
+        mean, log_std = self.policy(net_observation)
+        std = tf.math.exp(log_std)
+        pd_actions = tfpd.Normal(mean, std)
+        samples_actions = pd_actions.sample()
+        actions = tf.nn.tanh(samples_actions)
+        log_actions = pd_actions.log_prob(samples_actions)
+        r_actions = 1.0 - tf.math.square(actions) + eps
+        rlog_actions = log_actions - tf.math.log(r_actions)
+        rlog_actions = tf.reduce_sum(rlog_actions, axis=1, keepdims=True)
+        return actions, rlog_actions, mean, std
+
+    def mean(self, net_observation):
+        mean, _ = self.policy(net_observation)
+        actions = tf.nn.tanh(mean)
+        return actions
 
     def train(self, s_batch, a_batch, r_batch, d_batch, s2_batch):
         """Train model on experience batch"""
 
-        a_batch_oh = tf.one_hot(a_batch, depth=self.action_shape[-1])
         # Compute Q target
-        _, a_next, _, log_next = self.sample(s2_batch)
+        a_next, log_next, _, _ = self.sample(s2_batch)
         q1_next = self.target_q1([s2_batch, a_next], training=True)
         q2_next = self.target_q2([s2_batch, a_next], training=True)
         q_next_min = tf.math.minimum(q1_next, q2_next)
-        q_next = q_next_min - self.alpha * log_next
-        q_next = tf.reduce_mean(q_next, axis=-1)
+        q_next = q_next_min - (self.alpha * log_next)
         q_target = r_batch + (1.0 - d_batch) * self._cfg.gamma * q_next
 
         # Train Q1
         with tf.GradientTape() as q1_tape:
             # Compute loss under gradient tape
-            q1 = self.q1([s_batch, a_batch_oh])
+            q1 = self.q1([s_batch, a_batch])
             q1_sq_td_error = tf.square(q_target - q1)
             q1_loss = tf.reduce_mean(q1_sq_td_error)
 
@@ -189,7 +199,7 @@ class SAC_NN(object):
 
         # Train Q2
         with tf.GradientTape() as q2_tape:
-            q2 = self.q2([s_batch, a_batch_oh])
+            q2 = self.q2([s_batch, a_batch])
             q2_sq_td_error = tf.square(q_target - q2)
             q2_loss = tf.reduce_mean(q2_sq_td_error)
 
@@ -200,11 +210,11 @@ class SAC_NN(object):
 
         # Policy train
         with tf.GradientTape() as policy_tape:
-            _, a_new, _ , log_new = self.sample(s_batch)
+            a_new, log_new, _, _ = self.sample(s_batch)
             q1_new = self.q1([s_batch, a_new])
             q2_new = self.q2([s_batch, a_new])
             q_new_min = tf.math.minimum(q1_new, q2_new)
-            policy_loss = self.alpha * log_new - q_new_min
+            policy_loss = (self.alpha * log_new) - q_new_min
             policy_loss = tf.reduce_mean(policy_loss)
 
         # Policy compute & apply gradients
