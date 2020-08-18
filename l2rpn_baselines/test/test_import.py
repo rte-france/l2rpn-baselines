@@ -45,11 +45,6 @@ class TestDeepQSimple(TestImport, unittest.TestCase):
         return "DeepQSimple"
 
 
-class TestSAC(TestImport, unittest.TestCase):
-    def load_module(self):
-        return "SAC"
-
-
 class TestSACOld(TestImport, unittest.TestCase):
     def load_module(self):
         return "SACOld"

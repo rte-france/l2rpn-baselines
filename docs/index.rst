@@ -28,7 +28,6 @@ Baseline already Available
    DeepQSimple
    DoubleDuelingDQN
    DuelQSimple
-   SAC
 
 
 More advanced baselines
