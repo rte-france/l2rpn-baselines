@@ -224,6 +224,42 @@ class NNParam(object):
         # TODO see TestLeapNet for this feature
         self._center_reduce_vect(env.get_obs(), "x")
 
+    def _get_adds_mults_from_name(self, obs, attr_nm):
+        if attr_nm in ["prod_p"]:
+            add_tmp = np.array([-0.5 * (pmax + pmin) for pmin, pmax in zip(obs.gen_pmin, obs.gen_pmax)])
+            mult_tmp = np.array([1. / max((pmax - pmin), 0.) for pmin, pmax in zip(obs.gen_pmin, obs.gen_pmax)])
+        elif attr_nm in ["prod_q"]:
+            add_tmp = 0.
+            mult_tmp = np.array([1. / max(abs(val), 1.0) for val in obs.prod_q])
+        elif attr_nm in ["load_p", "load_q"]:
+            add_tmp = np.array([-val for val in getattr(obs, attr_nm)])
+            mult_tmp = 0.5
+        elif attr_nm in ["load_v", "prod_v", "v_or", "v_ex"]:
+            add_tmp = 0.
+            mult_tmp = np.array([1. / val for val in getattr(obs, attr_nm)])
+        elif attr_nm == "hour_of_day":
+            add_tmp = -12.
+            mult_tmp = 1.0 / 12
+        elif attr_nm == "minute_of_hour":
+            add_tmp = -30.
+            mult_tmp = 1.0 / 30
+        elif attr_nm == "day_of_week":
+            add_tmp = -4.
+            mult_tmp = 1.0 / 4
+        elif attr_nm == "day":
+            add_tmp = -15.
+            mult_tmp = 1.0 / 15.
+        elif attr_nm in ["target_dispatch", "actual_dispatch"]:
+            add_tmp = 0.
+            mult_tmp = np.array([1. / (pmax - pmin) for pmin, pmax in zip(obs.gen_pmin, obs.gen_pmax)])
+        elif attr_nm in ["a_or", "a_ex", "p_or", "p_ex", "q_or", "q_ex"]:
+            add_tmp = 0.
+            mult_tmp = np.array([1.0 / max(val, 1.0) for val in getattr(obs, attr_nm)])
+        else:
+            add_tmp = 0.
+            mult_tmp = 1.0
+        return add_tmp, mult_tmp
+
     def _center_reduce_vect(self, obs, nn_part):
         """
         compute the xxxx_adds and xxxx_mults for one part of the neural network called nn_part,
@@ -238,39 +274,7 @@ class NNParam(object):
         adds = []
         mults = []
         for attr_nm in li_attr_obs:
-            if attr_nm in ["prod_p"]:
-                add_tmp = np.array([-0.5*(pmax + pmin) for pmin, pmax in zip(obs.gen_pmin, obs.gen_pmax)])
-                mult_tmp = np.array([1./max((pmax - pmin), 0.) for pmin, pmax in zip(obs.gen_pmin, obs.gen_pmax)])
-            elif attr_nm in ["prod_q"]:
-                add_tmp = 0.
-                mult_tmp = np.array([1./max(abs(val), 1.0) for val in obs.prod_q])
-            elif attr_nm in ["load_p", "load_q"]:
-                add_tmp = np.array([-val for val in getattr(obs, attr_nm)])
-                mult_tmp = 0.5
-            elif attr_nm in ["load_v", "prod_v", "v_or", "v_ex"]:
-                add_tmp = 0.
-                mult_tmp = np.array([1. / val for val in getattr(obs, attr_nm)])
-            elif attr_nm == "hour_of_day":
-                add_tmp = -12.
-                mult_tmp = 1.0/12
-            elif attr_nm == "minute_of_hour":
-                add_tmp = -30.
-                mult_tmp = 1.0/30
-            elif attr_nm == "day_of_week":
-                add_tmp = -4.
-                mult_tmp = 1.0/4
-            elif attr_nm == "day":
-                add_tmp = -15.
-                mult_tmp = 1.0/15.
-            elif attr_nm in ["target_dispatch", "actual_dispatch"]:
-                add_tmp = 0.
-                mult_tmp = np.array([1./(pmax - pmin) for pmin, pmax in zip(obs.gen_pmin, obs.gen_pmax)])
-            elif attr_nm in ["a_or", "a_ex", "p_or", "p_ex", "q_or", "q_ex"]:
-                add_tmp = 0.
-                mult_tmp = np.array([1.0 / max(val, 1.0) for val in getattr(obs, attr_nm)])
-            else:
-                add_tmp = 0.
-                mult_tmp = 1.0
+            add_tmp, mult_tmp = self._get_adds_mults_from_name(obs, attr_nm)
             mults.append(mult_tmp)
             adds.append(add_tmp)
         setattr(self, "{}_adds".format(nn_part), adds)

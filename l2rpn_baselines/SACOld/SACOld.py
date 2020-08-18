@@ -7,7 +7,7 @@
 # This file is part of L2RPN Baselines, L2RPN Baselines a repository to host baselines for l2rpn competitions.
 
 from l2rpn_baselines.utils import DeepQAgent
-from l2rpn_baselines.SAC.SAC_NN import SAC_NN
+from l2rpn_baselines.SACOld.SACOld_NN import SACOld_NN
 DEFAULT_NAME = "SACOld"
 
 

@@ -56,10 +56,10 @@ def study(env,
     # Run
     # Create agent
     agent = LeapNetEncoded(action_space=env.action_space,
-                        name=name,
-                        store_action=nb_process == 1,
-                        nn_archi=nn_archi,
-                        observation_space=env.observation_space)
+                           name=name,
+                           store_action=nb_process == 1,
+                           nn_archi=nn_archi,
+                           observation_space=env.observation_space)
 
     # Load weights from file
     agent.load(load_path)

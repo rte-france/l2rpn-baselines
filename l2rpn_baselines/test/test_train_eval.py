@@ -25,8 +25,6 @@ from l2rpn_baselines.DuelQSimple import train as train_d3qs
 from l2rpn_baselines.DuelQSimple import evaluate as eval_d3qs
 from l2rpn_baselines.SACOld import train as train_sacold
 from l2rpn_baselines.SACOld import evaluate as eval_sacold
-from l2rpn_baselines.SAC import train as train_sac
-from l2rpn_baselines.SAC import evaluate as eval_sac
 from l2rpn_baselines.DuelQLeapNet import train as train_leap
 from l2rpn_baselines.DuelQLeapNet import evaluate as eval_leap
 from l2rpn_baselines.LeapNetEncoded import train as train_leapenc
@@ -333,62 +331,6 @@ class TestSACOld(unittest.TestCase):
                       kwargs_archi=kwargs_archi)
 
             baseline_2 = eval_sacold(env,
-                                  name=nm_,
-                                  load_path=tmp_dir,
-                                  logs_path=tmp_dir,
-                                  nb_episode=1,
-                                  nb_process=1,
-                                  max_steps=30,
-                                  verbose=False,
-                                  save_gif=False)
-
-
-class TestSAC(unittest.TestCase):
-    def test_train_eval(self):
-        tp = TrainingParam()
-        tp.buffer_size = 100
-        tp.minibatch_size = 8
-        tp.update_freq = 32
-        tp.min_observation = 32
-        tmp_dir = tempfile.mkdtemp()
-        with warnings.catch_warnings():
-            warnings.filterwarnings("ignore")
-            env = grid2op.make("rte_case5_example", test=True)
-            li_attr_obs_X = ["prod_p", "load_p", "rho"]
-
-            # neural network architecture
-            observation_size = NNParam.get_obs_size(env, li_attr_obs_X)
-            sizes_q = [100, 50, 10]  # sizes of each hidden layers
-            sizes_v = [100, 100]  # sizes of each hidden layers
-            sizes_pol = [100, 10]  # sizes of each hidden layers
-            kwargs_archi = {'observation_size': observation_size,
-                            'sizes': sizes_q,
-                            'activs': ["relu" for _ in range(len(sizes_q))],
-                            "list_attr_obs": li_attr_obs_X,
-                            "sizes_value": sizes_v,
-                            "activs_value": ["relu" for _ in range(len(sizes_v))],
-                            "sizes_policy": sizes_pol,
-                            "activs_policy": ["relu" for _ in range(len(sizes_pol))]
-                            }
-
-            kwargs_converters = {"all_actions": None,
-                                 "set_line_status": False,
-                                 "change_bus_vect": True,
-                                 "set_topo_vect": False
-                                 }
-            nm_ = "AnneOnymous"
-            train_sac(env,
-                      name=nm_,
-                      iterations=100,
-                      save_path=tmp_dir,
-                      load_path=None,
-                      logs_dir=tmp_dir,
-                      training_param=tp,
-                      verbose=False,
-                      kwargs_converters=kwargs_converters,
-                      kwargs_archi=kwargs_archi)
-
-            baseline_2 = eval_sac(env,
                                   name=nm_,
                                   load_path=tmp_dir,
                                   logs_path=tmp_dir,
