@@ -4,8 +4,10 @@ Change Log
 --------
 - stack multiple states in `utils/DeepQAgent`
 
-[0.5.0] - 2020-08-??
+[0.5.0] - 2020-08-18
 --------------------
+- [BREAKING] remove the SAC baseline that was not correct. For backward compatibility, its code
+  can still be accessed with SACOld
 - [FIXED] the counting of the action types frequency in tensorboard (for some baselines)
 - [FIXED] a broken Replay buffer `utils.ReplayBuffer` (used in some baselines)
 - [FIXED] a bug in using multiple environments for some baselines
