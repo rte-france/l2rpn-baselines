@@ -27,6 +27,7 @@ from l2rpn_baselines.SAC.SAC_Reward import SAC_Reward
 from l2rpn_baselines.utils import cli_train
 from l2rpn_baselines.utils.waring_msgs import _WARN_GPU_MEMORY
 from l2rpn_baselines.utils import make_multi_env
+from l2rpn_baselines.utils import tf_limit_gpu_usage
 
 def cli():
     parser = argparse.ArgumentParser(description="Train SAC baseline")
@@ -48,6 +49,8 @@ def cli():
                         help="Path to NN json config file")
     parser.add_argument("--train_config", required=True,
                         help="Path to training config json file")
+    parser.add_argument("--quiet", action="store_false",
+                        help="Disable verbose logging")
     return parser.parse_args()
 
 def train(env,
@@ -60,9 +63,7 @@ def train(env,
           nn_param=None,
           train_param=None):
 
-    physical_devices = tf.config.list_physical_devices('GPU')
-    if len(physical_devices) > 0:
-        tf.config.experimental.set_memory_growth(physical_devices[0], True)
+    tf_limit_gpu_usage()
 
     baseline = SAC_Agent(observation_space=env.observation_space,
                          action_space=env.action_space,
@@ -87,7 +88,7 @@ if __name__ == "__main__":
     # Load configs
     nn_conf = SAC_Config_NN.from_json_file(args.nn_config)
     train_conf = SAC_Config_Train.from_json_file(args.train_config)
-    
+
     # Use custom grid2op params
     game_param = Parameters()
 
@@ -104,10 +105,6 @@ if __name__ == "__main__":
                param=game_param,
                reward_class=SAC_Reward,
                backend=backend)
-    # Handle MultiProcessing
-    env_init = env
-    if args.nb_env > 1:
-        env = make_multi_env(env_init=env_init, nb_env=int(args.nb_env))
 
     # Call training interface
     train(env,
@@ -117,6 +114,7 @@ if __name__ == "__main__":
           logs_dir=args.logs_dir,
           load_path=args.load_path,
           nn_param=nn_conf,
-          train_param=train_conf)
+          train_param=train_conf,
+          verbose=args.quiet)
 
     env_init.close()

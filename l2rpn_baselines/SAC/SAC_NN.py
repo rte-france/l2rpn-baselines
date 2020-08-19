@@ -43,17 +43,17 @@ class SAC_NN(object):
                  action_shape,
                  nn_config,
                  training=False,
-                 verbose=True):
+                 verbose=False):
         self.observation_shape = observation_shape
         self.action_shape = action_shape
         self._cfg = nn_config
         self.verbose = verbose
-        
+
         self.training = training
         self.alpha = 0.01
         if self.training:
             self.alpha = self._cfg.alpha
-        
+
         self.construct_q_network()
 
     def _build_q_NN(self, model_name):
@@ -65,8 +65,6 @@ class SAC_NN(object):
         lay = input_layer
         lay_size_activ = zip(self._cfg.sizes_critic,
                              self._cfg.activations_critic)
-        print (self._cfg.activations_critic)
-        print (list(enumerate(lay_size_activ)))
         for lay_id, (size, act) in enumerate(lay_size_activ):
             lay_name = "{}_fc_{}".format(model_name, lay_id)
             act_name = "{}_act_{}".format(model_name, lay_id)
@@ -100,7 +98,7 @@ class SAC_NN(object):
         action_size = self.action_shape[0]
         mean_name = "{}_fc_mean".format(model_name)
         mean = tfkl.Dense(action_size, name=mean_name)(lay)
-        
+
         log_std_name = "{}_fc_log_std".format(model_name)
         log_std = tfkl.Dense(action_size, name=log_std_name)(lay)
         log_std = tf.clip_by_value(log_std,
@@ -130,7 +128,7 @@ class SAC_NN(object):
             self.target_q1 = self._build_q_NN(model_name="target-q1")
             self.target_q1_opt = tfko.Adam(lr=self._cfg.lr_critic)
             self.target_q1.compile(optimizer=self.target_q1_opt)
-            
+
             self.target_q2 = self._build_q_NN(model_name="target-q2")
             self.target_q2_opt = tfko.Adam(lr=self._cfg.lr_critic)
             self.target_q2.compile(optimizer=self.target_q2_opt)
@@ -246,7 +244,6 @@ class SAC_NN(object):
         alphal = alpha_loss.numpy()
         # Return them
         return q1l, q2l, policyl, alphal
-    
 
     @staticmethod
     def model_paths(path, name, ext):
@@ -257,15 +254,15 @@ class SAC_NN(object):
 
         q1_path = os.path.join(model_dir, "q1.{}".format(ext))
         q1_path = os.path.abspath(q1_path)
-        
+
         q2_path = os.path.join(model_dir, "q2.{}".format(ext))
         q2_path = os.path.abspath(q2_path)
-        
+
         policy_path = os.path.join(model_dir, "policy.{}".format(ext))
         policy_path = os.path.abspath(policy_path)
 
         return  model_dir, q1_path, q2_path, policy_path
-        
+
     def save_network(self, path, name=None, ext="h5"):
         """
         Saves all the models network weigths
@@ -275,7 +272,7 @@ class SAC_NN(object):
         q1_path = model_paths[1]
         q2_path = model_paths[2]
         policy_path = model_paths[3]
-        
+
         os.makedirs(model_dir, exist_ok=True)
 
         self.q1.save(q1_path)
@@ -287,7 +284,7 @@ class SAC_NN(object):
 
     def load_network(self, path, name=None, ext="h5"):
         """
-        Loqd the models networks weights from disk
+        Load the models networks weights from disk
         """
 
         model_paths = self.model_paths(path, name, ext)
@@ -295,13 +292,14 @@ class SAC_NN(object):
         q1_path = model_paths[1]
         q2_path = model_paths[2]
         policy_path = model_paths[3]
-        
+
         self.q1.load_weights(q1_path)
         self.q2.load_weights(q2_path)
         self.policy.load_weights(policy_path)
 
-        self.hard_target_update(self.q1, self.target_q1)
-        self.hard_target_update(self.q2, self.target_q2)
+        if self.training:
+            self.hard_target_update(self.q1, self.target_q1)
+            self.hard_target_update(self.q2, self.target_q2)
 
         if self.verbose:
             print("Succesfully loaded networks.")
@@ -312,7 +310,7 @@ class SAC_NN(object):
 
         source_params = source.trainable_variables
         target_params = target.trainable_variables
-        
+
         for src, dest in zip(source_params, target_params):
             # Polyak averaging
             var_update = src.value() * tau
@@ -323,6 +321,6 @@ class SAC_NN(object):
     def hard_target_update(source, target):
         source_params = source.trainable_variables
         target_params = target.trainable_variables
-        
+
         for src, dest in zip(source_params, target_params):
             dest.assign(src.value())

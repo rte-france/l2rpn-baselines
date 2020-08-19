@@ -9,7 +9,7 @@
 # This file is part of L2RPN Baselines, L2RPN Baselines a repository to host baselines for l2rpn competitions.
 
 import os
-import tensorflow as tf
+import argparse
 
 from grid2op.MakeEnv import make
 from grid2op.Runner import Runner
@@ -20,124 +20,65 @@ from l2rpn_baselines.utils.save_log_gif import save_log_gif
 from l2rpn_baselines.SAC.SAC_Agent import SAC_Agent
 from l2rpn_baselines.SAC.SAC_Config_NN import SAC_Config_NN
 from l2rpn_baselines.SAC.SAC_NN import SAC_NN
+from l2rpn_baselines.utils import tf_limit_gpu_usage
 
-DEFAULT_LOGS_DIR = "./logs-eval/do-nothing-baseline"
+DEFAULT_LOGS_DIR = "./logs-eval/SAC"
 DEFAULT_NB_EPISODE = 1
 DEFAULT_NB_PROCESS = 1
 DEFAULT_MAX_STEPS = -1
 
+def cli():
+    parser = argparse.ArgumentParser(description="Evaluate SAC baseline")
+
+    parser.add_argument("--dataset", required=True,
+                        help="Dataset name or path to a dataset root dir")
+    parser.add_argument("--logs_dir",
+                        required=False, default=DEFAULT_LOGS_DIR,
+                        help="Directory where to save the logs")
+    parser.add_argument("--load_path", required=True,
+                        help="Resume training from model path")
+    parser.add_argument("--nn_config", required=True,
+                        help="Path to NN json config file")
+    parser.add_argument("--nb_episode", required=False,
+                        type=int, default=DEFAULT_NB_EPISODE,
+                        help="Number of episodes to run")
+    parser.add_argument("--max_steps", required=False,
+                        type=int, default=DEFAULT_MAX_STEPS,
+                        help="Number of episodes to run")
+    parser.add_argument("--nb_process", required=False,
+                        type=int, default=DEFAULT_NB_PROCESS,
+                        help="Number of processes to use")
+    parser.add_argument("--quiet", action="store_false",
+                        help="Disable verbose logging")
+    return parser.parse_args()
 
 def evaluate(env,
-             name="SAC",
              load_path=None,
              logs_path=DEFAULT_LOGS_DIR,
              nb_episode=DEFAULT_NB_EPISODE,
              nb_process=DEFAULT_NB_PROCESS,
              max_steps=DEFAULT_MAX_STEPS,
-             verbose=False,
-             save_gif=False):
-    """
-    How to evaluate the performances of the trained SAC agent.
+             nn_param=None,
+             verbose=True):
 
-    Parameters
-    ----------
-    env: :class:`grid2op.Environment`
-        The environment on which you evaluate your agent.
-
-    name: ``str``
-        The name of the trained baseline
-
-    load_path: ``str``
-        Path where the agent has been stored
-
-    logs_path: ``str``
-        Where to write the results of the assessment
-
-    nb_episode: ``str``
-        How many episodes to run during the assessment of the performances
-
-    nb_process: ``int``
-        On how many process the assessment will be made. (setting this > 1 can lead to some speed ups but can be
-        unstable on some plaform)
-
-    max_steps: ``int``
-        How many steps at maximum your agent will be assessed
-
-    verbose: ``bool``
-        Currently un used
-
-    save_gif: ``bool``
-        Whether or not you want to save, as a gif, the performance of your agent. It might cause memory issues (might
-        take a lot of ram) and drastically increase computation time.
-
-    Returns
-    -------
-    agent: :class:`l2rpn_baselines.utils.DeepQAgent`
-        The loaded agent that has been evaluated thanks to the runner.
-
-    res: ``list``
-        The results of the Runner on which the agent was tested.
-
-
-    Examples
-    -------
-    You can evaluate a DeepQSimple this way:
-
-    .. code-block:: python
-
-        from grid2op.Reward import L2RPNSandBoxScore, L2RPNReward
-        from l2rpn_baselines.SAC import eval
-
-        # Create dataset env
-        env = make("l2rpn_case14_sandbox",
-                   reward_class=L2RPNSandBoxScore,
-                   other_rewards={
-                       "reward": L2RPNReward
-                   })
-
-        # Call evaluation interface
-        evaluate(env,
-                 name="MyAwesomeAgent",
-                 load_path="/WHERE/I/SAVED/THE/MODEL",
-                 logs_path=None,
-                 nb_episode=10,
-                 nb_process=1,
-                 max_steps=-1,
-                 verbose=False,
-                 save_gif=False)
-    """
-
-    # Limit gpu usage
-    physical_devices = tf.config.list_physical_devices('GPU')
-    if len(physical_devices):
-        tf.config.experimental.set_memory_growth(physical_devices[0], True)
+    tf_limit_gpu_usage()
 
     runner_params = env.get_params_for_runner()
     runner_params["verbose"] = verbose
 
     if load_path is None:
-        raise RuntimeError("Cannot evaluate a model if there is nothing to be loaded.")
-    path_model, path_target_model = SAC_NN.get_path_model(load_path, name)
-    nn_archi = SAC_Config_NN.from_json(os.path.join(path_model, "nn_architecture.json"))
+        err_msg = "Cannot evaluate a model if there is nothing to be loaded."
+        raise RuntimeError(err_msg)
 
     # Run
     # Create agent
-    agent = SAC(action_space=env.action_space,
-                name=name,
-                store_action=nb_process == 1,
-                nn_archi=nn_archi,
-                observation_space=env.observation_space)
+    agent = SAC_Agent(observation_space=env.observation_space,
+                      action_space=env.action_space,
+                      nn_config=nn_param,
+                      training=False)
 
     # Load weights from file
-    agent.load(load_path)
-
-    # Print model summary
-    stringlist = []
-    agent.deep_q.model_value.summary(print_fn=lambda x: stringlist.append(x))
-    short_model_summary = "\n".join(stringlist)
-
-    if verbose:
-        print("Value model: {}".format(short_model_summary))
+    agent.nn.load_network(load_path)
 
     # Build runner
     runner = Runner(**runner_params,
@@ -159,21 +100,9 @@ def evaluate(env,
         for _, chron_name, cum_reward, nb_time_step, max_ts in res:
             msg_tmp = "chronics at: {}".format(chron_name)
             msg_tmp += "\ttotal score: {:.6f}".format(cum_reward)
-            msg_tmp += "\ttime steps: {:.0f}/{:.0f}".format(nb_time_step, max_ts)
+            msg_tmp += "\ttime steps: {:.0f}/{:.0f}".format(nb_time_step,
+                                                            max_ts)
             print(msg_tmp)
-
-        if len(agent.dict_action):
-            # I output some of the actions played
-            print("The agent played {} different action".format(len(agent.dict_action)))
-            for id_, (nb, act, types) in agent.dict_action.items():
-                print("Action with ID {} was played {} times".format(id_, nb))
-                print("{}".format(act))
-                print("-----------")
-
-    if save_gif:
-        if verbose:
-            print("Saving the gif of the episodes")
-        save_log_gif(logs_path, res)
 
     return agent, res
 
@@ -183,22 +112,23 @@ if __name__ == "__main__":
     from l2rpn_baselines.utils import cli_eval
 
     # Parse command line
-    args = cli_eval().parse_args()
+    args = cli()
+
+    nn_conf = SAC_Config_NN.from_json_file(args.nn_config)
 
     # Create dataset env
-    env = make(args.env_name,
-               reward_class=L2RPNSandBoxScore,
+    env = make(args.dataset,
                other_rewards={
-                   "reward": L2RPNReward
+                   "capacity": L2RPNReward,
+                   "codalab": L2RPNSandBoxScore
                })
 
     # Call evaluation interface
     evaluate(env,
-             name=args.name,
-             load_path=os.path.abspath(args.load_path),
+             load_path=args.load_path,
+             nn_param=nn_conf,
              logs_path=args.logs_dir,
              nb_episode=args.nb_episode,
              nb_process=args.nb_process,
              max_steps=args.max_steps,
-             verbose=args.verbose,
-             save_gif=args.save_gif)
+             verbose=args.quiet)

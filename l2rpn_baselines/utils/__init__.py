@@ -19,7 +19,9 @@ __all__ = [
     "ReplayBuffer",
     "BaseDeepQ",
     "DeepQAgent",
-    "BaseConfig"
+    "BaseConfig",
+    "TensorboardLogger",
+    "tf_limit_gpu_usage"
 ]
 
 from l2rpn_baselines.utils.cli_eval import cli_eval
@@ -29,6 +31,7 @@ from l2rpn_baselines.utils.save_log_gif import save_log_gif
 from l2rpn_baselines.utils.zip_for_codalab import zip_for_codalab
 from l2rpn_baselines.utils.train_generic import train_generic
 from l2rpn_baselines.utils.make_multi_env import make_multi_env
+from l2rpn_baselines.utils.tf import tf_limit_gpu_usage
 
 from l2rpn_baselines.utils.TrainingParam import TrainingParam
 from l2rpn_baselines.utils.NNParam import NNParam
@@ -36,3 +39,4 @@ from l2rpn_baselines.utils.ReplayBuffer import ReplayBuffer
 from l2rpn_baselines.utils.BaseDeepQ import BaseDeepQ
 from l2rpn_baselines.utils.DeepQAgent import DeepQAgent
 from l2rpn_baselines.utils.BaseConfig import BaseConfig
+from l2rpn_baselines.utils.tf import TensorboardLogger
