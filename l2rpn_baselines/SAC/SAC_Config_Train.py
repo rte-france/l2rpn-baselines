@@ -23,11 +23,11 @@ class SAC_Config_Train(BaseConfig):
         super().__init__()
 
         # Set some defaults
-        self.replay_buffer_size = int(1e4)
+        self.replay_buffer_size = int(1e6)
         self.min_replay_buffer_size = 256
         self.update_freq = 1
         self.save_freq = 10000
-        self.log_freq = 10
+        self.log_freq = 100
         self.batch_size = 128
 
 if __name__ == "__main__":
