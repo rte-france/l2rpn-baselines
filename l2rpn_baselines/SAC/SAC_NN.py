@@ -58,6 +58,21 @@ class SAC_NN(object):
 
         self.construct_q_network()
 
+    def _build_mlp(self, input_layer, sizes, activations, name):
+        # Use laynorm + tanh reg
+        lay = tfkl.LayerNormalization()(input_layer)
+        lay = tf.nn.tanh(lay)
+
+        lay_size_activ = zip(sizes, activations)
+        for lay_id, (size, act) in enumerate(lay_size_activ):
+            lay_name = "{}_fc_{}".format(name, lay_id)
+            act_name = "{}_act_{}".format(name, lay_id)
+            lay = tfkl.Dense(size, name=lay_name)(lay)
+            if act is not None and act != 'None':
+                lay = tfkl.Activation(act, name=act_name)(lay)
+
+        return lay
+        
     def _build_q_NN(self, model_name):
         input_state = tfkl.Input(shape=self.observation_shape)
         input_action = tfkl.Input(shape=self.action_shape)
@@ -66,18 +81,10 @@ class SAC_NN(object):
         input_layer = tf.concat([input_state, input_action, input_impact],
                                 axis=-1)
 
-        lay = input_layer
-        lay_size_activ = zip(self._cfg.sizes_critic,
-                             self._cfg.activations_critic)
-        for lay_id, (size, act) in enumerate(lay_size_activ):
-            lay_name = "{}_fc_{}".format(model_name, lay_id)
-            act_name = "{}_act_{}".format(model_name, lay_id)
-            lay = tfkl.Dense(size, name=lay_name)(lay)
-            if act is not None and act != 'None':
-                lay = tfkl.Activation(act, name=act_name)(lay)
-
-        final_name = "{}_final".format(model_name)
-        Q = tfkl.Dense(1, name=final_name)(lay)
+        Q = self._build_mlp(input_layer,
+                            self._cfg.sizes_critic,
+                            self._cfg.activations_critic,
+                            model_name)
 
         model_inputs = [input_state, input_action, input_impact]
         model_outputs = [Q]
@@ -89,37 +96,41 @@ class SAC_NN(object):
     def _build_policy_NN(self, model_name):
         input_state = tfkl.Input(shape=self.observation_shape)
 
-        lay = input_state
-        lay_size_activ = zip(self._cfg.sizes_policy,
-                             self._cfg.activations_policy)
-        for lay_id, (size, act) in enumerate(lay_size_activ):
-            lay_name = "{}_fc_{}".format(model_name, lay_id)
-            act_name = "{}_act_{}".format(model_name, lay_id)
-            lay = tfkl.Dense(size, name=lay_name)(lay)
-            if act is not None and act != 'None':
-                lay = tfkl.Activation(act, name=act_name)(lay)
+        # Get target state distribution
+        lay = self._build_mlp(input_state,
+                              self._cfg.sizes_policy,
+                              self._cfg.activations_policy,
+                              model_name)
 
         action_size = self.action_shape[0]
-        impact_size = self.impact_shape[0]
 
         mean_name = "{}_fc_mean".format(model_name)
         mean = tfkl.Dense(action_size, name=mean_name)(lay)
         
-        mean2_name = "{}_fc_mean2".format(model_name)
-        mean2 = tfkl.Dense(impact_size, name=mean2_name)(lay)
-
         log_std_name = "{}_fc_log_std".format(model_name)
         log_std = tfkl.Dense(action_size, name=log_std_name)(lay)
         log_std = tf.clip_by_value(log_std,
                                    self._cfg.log_std_min,
                                    self._cfg.log_std_max)
 
+        # Get impact exectution
+        input_impact = tf.concat([lay, mean, log_std], axis=-1)
+        impact_lay = self._build_mlp(input_state,
+                                     self._cfg.sizes_policy,
+                                     self._cfg.activations_policy,
+                                     model_name + "resimpact")
+
+        impact_size = self.impact_shape[0]
+        mean2_name = "{}_fc_mean2".format(model_name)
+        mean2 = tfkl.Dense(impact_size, name=mean2_name)(impact_lay)
+
         log_std2_name = "{}_fc_log_std2".format(model_name)
-        log_std2 = tfkl.Dense(impact_size, name=log_std2_name)(lay)
+        log_std2 = tfkl.Dense(impact_size, name=log_std2_name)(impact_lay)
         log_std2 = tf.clip_by_value(log_std2,
                                     self._cfg.log_std_min,
                                     self._cfg.log_std_max)
 
+        # Output both distributions
         model_inputs = [input_state]
         model_outputs = [mean, log_std, mean2, log_std2]
         model = tfk.Model(inputs=model_inputs,
@@ -157,7 +168,7 @@ class SAC_NN(object):
 
         if self.training:
             actor_outsize = self.action_shape[0] + self.impact_shape[0]
-            self.target_entropy = -(actor_outsize * 1.0)
+            self.target_entropy = -(actor_outsize * 2.0)
             self.log_alpha = tf.Variable(0.0, trainable=True)
             self.alpha_opt = tfko.Adam(lr=self._cfg.lr_alpha)
 

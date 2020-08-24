@@ -40,7 +40,7 @@ class SAC_Agent(BaseAgent):
                          verbose=verbose)
         self.training = training
         self.verbose = verbose
-        self.sample = False
+        self.sample = self.training
 
     #####
     ## Grid2op <-> NN converters
@@ -88,7 +88,7 @@ class SAC_Agent(BaseAgent):
         for sub_id in sub_idxs:
             sub_start = np.sum(self.observation_space.sub_info[:sub_id])
             sub_end = sub_start + self.observation_space.sub_info[sub_id]
-
+            
             # Show grid2op target in verbose mode
             if self.verbose:
                 sub_fmt = "{:<5}{:<20}{:<20}"
@@ -105,20 +105,14 @@ class SAC_Agent(BaseAgent):
             act_grid2op = self.action_space({"set_bus": act_v})
             self.target_act_grid2op.append(act_grid2op)
 
-            # Compute NN target
-            # TODO test:
-            act_nn = np.array(self.target_nn)
-            #act_nn = np.array(self.target_nn)
-            #act_nn_sub = np.array(self.target_nn[sub_start:sub_end])
-            #act_nn_sub[act_nn_sub > 0.0] = 1.0
-            #act_nn[sub_start:sub_end] = act_nn_sub[:]
-            # Currently:
-            #act_nn = np.array(act_v) * 1.0
-            #act_nn[act_nn == 1] = -1.0
-            #act_nn[act_nn == 2] = 1.0
+            # Substation NN target
+            act_nn = np.zeros_like(self.target_nn)
+            act_nn[sub_start:sub_end] = self.target_nn[sub_start:sub_end]
             self.target_act_nn.append(act_nn)
 
-            impact_nn = np.array(self.impact_nn)
+            # Substation NN impact
+            impact_nn = np.full(self.impact_nn.shape, -1.0)
+            impact_nn[sub_id] = self.impact_nn[sub_id]
             self.target_impact_nn.append(impact_nn)
 
             # Store sub id
@@ -131,7 +125,9 @@ class SAC_Agent(BaseAgent):
         if self.has_target is False:
             return
 
+        # Filter init: Keep all actions
         prune_filter = np.ones(len(self.target_act_sub), dtype=bool)
+        # If sub is already in target position, filter out
         for i, sub_id in enumerate(self.target_act_sub):
             act_grid2op = self.target_act_grid2op[i]
             sub_start = np.sum(self.observation_space.sub_info[:sub_id])
@@ -141,6 +137,7 @@ class SAC_Agent(BaseAgent):
             if np.all(act_v == current_v):
                 prune_filter[i] = False
 
+        # Apply filter
         self.target_act_grid2op = list(compress(self.target_act_grid2op,
                                                 prune_filter))
         self.target_act_nn = list(compress(self.target_act_nn,
@@ -291,11 +288,10 @@ class SAC_Agent(BaseAgent):
         
         # Do iterations updates
         while update_step < iterations:
-            if replay_buffer.size() < train_cfg.min_replay_buffer_size:
-                self.sample = True
-            else:
-                self.sample = False
+            # Curriculum training
             difficulty = "compet" #self.train_cv(env, update_step, iterations)
+
+            # New episode
             if done:
                 obs = env.reset()
                 self.reset(obs)

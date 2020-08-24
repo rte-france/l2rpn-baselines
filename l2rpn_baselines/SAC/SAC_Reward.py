@@ -13,10 +13,12 @@ from grid2op.dtypes import dt_float
 class SAC_Reward(BaseReward):
     def __init__(self):
         super().__init__()
+        self.reward_min = dt_float(-10.0)
+        self.reward_max = dt_float(2.0)
 
     def initialize(self, env):
         self.reward_min = dt_float(-10.0)
-        self.reward_max = dt_float(1.0)
+        self.reward_max = dt_float(2.0)
 
     def __call__(self, action, env,
                  has_error, is_done,
@@ -24,14 +26,14 @@ class SAC_Reward(BaseReward):
         if has_error:
             return self.reward_min
         if is_illegal or is_ambiguous:
-            return (self.reward_min + self.reward_max) / 2.0
+            return self.reward_min
         else:
             obs = env.current_obs
-            rho = obs.rho[obs.line_status == True]
+            rho = np.max(obs.rho)
             rho = np.clip(rho, 0.0, 2.0)
             rho_sq = rho * rho
             inv_rho_sq = np.sum(4.0 - rho_sq)
-            r_unit = 0.25 * (inv_rho_sq / dt_float(np.sum(obs.line_status)))
+            r_unit = 0.25 * inv_rho_sq
             
             return dt_float(r_unit * self.reward_max)
         
