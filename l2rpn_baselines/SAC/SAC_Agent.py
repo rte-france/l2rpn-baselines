@@ -41,6 +41,28 @@ class SAC_Agent(BaseAgent):
         self.training = training
         self.verbose = verbose
         self.sample = self.training
+        self._build_sub_maps()
+
+    def _build_sub_maps(self):
+        self.sub_iso_pos = []
+        self.sub_l_pos = []
+
+        for sub_id in range(self.action_space.n_sub):
+            sub_loads = np.where(self.action_space.load_to_subid == sub_id)[0]
+            sub_gens = np.where(self.action_space.gen_to_subid == sub_id)[0]
+            sub_lor = np.where(self.action_space.line_or_to_subid == sub_id)[0]
+            sub_lex = np.where(self.action_space.line_ex_to_subid == sub_id)[0]
+
+            sub_loads_pos = self.action_space.load_pos_topo_vect[sub_loads]
+            sub_gens_pos = self.action_space.gen_pos_topo_vect[sub_gens]
+            sub_iso_pos = np.concatenate([sub_loads_pos, sub_gens_pos])
+
+            sub_lor_pos = self.action_space.line_or_pos_topo_vect[sub_lor]
+            sub_lex_pos = self.action_space.line_ex_pos_topo_vect[sub_lex]
+            sub_l_pos = np.concatenate([sub_lor_pos, sub_lex_pos])
+
+            self.sub_iso_pos.append(sub_iso_pos)
+            self.sub_l_pos.append(sub_l_pos)
 
     #####
     ## Grid2op <-> NN converters
@@ -86,9 +108,29 @@ class SAC_Agent(BaseAgent):
         # Compute forward actions using impact
         sub_idxs = tf.argsort(self.impact_nn, direction='DESCENDING')
         for sub_id in sub_idxs:
+            sub_size = self.observation_space.sub_info[sub_id]
             sub_start = np.sum(self.observation_space.sub_info[:sub_id])
-            sub_end = sub_start + self.observation_space.sub_info[sub_id]
-            
+            sub_end = sub_start + sub_size
+
+            # Skip small substations
+            if sub_size < 4:
+                continue
+
+            # Force connectivity on bus 1
+            self.target_grid2op[self.sub_l_pos[sub_id][0]] = 1
+
+            # Avoid isolation
+            sub_iso_pos = self.sub_iso_pos[sub_id]
+            len_iso = len(sub_iso_pos)
+            sub_l_pos = self.sub_l_pos[sub_id]
+            if len_iso > 0:
+                sub_lines = self.target_grid2op[sub_l_pos]
+                bus2_lines_disabled = np.all(sub_lines == 1)
+                sub_iso = self.target_grid2op[sub_iso_pos]
+                bus2_iso_used = np.any(sub_iso == 2)
+                if bus2_lines_disabled and bus2_iso_used:
+                    self.target_grid2op[sub_iso_pos] = 1
+
             # Show grid2op target in verbose mode
             if self.verbose:
                 sub_fmt = "{:<5}{:<20}{:<20}"
@@ -214,6 +256,28 @@ class SAC_Agent(BaseAgent):
 
         return a_grid2op, a_nn, i_nn
 
+    def _step(self, env, observation_grid2op, observation_nn):
+        dn = self.action_space({})
+        if self.danger(observation_grid2op, dn):
+            self.clear_target()
+            self.get_target(observation_grid2op, observation_nn)
+            self.prune_target(observation_grid2op)
+            if self.has_target:
+                target_nn = self.target_nn
+                impact_nn = self.impact_nn
+                done = False
+                reward = 0.0
+                info = {}
+                while done is False and self.has_target:
+                    a_grid2op, a_nn, i_nn = self.consume_target()
+                    print ("Apply:", a_grid2op)
+                    obs, r, done, info = env.step(a_grid2op)
+                    reward += r
+                return obs, reward, done, info, target_nn, impact_nn
+        # Not in danger: DN
+        obs, reward, done, info = env.step(dn)
+        return obs, reward, done, info, None, None
+
     ###
     ## Baseline train
     ###
@@ -223,8 +287,8 @@ class SAC_Agent(BaseAgent):
 
     def train_cv(self, env, current_step, total_step):
         params = Parameters()
-        difficulty = None
-        if current_step <= int(total_step * 0.025):
+        difficulty = "unchanged"
+        if current_step == 0:
             params.NO_OVERFLOW_DISCONNECTION = True
             params.NB_TIMESTEP_OVERFLOW_ALLOWED = 9999
             params.NB_TIMESTEP_COOLDOWN_SUB = 0
@@ -232,7 +296,8 @@ class SAC_Agent(BaseAgent):
             params.HARD_OVERFLOW_THRESHOLD = 9999
             params.NB_TIMESTEP_RECONNECTION = 0
             difficulty = "0"
-        elif current_step <= int(total_step * 0.05):
+            env.parameters = params
+        elif current_step == int(total_step * 0.05):
             params.NO_OVERFLOW_DISCONNECTION = False
             params.NB_TIMESTEP_OVERFLOW_ALLOWED = 6
             params.NB_TIMESTEP_COOLDOWN_SUB = 0
@@ -240,7 +305,9 @@ class SAC_Agent(BaseAgent):
             params.HARD_OVERFLOW_THRESHOLD = 3.0
             params.NB_TIMESTEP_RECONNECTION = 1
             difficulty = "1"
-        elif current_step <= int(total_step * 0.1):
+            self.rpbf.clear()
+            env.parameters = params
+        elif current_step == int(total_step * 0.1):
             params.NO_OVERFLOW_DISCONNECTION = False
             params.NB_TIMESTEP_OVERFLOW_ALLOWED = 3
             params.NB_TIMESTEP_COOLDOWN_SUB = 1
@@ -248,7 +315,9 @@ class SAC_Agent(BaseAgent):
             params.HARD_OVERFLOW_THRESHOLD = 2.5
             params.NB_TIMESTEP_RECONNECTION = 6
             difficulty = "2"
-        else:
+            self.rpbf.clear()
+            env.parameters = params
+        elif current_step == int(total_step * 0.2):
             params.NO_OVERFLOW_DISCONNECTION = False
             params.NB_TIMESTEP_OVERFLOW_ALLOWED = 2
             params.NB_TIMESTEP_COOLDOWN_SUB = 3
@@ -256,12 +325,14 @@ class SAC_Agent(BaseAgent):
             params.HARD_OVERFLOW_THRESHOLD = 2.0
             params.NB_TIMESTEP_RECONNECTION = 12
             difficulty = "competition"
-        env.parameters = params
+            self.rpbf.clear()
+            env.parameters = params
         return difficulty
         
     def train(self, env, iterations, save_path, logs_path, train_cfg):
         # Init training vars
         replay_buffer = SAC_ReplayBuffer(train_cfg.replay_buffer_size)
+        self.rpbf = replay_buffer
         target_step = 0
         update_step = 0
         step = 0
@@ -289,7 +360,7 @@ class SAC_Agent(BaseAgent):
         # Do iterations updates
         while update_step < iterations:
             # Curriculum training
-            difficulty = "compet" #self.train_cv(env, update_step, iterations)
+            difficulty = self.train_cv(env, update_step, iterations)
 
             # New episode
             if done:
@@ -298,13 +369,15 @@ class SAC_Agent(BaseAgent):
                 obs_nn = self.observation_grid2op_to_nn(obs)
                 done = False
 
-            act_grid2op, act_nn, impact_nn  = self._act(obs, obs_nn)
-            obs_next, reward, done, info = env.step(act_grid2op)
+            stepped = self._step(env, obs, obs_nn)
+            (obs_next, reward, done, info, act_nn, impact_nn) = stepped
+            #act_grid2op, act_nn, impact_nn  = self._act(obs, obs_nn)
+            #obs_next, reward, done, info = env.step(act_grid2op)
             obs_nn_next = self.observation_grid2op_to_nn(obs_next)
 
             if info["is_illegal"]:
                 episode_illegal += 1
-                print ("Illegal", act_grid2op)
+                #print ("Illegal", act_grid2op)
             if done:
                 print ("Game over", info)
             episode_steps += 1

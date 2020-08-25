@@ -169,7 +169,8 @@ class SAC_NN(object):
         if self.training:
             actor_outsize = self.action_shape[0] + self.impact_shape[0]
             self.target_entropy = -(actor_outsize * 2.0)
-            self.log_alpha = tf.Variable(0.0, trainable=True)
+            self.log_alpha = tf.Variable(tf.math.log(self.alpha),
+                                         trainable=True)
             self.alpha_opt = tfko.Adam(lr=self._cfg.lr_alpha)
 
     def predict(self, net_observation, sample=True):
