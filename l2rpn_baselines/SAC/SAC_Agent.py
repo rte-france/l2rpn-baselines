@@ -100,13 +100,13 @@ class SAC_Agent(BaseAgent):
         # Reshape to batch_size 1 for inference
         obs_nn = tf.reshape(observation_nn, (1,) + self.observation_shape)
         self.target_nn, self.impact_nn = self.nn.predict(obs_nn, self.sample)
-        self.target_nn = self.target_nn[0]
-        self.impact_nn = self.impact_nn[0]
+        self.target_nn = self.target_nn[0].numpy()
+        self.impact_nn = self.impact_nn[0].numpy()
         self.target_grid2op = np.ones_like(self.target_nn, dtype=int)
-        self.target_grid2op[self.target_nn > 0.0] = 2
+        self.target_grid2op[self.target_nn > 0.8] = 2
 
         # Compute forward actions using impact
-        sub_idxs = tf.argsort(self.impact_nn, direction='DESCENDING')
+        sub_idxs = np.argsort(self.impact_nn)
         for sub_id in sub_idxs:
             sub_size = self.observation_space.sub_info[sub_id]
             sub_start = np.sum(self.observation_space.sub_info[:sub_id])
@@ -125,7 +125,7 @@ class SAC_Agent(BaseAgent):
             sub_l_pos = self.sub_l_pos[sub_id]
             if len_iso > 0:
                 sub_lines = self.target_grid2op[sub_l_pos]
-                bus2_lines_disabled = np.all(sub_lines == 1)
+                bus2_lines_disabled = np.all(sub_lines[sub_lines != -1] == 1)
                 sub_iso = self.target_grid2op[sub_iso_pos]
                 bus2_iso_used = np.any(sub_iso == 2)
                 if bus2_lines_disabled and bus2_iso_used:
@@ -136,7 +136,7 @@ class SAC_Agent(BaseAgent):
                 sub_fmt = "{:<5}{:<20}{:<20}"
                 sub_target = self.target_grid2op[sub_start:sub_end]
                 sub_current = observation_grid2op.topo_vect[sub_start:sub_end]
-                sub_log = sub_fmt.format(sub_id.numpy(),
+                sub_log = sub_fmt.format(sub_id,
                                          str(sub_current),
                                          str(sub_target))
                 print (sub_log)
@@ -213,7 +213,7 @@ class SAC_Agent(BaseAgent):
 
     def act(self, observation_grid2op, reward, done=False):
         obs_nn = self.observation_grid2op_to_nn(observation_grid2op)
-        action_grid2op, _, _ = self._act(observation_grid2op, obs_nn)
+        action_grid2op = self._act(observation_grid2op, obs_nn)
         return action_grid2op
 
     def danger(self, observation_grid2op, action_grid2op):
@@ -232,33 +232,44 @@ class SAC_Agent(BaseAgent):
     
     def _act(self, observation_grid2op, observation_nn):
         a_grid2op = None
-        a_nn = None
-        i_nn = None
 
         self.prune_target(observation_grid2op)
         if self.has_target:
-            a_grid2op, a_nn, i_nn = self.consume_target()
+            a_grid2op, _, _ = self.consume_target()
             print ("Continue target: ", a_grid2op)
         else:
-            a_grid2op = self.action_space({})
+            a_grid2op = self.backwards_target(observation_grid2op)
 
         if self.danger(observation_grid2op, a_grid2op):
             self.clear_target()
             self.get_target(observation_grid2op, observation_nn)
             self.prune_target(observation_grid2op)
             if self.has_target:
-                a_grid2op, a_nn, i_nn = self.consume_target()
+                a_grid2op, _, _ = self.consume_target()
                 print ("Start target: ", a_grid2op)
             else:
-                a_grid2op = self.action_space({})
-                a_nn = None
-                i_nn = None
+                a_grid2op = self.backwards_target(observation_grid2op)
 
-        return a_grid2op, a_nn, i_nn
+        return a_grid2op
+
+    def backwards_target(self, observation_grid2op):
+        # Any sub not in initial topology, go back sub by sub
+        if np.any(observation_grid2op.topo_vect != 1):
+            act_v = np.zeros(observation_grid2op.dim_topo)
+            for sub_id in range(observation_grid2op.n_sub):
+                sub_start = np.sum(observation_grid2op.sub_info[:sub_id])
+                sub_end = sub_start + observation_grid2op.sub_info[sub_id]
+                sub_topo = observation_grid2op.topo_vect[sub_start:sub_end]
+                # This sub is not in initial topo
+                if np.any(sub_topo != 1):
+                    act_v[sub_start:sub_end] = 1
+                    return self.action_space({"set_bus": act_v})
+        # Otherwise, in initial topo: DN
+        return self.action_space({})
 
     def _step(self, env, observation_grid2op, observation_nn):
-        dn = self.action_space({})
-        if self.danger(observation_grid2op, dn):
+        default_action = self.backwards_target(observation_grid2op)
+        if self.danger(observation_grid2op, default_action):
             self.clear_target()
             self.get_target(observation_grid2op, observation_nn)
             self.prune_target(observation_grid2op)
@@ -266,16 +277,17 @@ class SAC_Agent(BaseAgent):
                 target_nn = self.target_nn
                 impact_nn = self.impact_nn
                 done = False
-                reward = 0.0
+                reward = []
                 info = {}
                 while done is False and self.has_target:
                     a_grid2op, a_nn, i_nn = self.consume_target()
-                    print ("Apply:", a_grid2op)
                     obs, r, done, info = env.step(a_grid2op)
-                    reward += r
-                return obs, reward, done, info, target_nn, impact_nn
-        # Not in danger: DN
-        obs, reward, done, info = env.step(dn)
+                    print ("Applied:", a_grid2op, "Reward:", r)
+                    reward.append(r)
+                target_reward = np.mean(reward) + r
+                return obs, target_reward, done, info, target_nn, impact_nn
+        # No danger or no target: DN
+        obs, reward, done, info = env.step(default_action)
         return obs, reward, done, info, None, None
 
     ###
@@ -285,9 +297,8 @@ class SAC_Agent(BaseAgent):
         ckpt_name = "{}-{:04d}".format(self.name, update_step)
         self.nn.save_network(save_path, name=ckpt_name)
 
-    def train_cv(self, env, current_step, total_step):
+    def train_cv(self, env, current_step, total_step, difficulty):
         params = Parameters()
-        difficulty = "unchanged"
         if current_step == 0:
             params.NO_OVERFLOW_DISCONNECTION = True
             params.NB_TIMESTEP_OVERFLOW_ALLOWED = 9999
@@ -297,7 +308,7 @@ class SAC_Agent(BaseAgent):
             params.NB_TIMESTEP_RECONNECTION = 0
             difficulty = "0"
             env.parameters = params
-        elif current_step == int(total_step * 0.05):
+        elif difficulty != "1" and current_step == int(total_step * 0.05):
             params.NO_OVERFLOW_DISCONNECTION = False
             params.NB_TIMESTEP_OVERFLOW_ALLOWED = 6
             params.NB_TIMESTEP_COOLDOWN_SUB = 0
@@ -307,7 +318,7 @@ class SAC_Agent(BaseAgent):
             difficulty = "1"
             self.rpbf.clear()
             env.parameters = params
-        elif current_step == int(total_step * 0.1):
+        elif difficulty != "2" and current_step == int(total_step * 0.1):
             params.NO_OVERFLOW_DISCONNECTION = False
             params.NB_TIMESTEP_OVERFLOW_ALLOWED = 3
             params.NB_TIMESTEP_COOLDOWN_SUB = 1
@@ -317,7 +328,8 @@ class SAC_Agent(BaseAgent):
             difficulty = "2"
             self.rpbf.clear()
             env.parameters = params
-        elif current_step == int(total_step * 0.2):
+        elif difficulty != "competition" and \
+             current_step == int(total_step * 0.2):
             params.NO_OVERFLOW_DISCONNECTION = False
             params.NB_TIMESTEP_OVERFLOW_ALLOWED = 2
             params.NB_TIMESTEP_COOLDOWN_SUB = 3
@@ -356,11 +368,13 @@ class SAC_Agent(BaseAgent):
         if self.verbose:
             print ("Training for {}".format(iterations))
             print (train_cfg.to_dict())
+        difficulty = "None"
         
         # Do iterations updates
         while update_step < iterations:
             # Curriculum training
-            difficulty = self.train_cv(env, update_step, iterations)
+            difficulty = self.train_cv(env, update_step,
+                                       iterations, difficulty)
 
             # New episode
             if done:
