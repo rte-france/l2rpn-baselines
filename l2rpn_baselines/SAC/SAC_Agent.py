@@ -8,6 +8,7 @@
 
 import os
 import sys
+import json
 from itertools import compress
 
 from grid2op.Parameters import Parameters
@@ -56,6 +57,7 @@ class SAC_Agent(BaseAgent):
         self.sub_iso_pos = []
         self.sub_l_pos = []
 
+        # Precompute elements positions for each substation
         for sub_id in range(self.action_space.n_sub):
             sub_loads = np.where(self.action_space.load_to_subid == sub_id)[0]
             sub_gens = np.where(self.action_space.gen_to_subid == sub_id)[0]
@@ -294,7 +296,7 @@ class SAC_Agent(BaseAgent):
                     s += 1
                     self.stdout("Applied:", a_grid2op)
                     reward.append(r)
-                target_reward = np.mean(reward) + r
+                target_reward = np.mean(reward)
                 self.stdout("Target reward:", target_reward)
                 return obs, target_reward, done, info, target_nn, impact_nn, s
         # No danger or no target: DN
@@ -376,6 +378,15 @@ class SAC_Agent(BaseAgent):
         episode_rewards_sum = 0.0
         episode_illegal = 0
 
+        # Copy configs in save path
+        os.makedirs(save_path, exist_ok=True)
+        cfg_path = os.path.join(save_path, "train.json")
+        with open(cfg_path, 'w+') as cfp:
+            json.dump(train_cfg.to_dict(), cfp, indent=4)
+        cfg_path = os.path.join(save_path, "nn.json")
+        with open(cfg_path, 'w+') as cfp:
+            json.dump(self.nn._cfg.to_dict(), cfp, indent=4)
+
         self.stdout("Training for {} iterations".format(iterations))
         self.stdout(train_cfg.to_dict())
         difficulty = "None"
@@ -393,6 +404,7 @@ class SAC_Agent(BaseAgent):
                 obs_nn = self.observation_grid2op_to_nn(obs)
                 done = False
 
+            # Operate
             stepped = self._step(env, obs, obs_nn)
             (obs_next, reward, done, info, act_nn, impact_nn, s) = stepped
             obs_nn_next = self.observation_grid2op_to_nn(obs_next)
@@ -409,11 +421,14 @@ class SAC_Agent(BaseAgent):
             episode_steps += s
             episode_rewards_sum += reward
 
+            # Learn
             if act_nn is not None:
+                # Save transition to replay buffer
                 replay_buffer.add(obs_nn, act_nn, impact_nn,
                                   reward, done, obs_nn_next)
                 target_step += 1
 
+                # Train / Update
                 if target_step % train_cfg.update_freq == 0 and \
                    replay_buffer.size() >= train_cfg.batch_size and \
                    replay_buffer.size() >= train_cfg.min_replay_buffer_size:
@@ -421,6 +436,7 @@ class SAC_Agent(BaseAgent):
                     losses = self.nn.train(*batch)
                     update_step += 1
 
+                    # Tensorboard logging
                     if update_step % train_cfg.log_freq == 0:
                         logger.scalar("001-loss_q1", losses[0])
                         logger.scalar("002-loss_q2", losses[1])
@@ -429,6 +445,7 @@ class SAC_Agent(BaseAgent):
                         logger.scalar("005-alpha", self.nn.alpha)
                         logger.write(update_step)
 
+                    # Save weights sometimes
                     if update_step % train_cfg.save_freq == 0:
                         self.checkpoint(save_path, update_step)
 
@@ -436,6 +453,7 @@ class SAC_Agent(BaseAgent):
             obs_nn = obs_nn_next
             step += s
 
+            # Episode metrics logging
             if done:
                 logger.mean_scalar("010-steps", episode_steps, 10)
                 logger.mean_scalar("100-steps", episode_steps, 100)
@@ -450,6 +468,7 @@ class SAC_Agent(BaseAgent):
                 self.stdout("Difficulty:\t{}".format(difficulty))
                 self.stdout("Buffer size:\t{}".format(replay_buffer.size()))
 
+                # Episode metrics reset
                 episode_steps = 0
                 episode_rewards_sum = 0.0
                 episode_illegal = 0
