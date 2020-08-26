@@ -56,7 +56,7 @@ class SAC_NN(object):
         if self.training:
             self.alpha = self._cfg.alpha
 
-        self.construct_q_network()
+        self.construct_networks()
 
     def _build_mlp(self, input_layer, sizes, activations, name):
         # Use laynorm + tanh reg
@@ -138,7 +138,7 @@ class SAC_NN(object):
                           name=model_name)
         return model
 
-    def construct_q_network(self):
+    def construct_networks(self):
         """
         This constructs all the networks needed for the SAC agent.
         """
@@ -224,7 +224,7 @@ class SAC_NN(object):
         q_next = q_next_min - (self.alpha * (a_log_next + i_log_next))
         q_target = r_batch + (1.0 - d_batch) * self._cfg.gamma * q_next
 
-        # Train Q1
+        # Update Q1
         with tf.GradientTape() as q1_tape:
             # Compute loss under gradient tape
             q1 = self.q1([s_batch, a_batch, i_batch])
@@ -236,7 +236,7 @@ class SAC_NN(object):
         q1_grads = q1_tape.gradient(q1_loss, q1_vars)
         self.q1_opt.apply_gradients(zip(q1_grads, q1_vars))
 
-        # Train Q2
+        # Update Q2
         with tf.GradientTape() as q2_tape:
             q2 = self.q2([s_batch, a_batch, i_batch])
             q2_sq_td_error = tf.square(q_target - q2)
@@ -265,7 +265,7 @@ class SAC_NN(object):
         self.soft_target_update(self.q1, self.target_q1, tau=self._cfg.tau)
         self.soft_target_update(self.q2, self.target_q2, tau=self._cfg.tau)
 
-        # Entropy train
+        # Update Entropy
         with tf.GradientTape() as entropy_tape:
             log_new = a_log_new + i_log_new
             alpha_loss = - (self.log_alpha * (log_new + self.target_entropy))
@@ -276,7 +276,7 @@ class SAC_NN(object):
         alpha_grads = entropy_tape.gradient(alpha_loss, alpha_vars)
         self.alpha_opt.apply_gradients(zip([alpha_grads], [alpha_vars]))
 
-        # Update entropy
+        # Update alpha
         self.alpha = tf.math.exp(self.log_alpha)
 
         # Get losses values from GPU
