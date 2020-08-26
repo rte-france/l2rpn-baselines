@@ -7,6 +7,7 @@
 # This file is part of L2RPN Baselines, L2RPN Baselines a repository to host baselines for l2rpn competitions.
 
 import os
+import sys
 from itertools import compress
 
 from grid2op.Parameters import Parameters
@@ -42,6 +43,14 @@ class SAC_Agent(BaseAgent):
         self.verbose = verbose
         self.sample = self.training
         self._build_sub_maps()
+        self.threshold = 0.8
+
+    def stdout(self, *print_args):
+        if self.verbose:
+            print (*print_args, file=sys.stdout)
+
+    def stderr(self, *print_args):
+        print (*print_args, file=sys.stderr)
 
     def _build_sub_maps(self):
         self.sub_iso_pos = []
@@ -92,9 +101,8 @@ class SAC_Agent(BaseAgent):
     def get_target(self,
                    observation_grid2op,
                    observation_nn):
-        if self.verbose:
-            sub_fmt = "{:<5}{:<20}{:<20}"
-            print (sub_fmt.format("Id:", "Current:",  "Target:"))
+        sub_fmt = "{:<5}{:<20}{:<20}"
+        self.stdout(sub_fmt.format("Id:", "Current:",  "Target:"))
 
         # Get new target
         # Reshape to batch_size 1 for inference
@@ -103,7 +111,7 @@ class SAC_Agent(BaseAgent):
         self.target_nn = self.target_nn[0].numpy()
         self.impact_nn = self.impact_nn[0].numpy()
         self.target_grid2op = np.ones_like(self.target_nn, dtype=int)
-        self.target_grid2op[self.target_nn > 0.8] = 2
+        self.target_grid2op[self.target_nn > self.threshold] = 2
 
         # Compute forward actions using impact
         sub_idxs = np.argsort(self.impact_nn)
@@ -132,14 +140,11 @@ class SAC_Agent(BaseAgent):
                     self.target_grid2op[sub_iso_pos] = 1
 
             # Show grid2op target in verbose mode
-            if self.verbose:
-                sub_fmt = "{:<5}{:<20}{:<20}"
-                sub_target = self.target_grid2op[sub_start:sub_end]
-                sub_current = observation_grid2op.topo_vect[sub_start:sub_end]
-                sub_log = sub_fmt.format(sub_id,
-                                         str(sub_current),
-                                         str(sub_target))
-                print (sub_log)
+            sub_fmt = "{:<5}{:<20}{:<20}"
+            sub_target = self.target_grid2op[sub_start:sub_end]
+            sub_current = observation_grid2op.topo_vect[sub_start:sub_end]
+            sub_log = sub_fmt.format(sub_id, str(sub_current), str(sub_target))
+            self.stdout(sub_log)
 
             # Compute grid2op action set bus
             act_v = np.zeros_like(observation_grid2op.topo_vect)
@@ -236,7 +241,7 @@ class SAC_Agent(BaseAgent):
         self.prune_target(observation_grid2op)
         if self.has_target:
             a_grid2op, _, _ = self.consume_target()
-            print ("Continue target: ", a_grid2op)
+            self.stdout("Continue target: ", a_grid2op)
         else:
             a_grid2op = self.backwards_target(observation_grid2op)
 
@@ -246,7 +251,7 @@ class SAC_Agent(BaseAgent):
             self.prune_target(observation_grid2op)
             if self.has_target:
                 a_grid2op, _, _ = self.consume_target()
-                print ("Start target: ", a_grid2op)
+                self.stdout("Start target: ", a_grid2op)
             else:
                 a_grid2op = self.backwards_target(observation_grid2op)
 
@@ -255,7 +260,7 @@ class SAC_Agent(BaseAgent):
     def backwards_target(self, observation_grid2op):
         # Any sub not in initial topology, go back sub by sub
         if np.any(observation_grid2op.topo_vect != 1):
-            act_v = np.zeros(observation_grid2op.dim_topo)
+            act_v = np.zeros(observation_grid2op.dim_topo, dtype=int)
             for sub_id in range(observation_grid2op.n_sub):
                 sub_start = np.sum(observation_grid2op.sub_info[:sub_id])
                 sub_end = sub_start + observation_grid2op.sub_info[sub_id]
@@ -263,11 +268,15 @@ class SAC_Agent(BaseAgent):
                 # This sub is not in initial topo
                 if np.any(sub_topo != 1):
                     act_v[sub_start:sub_end] = 1
-                    return self.action_space({"set_bus": act_v})
+                    action_grid2op = self.action_space({"set_bus": act_v})
+                    self.stdout("Backwards", action_grid2op)
+                    return action_grid2op
         # Otherwise, in initial topo: DN
-        return self.action_space({})
+        action_grid2op = self.action_space({})
+        return action_grid2op
 
     def _step(self, env, observation_grid2op, observation_nn):
+        s = 0
         default_action = self.backwards_target(observation_grid2op)
         if self.danger(observation_grid2op, default_action):
             self.clear_target()
@@ -282,13 +291,15 @@ class SAC_Agent(BaseAgent):
                 while done is False and self.has_target:
                     a_grid2op, a_nn, i_nn = self.consume_target()
                     obs, r, done, info = env.step(a_grid2op)
-                    print ("Applied:", a_grid2op, "Reward:", r)
+                    s += 1
+                    self.stdout("Applied:", a_grid2op)
                     reward.append(r)
                 target_reward = np.mean(reward) + r
-                return obs, target_reward, done, info, target_nn, impact_nn
+                self.stdout("Target reward:", target_reward)
+                return obs, target_reward, done, info, target_nn, impact_nn, s
         # No danger or no target: DN
         obs, reward, done, info = env.step(default_action)
-        return obs, reward, done, info, None, None
+        return obs, reward, done, info, None, None, 1
 
     ###
     ## Baseline train
@@ -365,9 +376,8 @@ class SAC_Agent(BaseAgent):
         episode_rewards_sum = 0.0
         episode_illegal = 0
 
-        if self.verbose:
-            print ("Training for {}".format(iterations))
-            print (train_cfg.to_dict())
+        self.stdout("Training for {} iterations".format(iterations))
+        self.stdout(train_cfg.to_dict())
         difficulty = "None"
         
         # Do iterations updates
@@ -384,17 +394,19 @@ class SAC_Agent(BaseAgent):
                 done = False
 
             stepped = self._step(env, obs, obs_nn)
-            (obs_next, reward, done, info, act_nn, impact_nn) = stepped
-            #act_grid2op, act_nn, impact_nn  = self._act(obs, obs_nn)
-            #obs_next, reward, done, info = env.step(act_grid2op)
+            (obs_next, reward, done, info, act_nn, impact_nn, s) = stepped
             obs_nn_next = self.observation_grid2op_to_nn(obs_next)
 
             if info["is_illegal"]:
                 episode_illegal += 1
-                #print ("Illegal", act_grid2op)
-            if done:
-                print ("Game over", info)
-            episode_steps += 1
+            if done and \
+               info["exception"] is not None and \
+               len(info["exception"]) != 0:
+                self.stdout("Game over", info)
+            elif done:
+                self.stdout("Episode success ?!")
+
+            episode_steps += s
             episode_rewards_sum += reward
 
             if act_nn is not None:
@@ -422,7 +434,7 @@ class SAC_Agent(BaseAgent):
 
             obs = obs_next
             obs_nn = obs_nn_next
-            step += 1
+            step += s
 
             if done:
                 logger.mean_scalar("010-steps", episode_steps, 10)
@@ -431,13 +443,12 @@ class SAC_Agent(BaseAgent):
                 logger.mean_scalar("101-illegal", episode_illegal, 100)
                 logger.mean_scalar("012-rewardsum", episode_rewards_sum, 10)
                 logger.mean_scalar("102-rewardsum", episode_rewards_sum, 100)
-                if self.verbose:
-                    print("Global step:\t{:08d}".format(step))
-                    print("Update step:\t{:08d}".format(update_step))
-                    print("Episode steps:\t{:08d}".format(episode_steps))
-                    print("Rewards sum:\t{:.2f}".format(episode_rewards_sum))
-                    print("Difficulty:\t{}".format(difficulty))
-                    print("Buffer size:\t{}".format(replay_buffer.size()))
+                self.stdout("Global step:\t{:08d}".format(step))
+                self.stdout("Update step:\t{:08d}".format(update_step))
+                self.stdout("Episode steps:\t{:08d}".format(episode_steps))
+                self.stdout("Rewards sum:\t{:.2f}".format(episode_rewards_sum))
+                self.stdout("Difficulty:\t{}".format(difficulty))
+                self.stdout("Buffer size:\t{}".format(replay_buffer.size()))
 
                 episode_steps = 0
                 episode_rewards_sum = 0.0

@@ -25,7 +25,7 @@ class SAC_Config_NN(BaseConfig):
         self.log_std_max = 2.0
         self.gamma = 0.99
         self.tau = 1e-3
-        self.alpha = 0.2
+        self.alpha = 0.35
         self.lr_critic = 1e-4
         self.lr_policy = 1e-4
         self.lr_alpha = 1e-4
