@@ -393,9 +393,12 @@ class SAC_Agent(BaseAgent):
         
         # Do iterations updates
         while update_step < iterations:
-            # Curriculum training
-            difficulty = self.train_cv(env, update_step,
-                                       iterations, difficulty)
+            if train_cfg.cv:
+                # Curriculum training
+                difficulty = self.train_cv(env, update_step,
+                                           iterations, difficulty)
+            else:
+                difficulty = "default"
 
             # New episode
             if done:

@@ -18,6 +18,10 @@ class SAC_Config_Train(BaseConfig):
         "save_freq",
         "log_freq"
     ]
+
+    _bool_attr = [
+        "cv"
+    ]
     
     def __init__(self):
         super().__init__()
@@ -29,6 +33,7 @@ class SAC_Config_Train(BaseConfig):
         self.save_freq = 10000
         self.log_freq = 100
         self.batch_size = 128
+        self.cv = True
 
 if __name__ == "__main__":
     conf = SAC_Config_Train()
