@@ -89,9 +89,6 @@ if __name__ == "__main__":
     nn_conf = SAC_Config_NN.from_json_file(args.nn_config)
     train_conf = SAC_Config_Train.from_json_file(args.train_config)
 
-    # Use custom grid2op params
-    game_param = Parameters()
-
     # Get fast backend if available
     try:
         from lightsim2grid.LightSimBackend import LightSimBackend
@@ -100,11 +97,20 @@ if __name__ == "__main__":
         from grid2op.Backend import PandaPowerBackend
         backend = PandaPowerBackend()
 
-    # Create grid2op game environement
+    # Create grid2op game environment
     env = make(args.dataset,
-               param=game_param,
                reward_class=SAC_Reward,
                backend=backend)
+
+    # Shuffle scenarios
+    def shuff(x):
+        # Reproductible experiments
+        shuff_gen = np.random.RandomState()
+        shuff_gen.seed(628) # Tau FTW
+        lx = len(x)
+        s = shuff_gen.choice(lx, size=lx, replace=False)
+        return x[s]
+    env.chronics_handler.shuffle(shuffler=shuff)
 
     # Call training interface
     train(env,
