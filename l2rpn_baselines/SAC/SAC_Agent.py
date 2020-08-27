@@ -245,7 +245,7 @@ class SAC_Agent(BaseAgent):
             a_grid2op, _, _ = self.consume_target()
             self.stdout("Continue target: ", a_grid2op)
         else:
-            a_grid2op = self.backwards_target(observation_grid2op)
+            a_grid2op = self.action_space({})
 
         if self.danger(observation_grid2op, a_grid2op):
             self.clear_target()
@@ -255,31 +255,13 @@ class SAC_Agent(BaseAgent):
                 a_grid2op, _, _ = self.consume_target()
                 self.stdout("Start target: ", a_grid2op)
             else:
-                a_grid2op = self.backwards_target(observation_grid2op)
+                a_grid2op = self.action_space({})
 
         return a_grid2op
 
-    def backwards_target(self, observation_grid2op):
-        # Any sub not in initial topology, go back sub by sub
-        if np.any(observation_grid2op.topo_vect != 1):
-            act_v = np.zeros(observation_grid2op.dim_topo, dtype=int)
-            for sub_id in range(observation_grid2op.n_sub):
-                sub_start = np.sum(observation_grid2op.sub_info[:sub_id])
-                sub_end = sub_start + observation_grid2op.sub_info[sub_id]
-                sub_topo = observation_grid2op.topo_vect[sub_start:sub_end]
-                # This sub is not in initial topo
-                if np.any(sub_topo != 1):
-                    act_v[sub_start:sub_end] = 1
-                    action_grid2op = self.action_space({"set_bus": act_v})
-                    self.stdout("Backwards", action_grid2op)
-                    return action_grid2op
-        # Otherwise, in initial topo: DN
-        action_grid2op = self.action_space({})
-        return action_grid2op
-
     def _step(self, env, observation_grid2op, observation_nn):
         s = 0
-        default_action = self.backwards_target(observation_grid2op)
+        default_action = self.action_space({})
         if self.danger(observation_grid2op, default_action):
             self.clear_target()
             self.get_target(observation_grid2op, observation_nn)
@@ -426,11 +408,10 @@ class SAC_Agent(BaseAgent):
 
             # Learn
             if act_nn is not None:
+                target_step += 1
                 # Save transition to replay buffer
                 replay_buffer.add(obs_nn, act_nn, impact_nn,
                                   reward, done, obs_nn_next)
-                target_step += 1
-
                 # Train / Update
                 if target_step % train_cfg.update_freq == 0 and \
                    replay_buffer.size() >= train_cfg.batch_size and \

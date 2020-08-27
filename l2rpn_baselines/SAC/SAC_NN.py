@@ -45,6 +45,7 @@ class SAC_NN(object):
                  nn_config,
                  training=False,
                  verbose=False):
+        self.emb_shape = (nn_config.sizes_emb[-1],)
         self.observation_shape = observation_shape
         self.action_shape = action_shape
         self.impact_shape = impact_shape
@@ -58,10 +59,15 @@ class SAC_NN(object):
 
         self.construct_networks()
 
-    def _build_mlp(self, input_layer, sizes, activations, name):
-        # Use laynorm + tanh reg
-        lay = tfkl.LayerNormalization()(input_layer)
-        lay = tf.nn.tanh(lay)
+    def _build_mlp(self, input_layer,
+                   sizes, activations,
+                   name, norm=False):
+        if norm:
+            # Use laynorm + tanh reg
+            lay = tfkl.LayerNormalization()(input_layer)
+            lay = tf.nn.tanh(lay)
+        else:
+            lay = input_layer
 
         lay_size_activ = zip(sizes, activations)
         for lay_id, (size, act) in enumerate(lay_size_activ):
@@ -72,9 +78,23 @@ class SAC_NN(object):
                 lay = tfkl.Activation(act, name=act_name)(lay)
 
         return lay
-        
-    def _build_q_NN(self, model_name):
+
+    def _build_emb(self, model_name):
         input_state = tfkl.Input(shape=self.observation_shape)
+        emb = self._build_mlp(input_state,
+                              self._cfg.sizes_emb,
+                              self._cfg.activations_emb,
+                              model_name,
+                              norm=self._cfg.norm_emb)
+        model_inputs= [input_state]
+        model_outputs = [emb]
+        model = tfk.Model(inputs=model_inputs,
+                          outputs=model_outputs,
+                          name=model_name)
+        return model
+
+    def _build_critic_NN(self, model_name):
+        input_state = tfkl.Input(shape=self.emb_shape)
         input_action = tfkl.Input(shape=self.action_shape)
         input_impact = tfkl.Input(shape=self.impact_shape)
 
@@ -84,7 +104,8 @@ class SAC_NN(object):
         Q = self._build_mlp(input_layer,
                             self._cfg.sizes_critic,
                             self._cfg.activations_critic,
-                            model_name)
+                            model_name,
+                            norm=self._cfg.norm_critic)
 
         model_inputs = [input_state, input_action, input_impact]
         model_outputs = [Q]
@@ -94,13 +115,14 @@ class SAC_NN(object):
         return model
 
     def _build_policy_NN(self, model_name):
-        input_state = tfkl.Input(shape=self.observation_shape)
+        input_state = tfkl.Input(shape=self.emb_shape)
 
         # Get target state distribution
         lay = self._build_mlp(input_state,
                               self._cfg.sizes_policy,
                               self._cfg.activations_policy,
-                              model_name)
+                              model_name,
+                              norm=self._cfg.norm_policy)
 
         action_size = self.action_shape[0]
 
@@ -118,7 +140,8 @@ class SAC_NN(object):
         impact_lay = self._build_mlp(input_state,
                                      self._cfg.sizes_policy,
                                      self._cfg.activations_policy,
-                                     model_name + "resimpact")
+                                     model_name + "resimpact",
+                                     norm=self._cfg.norm_policy)
 
         impact_size = self.impact_shape[0]
         mean2_name = "{}_fc_mean2".format(model_name)
@@ -142,26 +165,27 @@ class SAC_NN(object):
         """
         This constructs all the networks needed for the SAC agent.
         """
-        self.q1 = self._build_q_NN(model_name="q1")
+        self.q1 = self._build_critic_NN(model_name="q1")
         self.q1_opt = tfko.Adam(lr=self._cfg.lr_critic)
         self.q1.compile(optimizer=self.q1_opt)
 
-        self.q2 = self._build_q_NN(model_name="q2")
+        self.q2 = self._build_critic_NN(model_name="q2")
         self.q2_opt = tfko.Adam(lr=self._cfg.lr_critic)
         self.q2.compile(optimizer=self.q2_opt)
 
         if self.training:
-            self.target_q1 = self._build_q_NN(model_name="target-q1")
+            self.target_q1 = self._build_critic_NN(model_name="target-q1")
             self.target_q1_opt = tfko.Adam(lr=self._cfg.lr_critic)
             self.target_q1.compile(optimizer=self.target_q1_opt)
 
-            self.target_q2 = self._build_q_NN(model_name="target-q2")
+            self.target_q2 = self._build_critic_NN(model_name="target-q2")
             self.target_q2_opt = tfko.Adam(lr=self._cfg.lr_critic)
             self.target_q2.compile(optimizer=self.target_q2_opt)
 
             self.hard_target_update(self.q1, self.target_q1)
             self.hard_target_update(self.q2, self.target_q2)
 
+        self.emb = self._build_emb(model_name="emb")
         self.policy = self._build_policy_NN(model_name="policy")
         self.policy_opt = tfko.Adam(lr=self._cfg.lr_policy)
         self.policy.compile(optimizer=self.policy_opt)
@@ -178,13 +202,14 @@ class SAC_NN(object):
         Predict the next action
         """
         if sample:
-            actions, _, impacts, _ = self.sample(net_observation)
+            actions, _, impacts, _, _ = self.sample(net_observation)
         else:
             actions, impacts = self.mean(net_observation)
         return actions, impacts
 
     def sample(self, net_observation, eps=1e-5):
-        mean, log_std, mean2, log_std2 = self.policy(net_observation)
+        emb = self.emb(net_observation)
+        mean, log_std, mean2, log_std2 = self.policy(emb)
 
         std = tf.math.exp(log_std)
         std2 = tf.math.exp(log_std2)
@@ -205,10 +230,11 @@ class SAC_NN(object):
         r_impacts = 1.0 - tf.math.square(impacts) + eps
         rlog_impacts = log_impacts - tf.math.log(r_impacts)
         rlog_impacts = tf.reduce_sum(rlog_impacts, axis=1, keepdims=True)
-        return actions, rlog_actions, impacts, rlog_impacts
+        return actions, rlog_actions, impacts, rlog_impacts, emb
 
     def mean(self, net_observation):
-        mean, _, mean2, _ = self.policy(net_observation)
+        emb = self.emb(net_observation)
+        mean, _, mean2, _ = self.policy(emb)
         actions = tf.nn.tanh(mean)
         impacts = tf.nn.tanh(mean2)
         return actions, impacts
@@ -217,9 +243,11 @@ class SAC_NN(object):
         """Train model on experience batch"""
 
         # Compute Q target
-        a_next, a_log_next, i_next, i_log_next = self.sample(s2_batch)
-        q1_next = self.target_q1([s2_batch, a_next, i_next], training=True)
-        q2_next = self.target_q2([s2_batch, a_next, i_next], training=True)
+        emb = self.emb(s_batch)
+        sample_next = self.sample(s2_batch)
+        (a_next, a_log_next, i_next, i_log_next, emb_next) = sample_next
+        q1_next = self.target_q1([emb_next, a_next, i_next], training=True)
+        q2_next = self.target_q2([emb_next, a_next, i_next], training=True)
         q_next_min = tf.math.minimum(q1_next, q2_next)
         q_next = q_next_min - (self.alpha * (a_log_next + i_log_next))
         q_target = r_batch + (1.0 - d_batch) * self._cfg.gamma * q_next
@@ -227,7 +255,7 @@ class SAC_NN(object):
         # Update Q1
         with tf.GradientTape() as q1_tape:
             # Compute loss under gradient tape
-            q1 = self.q1([s_batch, a_batch, i_batch])
+            q1 = self.q1([emb, a_batch, i_batch])
             q1_sq_td_error = tf.square(q_target - q1)
             q1_loss = tf.reduce_mean(q1_sq_td_error)
 
@@ -238,7 +266,7 @@ class SAC_NN(object):
 
         # Update Q2
         with tf.GradientTape() as q2_tape:
-            q2 = self.q2([s_batch, a_batch, i_batch])
+            q2 = self.q2([emb, a_batch, i_batch])
             q2_sq_td_error = tf.square(q_target - q2)
             q2_loss = tf.reduce_mean(q2_sq_td_error)
 
@@ -249,15 +277,17 @@ class SAC_NN(object):
 
         # Policy train
         with tf.GradientTape() as policy_tape:
-            a_new, a_log_new, i_new, i_log_new = self.sample(s_batch)
-            q1_new = self.q1([s_batch, a_new, i_new])
-            q2_new = self.q2([s_batch, a_new, i_new])
+            sample_new = self.sample(s_batch)
+            (a_new, a_log_new, i_new, i_log_new, emb_new) = sample_new
+            q1_new = self.q1([emb_new, a_new, i_new])
+            q2_new = self.q2([emb_new, a_new, i_new])
             q_new_min = tf.math.minimum(q1_new, q2_new)
             policy_loss = (self.alpha * (a_log_new + i_log_new)) - q_new_min
             policy_loss = tf.reduce_mean(policy_loss)
 
         # Policy compute & apply gradients
-        policy_vars = self.policy.trainable_variables
+        policy_vars = (self.policy.trainable_variables + \
+                       self.emb.trainable_variables)
         policy_grads = policy_tape.gradient(policy_loss, policy_vars)
         self.policy_opt.apply_gradients(zip(policy_grads, policy_vars))
 

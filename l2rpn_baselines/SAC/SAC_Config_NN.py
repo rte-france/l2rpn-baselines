@@ -14,8 +14,22 @@ class SAC_Config_NN(BaseConfig):
         "tau", "alpha", "gamma",
         "lr_critic", "lr_policy", "lr_alpha"
     ]
-    _list_str = ["activations_critic", "activations_policy"]
-    _list_int = ["sizes_critic", "sizes_policy"]
+    _list_str = [
+        "activations_emb",
+        "activations_critic",
+        "activations_policy"
+    ]
+    _list_int = [
+        "sizes_emb",
+        "sizes_critic",
+        "sizes_policy"
+    ]
+
+    _bool_attr = [
+        "norm_emb",
+        "norm_critic",
+        "norm_policy"
+    ]
 
     def __init__(self):
         super().__init__()
@@ -23,16 +37,26 @@ class SAC_Config_NN(BaseConfig):
         # Set some defaults
         self.log_std_min = -20.0
         self.log_std_max = 2.0
+
         self.gamma = 0.99
         self.tau = 1e-3
-        self.alpha = 0.35
+        self.alpha = 0.2
+
         self.lr_critic = 1e-4
         self.lr_policy = 1e-4
         self.lr_alpha = 1e-4
-        self.sizes_critic = [512, 512, 256, 256, 256, 1]
-        self.activations_critic = ["elu"] * 5 + [None]
-        self.sizes_policy = [512, 512, 256, 256, 256, 256]
-        self.activations_policy = ["elu"] * 5 + [None]
+
+        self.sizes_emb = [756, 756, 512]
+        self.activations_emb = ["elu"] * 3
+        self.norm_emb = True
+
+        self.sizes_critic = [256, 256, 256, 1]
+        self.activations_critic = ["elu"] * 3 + [None]
+        self.norm_critic = True
+
+        self.sizes_policy = [256, 256, 256]
+        self.activations_policy = ["elu"] * 2 + [None]
+        self.norm_policy = True
 
 if __name__ == "__main__":
     conf = SAC_Config_NN()

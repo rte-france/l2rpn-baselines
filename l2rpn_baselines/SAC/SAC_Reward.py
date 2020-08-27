@@ -14,11 +14,11 @@ class SAC_Reward(BaseReward):
     def __init__(self):
         super().__init__()
         self.reward_min = dt_float(-16.0)
-        self.reward_max = dt_float(2.0)
+        self.reward_max = dt_float(4.0)
 
     def initialize(self, env):
         self.reward_min = dt_float(-16.0)
-        self.reward_max = dt_float(2.0)
+        self.reward_max = dt_float(4.0)
 
     def __call__(self, action, env,
                  has_error, is_done,
@@ -27,6 +27,8 @@ class SAC_Reward(BaseReward):
             return self.reward_min
         if is_illegal or is_ambiguous:
             return self.reward_min
+        if is_done:
+            return self.reward_max
 
         obs = env.current_obs
         rho = np.max(obs.rho)
@@ -34,4 +36,4 @@ class SAC_Reward(BaseReward):
         rho_sq = (rho * rho)
         inv_rho_sq = 4.0 - rho_sq
         r_unit = np.mean(0.25 * inv_rho_sq)
-        return dt_float(r_unit * self.reward_max)
+        return dt_float(r_unit * (self.reward_max / 2.0))
