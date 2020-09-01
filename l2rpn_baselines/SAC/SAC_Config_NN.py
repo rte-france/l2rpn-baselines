@@ -54,8 +54,8 @@ class SAC_Config_NN(BaseConfig):
         self.activations_critic = ["relu"] * 4 + [None]
         self.norm_critic = False
 
-        self.sizes_policy = [256, 256, 128, 128]
-        self.activations_policy = ["elu"] * 4
+        self.sizes_policy = [256, 128]
+        self.activations_policy = ["elu"] * 2
         self.norm_policy = False
 
 if __name__ == "__main__":

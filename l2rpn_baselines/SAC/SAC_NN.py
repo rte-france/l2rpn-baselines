@@ -138,7 +138,7 @@ class SAC_NN(object):
                           name=model_name)
         return model
 
-    def _build_policy_NN(self, model_name):
+    def _build_actor_NN(self, model_name):
         input_state = tfkl.Input(shape=self.emb_shape)
 
         # Get target state distribution
@@ -159,12 +159,25 @@ class SAC_NN(object):
                                    self._cfg.log_std_min,
                                    self._cfg.log_std_max)
 
+
+        # Output action distribution
+        model_inputs = [input_state]
+        model_outputs = [mean, log_std]
+        model = tfk.Model(inputs=model_inputs,
+                          outputs=model_outputs,
+                          name=model_name)
+        return model
+
+    def _build_impact_NN(self, model_name):
+        input_state = tfkl.Input(shape=self.emb_shape)
+        input_action = tfkl.Input(shape=self.action_shape)
+
         # Get impact execution
-        input_impact = tf.concat([lay, mean, log_std], axis=-1)
-        impact_lay = self._build_mlp(input_state,
+        input_impact = tf.concat([input_state, input_action], axis=-1)
+        impact_lay = self._build_mlp(input_impact,
                                      self._cfg.sizes_policy,
                                      self._cfg.activations_policy,
-                                     model_name + "resimpact",
+                                     model_name,
                                      norm=self._cfg.norm_policy)
 
         impact_size = self.impact_shape[0]
@@ -177,9 +190,9 @@ class SAC_NN(object):
                                     self._cfg.log_std_min,
                                     self._cfg.log_std_max)
 
-        # Output both distributions
-        model_inputs = [input_state]
-        model_outputs = [mean, log_std, mean2, log_std2]
+        # Output impact distribution
+        model_inputs = [input_state, input_action]
+        model_outputs = [mean2, log_std2]
         model = tfk.Model(inputs=model_inputs,
                           outputs=model_outputs,
                           name=model_name)
@@ -210,9 +223,12 @@ class SAC_NN(object):
             self.hard_target_update(self.q2, self.target_q2)
 
         self.emb = self._build_emb_NN(model_name="emb")
-        self.policy = self._build_policy_NN(model_name="policy")
+        self.actor = self._build_actor_NN(model_name="actor")
+        self.impact = self._build_impact_NN(model_name="impact")
         self.policy_opt = tfko.Adam(lr=self._cfg.lr_policy)
-        self.policy.compile(optimizer=self.policy_opt)
+        self.emb.compile(optimizer=self.policy_opt)
+        self.actor.compile(optimizer=self.policy_opt)
+        self.impact.compile(optimizer=self.policy_opt)
 
         if self.training:
             actor_outsize = self.action_shape[0] + self.impact_shape[0]
@@ -237,15 +253,13 @@ class SAC_NN(object):
         return actions, impacts
 
     def sample(self, net_observation, net_bridge, net_split, eps=1e-6):
+        # Compute policy common embedding
         emb = self.emb([net_observation, net_bridge, net_split])
-        mean, log_std, mean2, log_std2 = self.policy(emb)
 
+        # Get actor rsample
+        mean, log_std = self.actor(emb)
         std = tf.math.exp(log_std)
-        std2 = tf.math.exp(log_std2)
-        
         pd_actions = tfpd.Normal(mean, std)
-        pd_impacts = tfpd.Normal(mean2, std2)
-
         samples_actions = pd_actions.sample()
         actions = tf.nn.tanh(samples_actions)
         log_actions = pd_actions.log_prob(samples_actions)
@@ -253,19 +267,33 @@ class SAC_NN(object):
         rlog_actions = log_actions - tf.math.log(r_actions)
         rlog_actions = tf.reduce_sum(rlog_actions, axis=1, keepdims=True)
 
+        # Get impact rsample
+        mean2, log_std2 = self.impact([emb, actions])
+        std2 = tf.math.exp(log_std2)
+        pd_impacts = tfpd.Normal(mean2, std2)
         samples_impacts = pd_impacts.sample()
         impacts = tf.nn.tanh(samples_impacts)
         log_impacts = pd_impacts.log_prob(samples_impacts)
         r_impacts = 1.0 - tf.math.square(impacts) + eps
         rlog_impacts = log_impacts - tf.math.log(r_impacts)
         rlog_impacts = tf.reduce_sum(rlog_impacts, axis=1, keepdims=True)
+
+        # Return rsampled policy
         return actions, rlog_actions, impacts, rlog_impacts, emb
 
     def mean(self, net_observation, net_bridge, net_split):
+        # Compute common embedding
         emb = self.emb([net_observation, net_bridge, net_split])
-        mean, _, mean2, _ = self.policy(emb)
+
+        # Get actor eval
+        mean, _ = self.actor(emb)
         actions = tf.nn.tanh(mean)
+
+        # Get impact eval
+        mean2, _ = self.impact([emb, actions])
         impacts = tf.nn.tanh(mean2)
+
+        # Return policy eval
         return actions, impacts
 
     def train(self, s_batch, a_batch, i_batch, r_batch, d_batch, s2_batch):
@@ -325,8 +353,9 @@ class SAC_NN(object):
             policy_loss = tf.reduce_mean(policy_loss)
 
         # Policy compute & apply gradients
-        policy_vars = (self.policy.trainable_variables + \
-                       self.emb.trainable_variables)
+        policy_vars = (self.emb.trainable_variables + \
+                       self.actor.trainable_variables + \
+                       self.impact.trainable_variables)
         policy_grads = policy_tape.gradient(policy_loss, policy_vars)
         self.policy_opt.apply_gradients(zip(policy_grads, policy_vars))
 
@@ -368,10 +397,16 @@ class SAC_NN(object):
         q2_path = os.path.join(model_dir, "q2.{}".format(ext))
         q2_path = os.path.abspath(q2_path)
 
-        policy_path = os.path.join(model_dir, "policy.{}".format(ext))
-        policy_path = os.path.abspath(policy_path)
+        emb_path = os.path.join(model_dir, "emb.{}".format(ext))
+        emb_path = os.path.abspath(emb_path)
 
-        return  model_dir, q1_path, q2_path, policy_path
+        actor_path = os.path.join(model_dir, "actor.{}".format(ext))
+        actor_path = os.path.abspath(actor_path)
+
+        impact_path = os.path.join(model_dir, "impact.{}".format(ext))
+        impact_path = os.path.abspath(impact_path)
+
+        return  model_dir, q1_path, q2_path, emb_path, actor_path, impact_path
 
     def save_network(self, path, name=None, ext="h5"):
         """
@@ -381,13 +416,17 @@ class SAC_NN(object):
         model_dir = model_paths[0]
         q1_path = model_paths[1]
         q2_path = model_paths[2]
-        policy_path = model_paths[3]
+        emb_path = model_path[3]
+        actor_path = model_paths[4]
+        impact_path = model_paths[5]
 
         os.makedirs(model_dir, exist_ok=True)
 
         self.q1.save(q1_path)
         self.q2.save(q2_path)
-        self.policy.save(policy_path)
+        self.emb.save(emb_path)
+        self.actor.save(actor_path)
+        self.impact.save(impact_path)
 
         if self.verbose:
             print("Succesfully saved networks.")
@@ -401,11 +440,15 @@ class SAC_NN(object):
         model_dir = model_paths[0]
         q1_path = model_paths[1]
         q2_path = model_paths[2]
-        policy_path = model_paths[3]
+        emb_path = model_path[3]
+        actor_path = model_paths[4]
+        impact_path = model_paths[5]
 
         self.q1.load_weights(q1_path)
         self.q2.load_weights(q2_path)
-        self.policy.load_weights(policy_path)
+        self.emb.load_weights(emb_path)
+        self.actor.load_weights(actor_path)
+        self.impact.load_weights(impact_path)
 
         if self.training:
             self.hard_target_update(self.q1, self.target_q1)
