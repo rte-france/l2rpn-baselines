@@ -10,6 +10,7 @@ import os
 import sys
 import json
 from itertools import compress
+import tensorflow as tf
 
 from grid2op.Parameters import Parameters
 from grid2op.Agent import BaseAgent
@@ -32,9 +33,13 @@ class SAC_Agent(BaseAgent):
         self.name = name
         self.observation_space = observation_space
         self.observation_shape = self.nn_observation_shape(observation_space)
+        self.bridge_shape = self.nn_bridge_shape(observation_space)
+        self.split_shape = self.nn_split_shape(observation_space)
         self.action_shape = self.nn_action_shape(action_space)
         self.impact_shape = self.nn_impact_shape(action_space)
         self.nn = SAC_NN(self.observation_shape,
+                         self.bridge_shape,
+                         self.split_shape,
                          self.action_shape,
                          self.impact_shape,
                          nn_config,
@@ -44,7 +49,7 @@ class SAC_Agent(BaseAgent):
         self.verbose = verbose
         self.sample = self.training
         self._build_sub_maps()
-        self.threshold = 0.8
+        self.threshold = 0.5
 
     def stdout(self, *print_args):
         if self.verbose:
@@ -82,6 +87,14 @@ class SAC_Agent(BaseAgent):
         obs_size = sac_size_obs(observation_space)
         return (obs_size,)
 
+    def nn_bridge_shape(self, observation_space):
+        bridge_size = observation_space.n_line
+        return (bridge_size,)
+
+    def nn_split_shape(self, observation_space):
+        split_size = observation_space.n_sub
+        return (split_size,)
+
     def nn_action_shape(self, action_space):
         return (action_space.dim_topo,)
 
@@ -89,7 +102,10 @@ class SAC_Agent(BaseAgent):
         return (action_space.n_sub,)
 
     def observation_grid2op_to_nn(self, observation_grid2op):
-        return sac_convert_obs(observation_grid2op)
+        obs = sac_convert_obs(observation_grid2op)
+        bridge = sac_bridge_obs(observation_grid2op)
+        split = sac_split_obs(observation_grid2op)
+        return [obs, bridge, split]
 
     def clear_target(self):
         self.has_target = False
@@ -102,18 +118,26 @@ class SAC_Agent(BaseAgent):
 
     def get_target(self,
                    observation_grid2op,
-                   observation_nn):
+                   observation_nn,
+                   bridge_nn,
+                   split_nn):
         sub_fmt = "{:<5}{:<20}{:<20}"
         self.stdout(sub_fmt.format("Id:", "Current:",  "Target:"))
 
         # Get new target
         # Reshape to batch_size 1 for inference
-        obs_nn = tf.reshape(observation_nn, (1,) + self.observation_shape)
-        self.target_nn, self.impact_nn = self.nn.predict(obs_nn, self.sample)
+        o_nn = tf.reshape(observation_nn, (1,) + self.observation_shape)
+        b_nn = tf.reshape(bridge_nn, (1,) + self.bridge_shape)
+        s_nn = tf.reshape(split_nn, (1,) + self.split_shape)
+        self.target_nn, self.impact_nn = self.nn.predict(o_nn,
+                                                         b_nn,
+                                                         s_nn,
+                                                         self.sample)
         self.target_nn = self.target_nn[0].numpy()
         self.impact_nn = self.impact_nn[0].numpy()
         self.target_grid2op = np.ones_like(self.target_nn, dtype=int)
         self.target_grid2op[self.target_nn > self.threshold] = 2
+        #self.target_grid2op[self.target_nn < -self.threshold] = -1
 
         # Compute forward actions using impact
         sub_idxs = np.argsort(self.impact_nn)
@@ -128,6 +152,12 @@ class SAC_Agent(BaseAgent):
 
             # Force connectivity on bus 1
             self.target_grid2op[self.sub_l_pos[sub_id][0]] = 1
+
+            # Avoid load/gen disconnection
+            sub_iso_pos = self.sub_iso_pos[sub_id]
+            disc = self.target_grid2op[sub_iso_pos]
+            disc[disc == -1] = 1
+            self.target_grid2op[sub_iso_pos] = disc
 
             # Avoid isolation
             sub_iso_pos = self.sub_iso_pos[sub_id]
@@ -169,7 +199,6 @@ class SAC_Agent(BaseAgent):
 
         self.has_target = True
 
-
     def prune_target(self, observation_grid2op):
         if self.has_target is False:
             return
@@ -199,7 +228,7 @@ class SAC_Agent(BaseAgent):
         if len(self.target_act_grid2op) == 0:
             # Consumed completely
             self.clear_target()
-            
+
     def consume_target(self):
         a_grid2op = self.target_act_grid2op.pop(0)
         a_nn = self.target_act_nn.pop(0)
@@ -219,11 +248,15 @@ class SAC_Agent(BaseAgent):
         self.clear_target()
 
     def act(self, observation_grid2op, reward, done=False):
-        obs_nn = self.observation_grid2op_to_nn(observation_grid2op)
-        action_grid2op = self._act(observation_grid2op, obs_nn)
+        nn_in = self.observation_grid2op_to_nn(observation_grid2op)
+        (obs_nn, bridge_nn, split_nn) = nn_in
+        action_grid2op = self._act(observation_grid2op,
+                                   obs_nn, bridge_nn, split_nn)
         return action_grid2op
 
     def danger(self, observation_grid2op, action_grid2op):
+        # Adapted Geirina 2019 WCCI strategy
+
         # Will fail, get a new target
         _, _, done, _ = observation_grid2op.simulate(action_grid2op)
         if done:
@@ -237,7 +270,8 @@ class SAC_Agent(BaseAgent):
         # Play the action
         return False
     
-    def _act(self, observation_grid2op, observation_nn):
+    def _act(self, observation_grid2op,
+             observation_nn, bridge_nn, split_nn):
         a_grid2op = None
 
         self.prune_target(observation_grid2op)
@@ -249,7 +283,8 @@ class SAC_Agent(BaseAgent):
 
         if self.danger(observation_grid2op, a_grid2op):
             self.clear_target()
-            self.get_target(observation_grid2op, observation_nn)
+            self.get_target(observation_grid2op,
+                            observation_nn, bridge_nn, split_nn)
             self.prune_target(observation_grid2op)
             if self.has_target:
                 a_grid2op, _, _ = self.consume_target()
@@ -259,31 +294,45 @@ class SAC_Agent(BaseAgent):
 
         return a_grid2op
 
-    def _step(self, env, observation_grid2op, observation_nn):
+    def _step(self, env, observation_grid2op):
         s = 0
+        a_nn = None
+        i_nn = None
+        nn_in = None
+        nn_next = None
+
         default_action = self.action_space({})
         if self.danger(observation_grid2op, default_action):
             self.clear_target()
-            self.get_target(observation_grid2op, observation_nn)
+            nn_in = self.observation_grid2op_to_nn(observation_grid2op)
+            (o_nn, b_nn, s_nn) = nn_in # Obs, bridge, split
+            self.get_target(observation_grid2op, o_nn, b_nn, s_nn)
+            a_nn = self.target_nn
+            i_nn = self.impact_nn
             self.prune_target(observation_grid2op)
             if self.has_target:
-                target_nn = self.target_nn
-                impact_nn = self.impact_nn
                 done = False
                 reward = []
                 info = {}
+
                 while done is False and self.has_target:
-                    a_grid2op, a_nn, i_nn = self.consume_target()
+                    a_grid2op, _, _ = self.consume_target()
                     obs, r, done, info = env.step(a_grid2op)
                     s += 1
                     self.stdout("Applied:", a_grid2op)
                     reward.append(r)
-                target_reward = np.mean(reward)
-                self.stdout("Target reward:", target_reward)
-                return obs, target_reward, done, info, target_nn, impact_nn, s
-        # No danger or no target: DN
+
+                # Prepare transition result
+                t_reward = np.mean(reward)
+                self.stdout("Target reward:", t_reward)
+                nn_next = self.observation_grid2op_to_nn(obs)
+                return obs, nn_in, nn_next, t_reward, done, info, a_nn, i_nn, s
+
+        # No danger or target pruned: DN
         obs, reward, done, info = env.step(default_action)
-        return obs, reward, done, info, None, None, 1
+        if a_nn is not None:
+            nn_next = self.observation_grid2op_to_nn(obs)
+        return obs, nn_in, nn_next, reward, done, info, a_nn, i_nn, 1
 
     ###
     ## Baseline train
@@ -359,6 +408,7 @@ class SAC_Agent(BaseAgent):
         episode_steps = 0
         episode_rewards_sum = 0.0
         episode_illegal = 0
+        tested = False
 
         # Copy configs in save path
         os.makedirs(save_path, exist_ok=True)
@@ -384,15 +434,14 @@ class SAC_Agent(BaseAgent):
 
             # New episode
             if done:
+                tested = False
                 obs = env.reset()
                 self.reset(obs)
-                obs_nn = self.observation_grid2op_to_nn(obs)
                 done = False
 
             # Operate
-            stepped = self._step(env, obs, obs_nn)
-            (obs_next, reward, done, info, act_nn, impact_nn, s) = stepped
-            obs_nn_next = self.observation_grid2op_to_nn(obs_next)
+            stepped = self._step(env, obs)
+            (obs, nn, nn_next, reward, done, info, a_nn, i_nn, s) = stepped
 
             if info["is_illegal"]:
                 episode_illegal += 1
@@ -407,11 +456,10 @@ class SAC_Agent(BaseAgent):
             episode_rewards_sum += reward
 
             # Learn
-            if act_nn is not None:
+            if a_nn is not None:
                 target_step += 1
                 # Save transition to replay buffer
-                replay_buffer.add(obs_nn, act_nn, impact_nn,
-                                  reward, done, obs_nn_next)
+                replay_buffer.add(nn, a_nn, i_nn, reward, done, nn_next)
                 # Train / Update
                 if target_step % train_cfg.update_freq == 0 and \
                    replay_buffer.size() >= train_cfg.batch_size and \
@@ -419,6 +467,16 @@ class SAC_Agent(BaseAgent):
                     batch = replay_buffer.sample(train_cfg.batch_size)
                     losses = self.nn.train(*batch)
                     update_step += 1
+
+                    # Save weights sometimes
+                    if update_step % train_cfg.save_freq == 0:
+                        self.checkpoint(save_path, update_step)
+
+                    # Run test configuration sometimes
+                    if update_step % train_cfg.test_freq == 0:
+                        self.train_test(env, logger, update_step)
+                        done = True
+                        tested = True
 
                     # Tensorboard logging
                     if update_step % train_cfg.log_freq == 0:
@@ -429,16 +487,10 @@ class SAC_Agent(BaseAgent):
                         logger.scalar("005-alpha", self.nn.alpha)
                         logger.write(update_step)
 
-                    # Save weights sometimes
-                    if update_step % train_cfg.save_freq == 0:
-                        self.checkpoint(save_path, update_step)
-
-            obs = obs_next
-            obs_nn = obs_nn_next
             step += s
 
             # Episode metrics logging
-            if done:
+            if done and not tested:
                 logger.mean_scalar("010-steps", episode_steps, 10)
                 logger.mean_scalar("100-steps", episode_steps, 100)
                 logger.mean_scalar("011-illegal", episode_illegal, 10)
@@ -459,3 +511,38 @@ class SAC_Agent(BaseAgent):
 
         # Save after all training steps
         self.nn.save_network(save_path, name=self.name)
+
+    def train_test(self, env, logger, update_step):
+        # Use policy eval
+        self.sample = False
+
+        # Cache current training scenario
+        save_id = env.chronics_handler._prev_cache_id
+
+        # Run test on a few scenarios
+        test_v = []
+        for scenario_id in [0, 42, 128, 666, 954]:
+            env.set_id(scenario_id)
+
+            obs = env.reset()
+            self.reset(obs)
+            done = False
+            r = 0.0
+            info = None
+            test_step = 0
+
+            while done is False:
+                action_grid2op = self.act(obs, r, done)
+                obs, r, done, info = env.step(action_grid2op)
+                test_step += 1
+
+            self.stdout("Test scenario {}: {}".format(scenario_id, test_step))
+            test_v.append(test_step)
+
+        logger.scalar("test", np.mean(test_v))
+
+        # Restore training scenario
+        env.chronics_handler.tell_id(save_id)
+        env.reset()
+        # Restore policy sampling
+        self.sample = True

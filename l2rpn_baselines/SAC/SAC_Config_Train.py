@@ -16,7 +16,8 @@ class SAC_Config_Train(BaseConfig):
         "batch_size",
         "update_freq",
         "save_freq",
-        "log_freq"
+        "log_freq",
+        "test_freq"
     ]
 
     _bool_attr = [
@@ -31,6 +32,7 @@ class SAC_Config_Train(BaseConfig):
         self.min_replay_buffer_size = 256
         self.update_freq = 1
         self.save_freq = 10000
+        self.test_freq = 1000
         self.log_freq = 100
         self.batch_size = 128
         self.cv = True

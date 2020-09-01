@@ -40,23 +40,23 @@ class SAC_Config_NN(BaseConfig):
 
         self.gamma = 0.99
         self.tau = 1e-3
-        self.alpha = 0.2
+        self.alpha = 1.0
 
         self.lr_critic = 1e-4
         self.lr_policy = 1e-4
         self.lr_alpha = 1e-4
 
-        self.sizes_emb = [756, 756, 512]
-        self.activations_emb = ["relu"] * 3
+        self.sizes_emb = [256, 256, 256, 256]
+        self.activations_emb = ["elu"] * 4
         self.norm_emb = True
 
-        self.sizes_critic = [256, 256, 256, 1]
-        self.activations_critic = ["relu"] * 3 + [None]
-        self.norm_critic = True
+        self.sizes_critic = [256, 256, 128, 128, 1]
+        self.activations_critic = ["relu"] * 4 + [None]
+        self.norm_critic = False
 
-        self.sizes_policy = [256, 256, 256]
-        self.activations_policy = ["relu"] * 2 + [None]
-        self.norm_policy = True
+        self.sizes_policy = [256, 256, 128, 128]
+        self.activations_policy = ["elu"] * 4
+        self.norm_policy = False
 
 if __name__ == "__main__":
     conf = SAC_Config_NN()
