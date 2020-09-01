@@ -32,6 +32,9 @@ class SAC_NN(object):
 
     LeapNet layer:
     https://arxiv.org/abs/1908.08314
+
+    Reference implementation:
+    https://github.com/cyoon1729/Policy-Gradient-Methods
     """
     def __init__(self,
                  observation_shape,
