@@ -32,6 +32,9 @@ class SAC_Agent(BaseAgent):
 
         self.name = name
         self.observation_space = observation_space
+
+        self._precompute()
+
         self.observation_shape = self.nn_observation_shape(observation_space)
         self.bridge_shape = self.nn_bridge_shape(observation_space)
         self.split_shape = self.nn_split_shape(observation_space)
@@ -48,8 +51,7 @@ class SAC_Agent(BaseAgent):
         self.training = training
         self.verbose = verbose
         self.sample = self.training
-        self._build_sub_maps()
-        self.threshold = 0.5
+        self.threshold = 0.9
 
     def stdout(self, *print_args):
         if self.verbose:
@@ -58,12 +60,18 @@ class SAC_Agent(BaseAgent):
     def stderr(self, *print_args):
         print (*print_args, file=sys.stderr)
 
-    def _build_sub_maps(self):
+    def _precompute(self):
         self.sub_iso_pos = []
         self.sub_l_pos = []
+        self.sub_grid2op = []
+        self.sub_info = []
+        self.sub_topo_mask = []
 
         # Precompute elements positions for each substation
         for sub_id in range(self.action_space.n_sub):
+            if self.action_space.sub_info[sub_id] < 3:
+                continue
+
             sub_loads = np.where(self.action_space.load_to_subid == sub_id)[0]
             sub_gens = np.where(self.action_space.gen_to_subid == sub_id)[0]
             sub_lor = np.where(self.action_space.line_or_to_subid == sub_id)[0]
@@ -79,6 +87,15 @@ class SAC_Agent(BaseAgent):
 
             self.sub_iso_pos.append(sub_iso_pos)
             self.sub_l_pos.append(sub_l_pos)
+            self.sub_grid2op.append(sub_id)
+
+            sub_start = np.sum(self.action_space.sub_info[:sub_id])
+            sub_end = sub_start + self.action_space.sub_info[sub_id]
+            sub_pos = np.arange(sub_start, sub_end)
+            self.sub_topo_mask.append(sub_pos)
+
+        self.sub_grid2op = np.array(self.sub_grid2op)
+        self.sub_topo_mask = np.concatenate(self.sub_topo_mask)
 
     #####
     ## Grid2op <-> NN converters
@@ -96,10 +113,12 @@ class SAC_Agent(BaseAgent):
         return (split_size,)
 
     def nn_action_shape(self, action_space):
-        return (action_space.dim_topo,)
+        action_size = len(self.sub_topo_mask) #action_space.dim_topo
+        return (action_size,)
 
     def nn_impact_shape(self, action_space):
-        return (action_space.n_sub,)
+        impact_size = len(self.sub_grid2op) #observation_space.n_sub
+        return (impact_size,)
 
     def observation_grid2op_to_nn(self, observation_grid2op):
         obs = sac_convert_obs(observation_grid2op)
@@ -112,8 +131,6 @@ class SAC_Agent(BaseAgent):
         self.target_grid2op = None
         self.target_nn = None
         self.target_act_grid2op = []
-        self.target_act_nn = []
-        self.target_impact_nn = []
         self.target_act_sub = []
 
     def get_target(self,
@@ -121,8 +138,6 @@ class SAC_Agent(BaseAgent):
                    observation_nn,
                    bridge_nn,
                    split_nn):
-        sub_fmt = "{:<5}{:<20}{:<20}"
-        self.stdout(sub_fmt.format("Id:", "Current:",  "Target:"))
 
         # Get new target
         # Reshape to batch_size 1 for inference
@@ -135,34 +150,38 @@ class SAC_Agent(BaseAgent):
                                                          self.sample)
         self.target_nn = self.target_nn[0].numpy()
         self.impact_nn = self.impact_nn[0].numpy()
-        self.target_grid2op = np.ones_like(self.target_nn, dtype=int)
-        self.target_grid2op[self.target_nn > self.threshold] = 2
-        #self.target_grid2op[self.target_nn < -self.threshold] = -1
+        self.target_grid2op = np.ones(self.action_space.dim_topo, dtype=int)
+        target_bus_2 = np.zeros_like(self.target_nn, dtype=bool)
+        target_bus_2[self.target_nn > self.threshold] = True
+        self.target_grid2op[self.sub_topo_mask[target_bus_2]] = 2        
+        #target_disc = np.zeros_like(self.target_nn, dtype=bool)
+        #target_disc[self.target_nn < -self.threshold] = True
+        #self.target_grid2op[self.sub_topo_mask[target_disc]] = -1
+
+        sub_fmt = "{:<5}{:<20}{:<20}"
+        self.stdout(sub_fmt.format("Id:", "Current:",  "Target:"))
 
         # Compute forward actions using impact
-        sub_idxs = np.argsort(self.impact_nn)
-        for sub_id in sub_idxs:
+        nn_sub_idxs = np.argsort(self.impact_nn)
+        for nn_sub_id in nn_sub_idxs:
+            sub_id = self.sub_grid2op[nn_sub_id]
             sub_size = self.observation_space.sub_info[sub_id]
             sub_start = np.sum(self.observation_space.sub_info[:sub_id])
             sub_end = sub_start + sub_size
 
-            # Skip small substations
-            if sub_size < 4:
-                continue
-
             # Force connectivity on bus 1
-            self.target_grid2op[self.sub_l_pos[sub_id][0]] = 1
+            self.target_grid2op[self.sub_l_pos[nn_sub_id][0]] = 1
 
             # Avoid load/gen disconnection
-            sub_iso_pos = self.sub_iso_pos[sub_id]
+            sub_iso_pos = self.sub_iso_pos[nn_sub_id]
             disc = self.target_grid2op[sub_iso_pos]
             disc[disc == -1] = 1
             self.target_grid2op[sub_iso_pos] = disc
 
             # Avoid isolation
-            sub_iso_pos = self.sub_iso_pos[sub_id]
+            sub_iso_pos = self.sub_iso_pos[nn_sub_id]
             len_iso = len(sub_iso_pos)
-            sub_l_pos = self.sub_l_pos[sub_id]
+            sub_l_pos = self.sub_l_pos[nn_sub_id]
             if len_iso > 0:
                 sub_lines = self.target_grid2op[sub_l_pos]
                 bus2_lines_disabled = np.all(sub_lines[sub_lines != -1] == 1)
@@ -183,16 +202,6 @@ class SAC_Agent(BaseAgent):
             act_v[sub_start:sub_end] = self.target_grid2op[sub_start:sub_end]
             act_grid2op = self.action_space({"set_bus": act_v})
             self.target_act_grid2op.append(act_grid2op)
-
-            # Substation NN target
-            act_nn = np.zeros_like(self.target_nn)
-            act_nn[sub_start:sub_end] = self.target_nn[sub_start:sub_end]
-            self.target_act_nn.append(act_nn)
-
-            # Substation NN impact
-            impact_nn = np.full(self.impact_nn.shape, -1.0)
-            impact_nn[sub_id] = self.impact_nn[sub_id]
-            self.target_impact_nn.append(impact_nn)
 
             # Store sub id
             self.target_act_sub.append(sub_id)
@@ -218,10 +227,6 @@ class SAC_Agent(BaseAgent):
         # Apply filter
         self.target_act_grid2op = list(compress(self.target_act_grid2op,
                                                 prune_filter))
-        self.target_act_nn = list(compress(self.target_act_nn,
-                                           prune_filter))
-        self.target_impact_nn = list(compress(self.target_impact_nn,
-                                              prune_filter))
         self.target_act_sub = list(compress(self.target_act_sub,
                                             prune_filter))
 
@@ -231,15 +236,13 @@ class SAC_Agent(BaseAgent):
 
     def consume_target(self):
         a_grid2op = self.target_act_grid2op.pop(0)
-        a_nn = self.target_act_nn.pop(0)
-        i_nn = self.target_impact_nn.pop(0)
         sub_id = self.target_act_sub.pop(0)
 
         if len(self.target_act_grid2op) == 0:
             # Consumed completely
             self.clear_target()
 
-        return a_grid2op, a_nn, i_nn
+        return a_grid2op
 
     ####
     ## grid2op.BaseAgent interface
@@ -257,14 +260,14 @@ class SAC_Agent(BaseAgent):
     def danger(self, observation_grid2op, action_grid2op):
         # Adapted Geirina 2019 WCCI strategy
 
-        # Will fail, get a new target
-        _, _, done, _ = observation_grid2op.simulate(action_grid2op)
-        if done:
-            return True
-
         # Get a target to solve overflows
         if self.has_target is False and \
            np.any(observation_grid2op.rho > 0.95):
+            return True
+
+        # Will fail, get a new target
+        _, _, done, _ = observation_grid2op.simulate(action_grid2op)
+        if done:
             return True
 
         # Play the action
@@ -276,7 +279,7 @@ class SAC_Agent(BaseAgent):
 
         self.prune_target(observation_grid2op)
         if self.has_target:
-            a_grid2op, _, _ = self.consume_target()
+            a_grid2op = self.consume_target()
             self.stdout("Continue target: ", a_grid2op)
         else:
             a_grid2op = self.action_space({})
@@ -287,7 +290,7 @@ class SAC_Agent(BaseAgent):
                             observation_nn, bridge_nn, split_nn)
             self.prune_target(observation_grid2op)
             if self.has_target:
-                a_grid2op, _, _ = self.consume_target()
+                a_grid2op = self.consume_target()
                 self.stdout("Start target: ", a_grid2op)
             else:
                 a_grid2op = self.action_space({})
@@ -316,7 +319,7 @@ class SAC_Agent(BaseAgent):
                 info = {}
 
                 while done is False and self.has_target:
-                    a_grid2op, _, _ = self.consume_target()
+                    a_grid2op = self.consume_target()
                     obs, r, done, info = env.step(a_grid2op)
                     s += 1
                     self.stdout("Applied:", a_grid2op)

@@ -416,7 +416,7 @@ class SAC_NN(object):
         model_dir = model_paths[0]
         q1_path = model_paths[1]
         q2_path = model_paths[2]
-        emb_path = model_path[3]
+        emb_path = model_paths[3]
         actor_path = model_paths[4]
         impact_path = model_paths[5]
 
@@ -440,7 +440,7 @@ class SAC_NN(object):
         model_dir = model_paths[0]
         q1_path = model_paths[1]
         q2_path = model_paths[2]
-        emb_path = model_path[3]
+        emb_path = model_paths[3]
         actor_path = model_paths[4]
         impact_path = model_paths[5]
 
