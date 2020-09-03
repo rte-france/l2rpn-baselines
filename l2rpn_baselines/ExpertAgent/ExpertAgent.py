@@ -135,10 +135,16 @@ class ExpertAgent(BaseAgent):
                 #if (scoreBestAction==0):#get efficacity from do nothing to assess if it is perhaps better to do an action
                 #    efficacity = info["rewards"][self.reward_type]
 
+                #in case of IEEE14 grid, disconnecting line 14 is a good action.
+                # #The expert system would guess it if we had the ability to look for line disconnections as well
+                if (observation.n_sub==14):
+                    action=self.bonus_action_IEEE14(simulator, scoreBestAction, efficacy_best_action, isOverflowCritical)
+
                 # we will try to get back to initial topology if possible for susbstations considered by the expert system
-                subs_expert_system_results=expert_system_results["Substation ID"]
-                action=self.try_out_reference_topologies(simulator, scoreBestAction,efficacy_best_action, isOverflowCritical,
-                                             subs_expert_system_results, subsInCooldown)
+                if action is None:
+                    subs_expert_system_results=expert_system_results["Substation ID"]
+                    action=self.try_out_reference_topologies(simulator, scoreBestAction,efficacy_best_action, isOverflowCritical,
+                                                 subs_expert_system_results, subsInCooldown)
 
                 if action is None:#try all other two nodes substations
                     subs_to_try=set(self.sub_2nodes)-set(subs_expert_system_results)
@@ -250,7 +256,10 @@ class ExpertAgent(BaseAgent):
                 new_expert_system_results[['Efficacity', 'Topology simulated score', 'Substation ID']].iloc[
                     index_new_best_action]
 
-                if (New_scoreBestAction >= 3) or ((New_scoreBestAction == scoreBestAction) and (new_efficacy_best_action >= efficacy_best_action) ):#and (isOverflowCritical)):
+                if (New_scoreBestAction >= 3) or \
+                        ((New_scoreBestAction == 1) and (new_efficacy_best_action >= efficacy_best_action) and (isOverflowCritical))\
+                        or ((New_scoreBestAction >= scoreBestAction) and (new_efficacy_best_action >= efficacy_best_action) and not isLineDisconnection):
+                    #1.01 factor is here for numerical stability
 
                     best_action = new_actions[index_new_best_action]
                     if isLineDisconnection:
@@ -260,6 +269,17 @@ class ExpertAgent(BaseAgent):
                         self.sub_2nodes.discard(int(new_subID_ToActOn))
                     return best_action
         return None
+
+    #line 14 is interesting to disconnect in IEEE 14
+    def bonus_action_IEEE14(self,simulator, scoreBestAction, efficacy_best_action, isOverflowCritical):
+        l=14
+        ltc_list=[l]
+        status_l=simulator.obs.line_status[l]
+        if(status_l):
+            action=self.try_out_overload_disconnections( simulator, scoreBestAction, efficacy_best_action, isOverflowCritical,ltc_list)
+            return action
+        else:
+            return None
 
     #for critical situations when we need to absolutely solve a given overload
     def get_action_with_least_worsened_lines(self, expert_system_results,ltc_list):
@@ -307,7 +327,7 @@ class MinMargin_reward(BaseReward):
     def __call__(self, action, env, has_error, is_done, is_illegal, is_ambiguous):
         obs=env.current_obs
         if not is_done and not has_error:
-            res = np.min(1.0 - obs.rho)
+            res = np.round(np.min(1.0 - obs.rho),decimals=2)
         else:
             # no more data to consider, no powerflow has been run, reward is what it is
             res = self.reward_min
