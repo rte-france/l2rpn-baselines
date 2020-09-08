@@ -13,8 +13,8 @@ from grid2op.dtypes import dt_float
 class SAC_Reward(BaseReward):
     def __init__(self):
         super().__init__()
-        self.reward_min = dt_float(-16.0)
-        self.reward_max = dt_float(4.0)
+        self.reward_min = dt_float(-8.0)
+        self.reward_max = dt_float(8.0)
 
     def initialize(self, env):
         self.half_reward_max = dt_float(self.reward_max / 2.0)

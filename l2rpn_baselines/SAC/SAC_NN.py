@@ -55,7 +55,7 @@ class SAC_NN(object):
         self.verbose = verbose
 
         self.training = training
-        self.alpha = 1.0
+        self.alpha = self._cfg.alpha
 
         self.construct_networks()
 
@@ -118,18 +118,20 @@ class SAC_NN(object):
         return model
 
     def _build_critic_NN(self, model_name):
-        input_state = tfkl.Input(shape=self.emb_shape)
+        input_state = tfkl.Input(shape=self.observation_shape)
         input_action = tfkl.Input(shape=self.action_shape)
         input_impact = tfkl.Input(shape=self.impact_shape)
 
         input_layer = tf.concat([input_state, input_action, input_impact],
                                 axis=-1)
 
-        Q = self._build_mlp(input_layer,
-                            self._cfg.sizes_critic,
-                            self._cfg.activations_critic,
-                            model_name,
-                            norm=self._cfg.norm_critic)
+        hidden = self._build_mlp(input_layer,
+                                 self._cfg.sizes_critic,
+                                 self._cfg.activations_critic,
+                                 model_name,
+                                 norm=self._cfg.norm_critic)
+
+        Q = tfkl.Dense(1, name=model_name + "-Q")(hidden)
 
         model_inputs = [input_state, input_action, input_impact]
         model_outputs = [Q]
@@ -233,9 +235,8 @@ class SAC_NN(object):
         if self.training:
             actor_outsize = self.action_shape[0] + self.impact_shape[0]
             self.target_entropy = -(actor_outsize)
-            self.log_alpha = tf.Variable(0.0,
+            self.log_alpha = tf.Variable(float(np.log(self.alpha)),
                                          trainable=True)
-            self.alpha = tf.math.exp(self.log_alpha)
             self.alpha_opt = tfko.Adam(lr=self._cfg.lr_alpha)
 
     def predict(self, net_observation, net_bridge, net_split, sample=True):
@@ -259,27 +260,27 @@ class SAC_NN(object):
         # Get actor rsample
         mean, log_std = self.actor(emb)
         std = tf.math.exp(log_std)
-        pd_actions = tfpd.Normal(mean, std)
+        pd_actions = tfpd.MultivariateNormalDiag(loc=mean, scale_diag=std)
         samples_actions = pd_actions.sample()
         actions = tf.nn.tanh(samples_actions)
-        log_actions = pd_actions.log_prob(samples_actions)
-        r_actions = 1.0 - tf.math.square(actions) + eps
-        rlog_actions = log_actions - tf.math.log(r_actions)
-        rlog_actions = tf.reduce_sum(rlog_actions, axis=1, keepdims=True)
+        logp_actions = pd_actions.log_prob(samples_actions)
+        corr_actions = tf.math.log(1.0 - tf.math.square(actions) + eps)
+        corr_actions = tf.reduce_sum(corr_actions, axis=1)
+        log_pi_actions = logp_actions - corr_actions
 
         # Get impact rsample
         mean2, log_std2 = self.impact([emb, actions])
         std2 = tf.math.exp(log_std2)
-        pd_impacts = tfpd.Normal(mean2, std2)
+        pd_impacts = tfpd.MultivariateNormalDiag(loc=mean2, scale_diag=std2)
         samples_impacts = pd_impacts.sample()
         impacts = tf.nn.tanh(samples_impacts)
-        log_impacts = pd_impacts.log_prob(samples_impacts)
-        r_impacts = 1.0 - tf.math.square(impacts) + eps
-        rlog_impacts = log_impacts - tf.math.log(r_impacts)
-        rlog_impacts = tf.reduce_sum(rlog_impacts, axis=1, keepdims=True)
+        logp_impacts = pd_impacts.log_prob(samples_impacts)
+        corr_impacts = tf.math.log(1.0 - tf.math.square(impacts) + eps)
+        corr_impacts = tf.reduce_sum(corr_impacts, axis=1)
+        log_pi_impacts = logp_impacts - corr_impacts
 
-        # Return rsampled policy
-        return actions, rlog_actions, impacts, rlog_impacts, emb
+        # Return rsampled policy 
+        return actions, log_pi_actions, impacts, log_pi_impacts, emb
 
     def mean(self, net_observation, net_bridge, net_split):
         # Compute common embedding
@@ -296,7 +297,8 @@ class SAC_NN(object):
         # Return policy eval
         return actions, impacts
 
-    def train(self, s_batch, a_batch, i_batch, r_batch, d_batch, s2_batch):
+    def train(self, s_batch, a_batch, i_batch, r_batch, d_batch, s2_batch,
+              delayed=False):
         """Train model on experience batch"""
 
         # Unpack states batches
@@ -312,8 +314,8 @@ class SAC_NN(object):
         sample_next = self.sample(s2_obs, s2_bridge, s2_split)
         (a_next, a_log_next, i_next, i_log_next, emb_next) = sample_next
         log_next = a_log_next + i_log_next
-        q1_next = self.target_q1([emb_next, a_next, i_next], training=True)
-        q2_next = self.target_q2([emb_next, a_next, i_next], training=True)
+        q1_next = self.target_q1([s2_obs, a_next, i_next], training=True)
+        q2_next = self.target_q2([s2_obs, a_next, i_next], training=True)
         q_next_min = tf.math.minimum(q1_next, q2_next)
         q_next = q_next_min - self.alpha * log_next
         q_target = r_batch + (1.0 - d_batch) * self._cfg.gamma * q_next
@@ -321,9 +323,9 @@ class SAC_NN(object):
         # Update Q1
         with tf.GradientTape() as q1_tape:
             # Compute loss under gradient tape
-            q1 = self.q1([emb, a_batch, i_batch])
+            q1 = self.q1([s_obs, a_batch, i_batch])
             q1_sq_td_error = tf.square(q_target - q1)
-            q1_loss = tf.reduce_mean(q1_sq_td_error)
+            q1_loss = 0.5 * tf.reduce_mean(q1_sq_td_error)
 
         # Q1 Compute & Apply gradients
         q1_vars = self.q1.trainable_variables
@@ -332,22 +334,29 @@ class SAC_NN(object):
 
         # Update Q2
         with tf.GradientTape() as q2_tape:
-            q2 = self.q2([emb, a_batch, i_batch])
+            q2 = self.q2([s_obs, a_batch, i_batch])
             q2_sq_td_error = tf.square(q_target - q2)
-            q2_loss = tf.reduce_mean(q2_sq_td_error)
+            q2_loss = 0.5 * tf.reduce_mean(q2_sq_td_error)
 
         # Q2 Compute & Apply gradients
         q2_vars = self.q2.trainable_variables
         q2_grads = q2_tape.gradient(q2_loss, q2_vars)
         self.q2_opt.apply_gradients(zip(q2_grads, q2_vars))
 
+        # Get losses values from GPU
+        q1l = q1_loss.numpy()
+        q2l = q2_loss.numpy()
+
+        if delayed:
+            return q1l, q2l, None, None
+
         # Policy train
         with tf.GradientTape() as policy_tape:
             sample_new = self.sample(s_obs, s_bridge, s_split)
             (a_new, a_log_new, i_new, i_log_new, emb_new) = sample_new
             log_new = a_log_new + i_log_new
-            q1_new = self.q1([emb_new, a_new, i_new])
-            q2_new = self.q2([emb_new, a_new, i_new])
+            q1_new = self.q1([s_obs, a_new, i_new])
+            q2_new = self.q2([s_obs, a_new, i_new])
             q_new_min = tf.math.minimum(q1_new, q2_new)
             policy_loss = self.alpha * log_new - q_new_min
             policy_loss = tf.reduce_mean(policy_loss)
@@ -377,8 +386,6 @@ class SAC_NN(object):
         self.alpha = tf.math.exp(self.log_alpha)
 
         # Get losses values from GPU
-        q1l = q1_loss.numpy()
-        q2l = q2_loss.numpy()
         policyl = policy_loss.numpy()
         alphal = alpha_loss.numpy()
         # Return them

@@ -7,8 +7,8 @@ def sac_size_obs(observation_space):
     dims = np.array([
         # Time
         #5, # Timestamp
-        #4 * observation_space.n_line, # lines cd
-        #observation_space.n_sub, # Sub cd
+        4 * observation_space.n_line, # lines cd
+        observation_space.n_sub, # Sub cd
         # Gen
         observation_space.n_gen * 4,
         # Load
@@ -180,10 +180,10 @@ def sac_convert_obs(obs, bias=0.0):
     res = np.concatenate([
         # Time
         #time_v,
-        #time_line_cd,
-        #time_line_nm, time_line_dm,
-        #time_line_overflow,
-        #time_sub_cd,
+        time_line_cd,
+        time_line_nm, time_line_dm,
+        time_line_overflow,
+        time_sub_cd,
         # Gens
         g_p, g_q, g_bus, g_v, #g_ar, g_tr,
         # Loads

@@ -51,7 +51,7 @@ class SAC_Agent(BaseAgent):
         self.training = training
         self.verbose = verbose
         self.sample = self.training
-        self.threshold = 0.9
+        self.threshold = 0.35
 
     def stdout(self, *print_args):
         if self.verbose:
@@ -69,7 +69,7 @@ class SAC_Agent(BaseAgent):
 
         # Precompute elements positions for each substation
         for sub_id in range(self.action_space.n_sub):
-            if self.action_space.sub_info[sub_id] < 3:
+            if self.action_space.sub_info[sub_id] < 4:
                 continue
 
             sub_loads = np.where(self.action_space.load_to_subid == sub_id)[0]
@@ -92,6 +92,8 @@ class SAC_Agent(BaseAgent):
             sub_start = np.sum(self.action_space.sub_info[:sub_id])
             sub_end = sub_start + self.action_space.sub_info[sub_id]
             sub_pos = np.arange(sub_start, sub_end)
+            # Remove first line extremity on current sub
+            sub_pos = sub_pos[sub_pos != sub_l_pos[0]]
             self.sub_topo_mask.append(sub_pos)
 
         self.sub_grid2op = np.array(self.sub_grid2op)
@@ -130,6 +132,7 @@ class SAC_Agent(BaseAgent):
         self.has_target = False
         self.target_grid2op = None
         self.target_nn = None
+        self.impact_nn = None
         self.target_act_grid2op = []
         self.target_act_sub = []
 
@@ -137,7 +140,8 @@ class SAC_Agent(BaseAgent):
                    observation_grid2op,
                    observation_nn,
                    bridge_nn,
-                   split_nn):
+                   split_nn,
+                   sample=False):
 
         # Get new target
         # Reshape to batch_size 1 for inference
@@ -147,7 +151,7 @@ class SAC_Agent(BaseAgent):
         self.target_nn, self.impact_nn = self.nn.predict(o_nn,
                                                          b_nn,
                                                          s_nn,
-                                                         self.sample)
+                                                         sample)
         self.target_nn = self.target_nn[0].numpy()
         self.impact_nn = self.impact_nn[0].numpy()
         self.target_grid2op = np.ones(self.action_space.dim_topo, dtype=int)
@@ -158,7 +162,7 @@ class SAC_Agent(BaseAgent):
         #target_disc[self.target_nn < -self.threshold] = True
         #self.target_grid2op[self.sub_topo_mask[target_disc]] = -1
 
-        sub_fmt = "{:<5}{:<20}{:<20}"
+        sub_fmt = "{:<5}{:<25}{:<25}"
         self.stdout(sub_fmt.format("Id:", "Current:",  "Target:"))
 
         # Compute forward actions using impact
@@ -169,8 +173,9 @@ class SAC_Agent(BaseAgent):
             sub_start = np.sum(self.observation_space.sub_info[:sub_id])
             sub_end = sub_start + sub_size
 
-            # Force connectivity on bus 1
-            self.target_grid2op[self.sub_l_pos[nn_sub_id][0]] = 1
+            # Force connectivity to bus 1 on first line of current sub
+            force_line_id = self.sub_l_pos[nn_sub_id][0]
+            self.target_grid2op[force_line_id] = 1
 
             # Avoid load/gen disconnection
             sub_iso_pos = self.sub_iso_pos[nn_sub_id]
@@ -191,9 +196,10 @@ class SAC_Agent(BaseAgent):
                     self.target_grid2op[sub_iso_pos] = 1
 
             # Show grid2op target in verbose mode
-            sub_fmt = "{:<5}{:<20}{:<20}"
-            sub_target = self.target_grid2op[sub_start:sub_end]
-            sub_current = observation_grid2op.topo_vect[sub_start:sub_end]
+            sub_range = np.arange(sub_start, sub_end)
+            sub_range = sub_range[sub_range != force_line_id]
+            sub_target = self.target_grid2op[sub_range]
+            sub_current = observation_grid2op.topo_vect[sub_range]
             sub_log = sub_fmt.format(sub_id, str(sub_current), str(sub_target))
             self.stdout(sub_log)
 
@@ -250,13 +256,6 @@ class SAC_Agent(BaseAgent):
     def reset(self, observation_grid2op):
         self.clear_target()
 
-    def act(self, observation_grid2op, reward, done=False):
-        nn_in = self.observation_grid2op_to_nn(observation_grid2op)
-        (obs_nn, bridge_nn, split_nn) = nn_in
-        action_grid2op = self._act(observation_grid2op,
-                                   obs_nn, bridge_nn, split_nn)
-        return action_grid2op
-
     def danger(self, observation_grid2op, action_grid2op):
         # Adapted Geirina 2019 WCCI strategy
 
@@ -272,30 +271,61 @@ class SAC_Agent(BaseAgent):
 
         # Play the action
         return False
-    
-    def _act(self, observation_grid2op,
-             observation_nn, bridge_nn, split_nn):
-        a_grid2op = None
 
+    def act(self, observation_grid2op, reward, done=False):
+        nn_in = self.observation_grid2op_to_nn(observation_grid2op)
+        (obs_nn, bridge_nn, split_nn) = nn_in
+        action_grid2op, _, _ = self._act(observation_grid2op,
+                                         obs_nn,
+                                         bridge_nn,
+                                         split_nn)
+        return action_grid2op
+
+    def _act(self,
+             observation_grid2op,
+             observation_nn,
+             bridge_nn,
+             split_nn,
+             sample=False,
+             recurs=0):
+        a_grid2op = self.action_space({})
+        a_nn = None
+        i_nn = None
+
+        # We just computed a target, if it fails, will need to sample
+        if self.has_target and recurs >= 1:
+            sample = True
+
+        # Consume target action if not the same as current state
         self.prune_target(observation_grid2op)
         if self.has_target:
+            a_nn = self.target_nn
+            i_nn = self.impact_nn
             a_grid2op = self.consume_target()
-            self.stdout("Continue target: ", a_grid2op)
-        else:
-            a_grid2op = self.action_space({})
+            self.stdout("Consume target: ", a_grid2op)
 
+        # Too many tries, go with it
+        if recurs > 10:
+            self.stdout("Target Max recurs")
+            return a_grid2op, a_nn, i_nn
+
+        # Get a new target if we are in danger with current action
         if self.danger(observation_grid2op, a_grid2op):
+            self.stdout("Target danger: Sample=", sample)
             self.clear_target()
             self.get_target(observation_grid2op,
-                            observation_nn, bridge_nn, split_nn)
-            self.prune_target(observation_grid2op)
-            if self.has_target:
-                a_grid2op = self.consume_target()
-                self.stdout("Start target: ", a_grid2op)
-            else:
-                a_grid2op = self.action_space({})
-
-        return a_grid2op
+                            observation_nn,
+                            bridge_nn,
+                            split_nn,
+                            sample)
+            recurs += 1
+            return self._act(observation_grid2op,
+                             observation_nn,
+                             bridge_nn,
+                             split_nn,
+                             sample, recurs)
+        else: # Not in danger, play current action
+            return a_grid2op, a_nn, i_nn
 
     def _step(self, env, observation_grid2op):
         s = 0
@@ -309,7 +339,7 @@ class SAC_Agent(BaseAgent):
             self.clear_target()
             nn_in = self.observation_grid2op_to_nn(observation_grid2op)
             (o_nn, b_nn, s_nn) = nn_in # Obs, bridge, split
-            self.get_target(observation_grid2op, o_nn, b_nn, s_nn)
+            self.get_target(observation_grid2op, o_nn, b_nn, s_nn, True)
             a_nn = self.target_nn
             i_nn = self.impact_nn
             self.prune_target(observation_grid2op)
@@ -395,6 +425,7 @@ class SAC_Agent(BaseAgent):
         target_step = 0
         update_step = 0
         step = 0
+        episode = 0
 
         # Init gym vars
         done = True
@@ -441,10 +472,16 @@ class SAC_Agent(BaseAgent):
                 obs = env.reset()
                 self.reset(obs)
                 done = False
+                episode += 1
 
             # Operate
-            stepped = self._step(env, obs)
-            (obs, nn, nn_next, reward, done, info, a_nn, i_nn, s) = stepped
+            nn_in = self.observation_grid2op_to_nn(obs)
+            (o_nn, b_nn, s_nn) = nn_in # Obs, bridge, split
+            #stepped = self._step(env, obs)
+            #(obs, nn, nn_next, reward, done, info, a_nn, i_nn, s) = stepped
+            a_grid2op, a_nn, i_nn = self._act(obs, o_nn, b_nn, s_nn)
+            obs_next, reward, done, info = env.step(a_grid2op)
+            s = 1
 
             if info["is_illegal"]:
                 episode_illegal += 1
@@ -460,15 +497,17 @@ class SAC_Agent(BaseAgent):
 
             # Learn
             if a_nn is not None:
+                nn_next = self.observation_grid2op_to_nn(obs_next)
                 target_step += 1
                 # Save transition to replay buffer
-                replay_buffer.add(nn, a_nn, i_nn, reward, done, nn_next)
+                replay_buffer.add(nn_in, a_nn, i_nn, reward, done, nn_next)
                 # Train / Update
                 if target_step % train_cfg.update_freq == 0 and \
                    replay_buffer.size() >= train_cfg.batch_size and \
                    replay_buffer.size() >= train_cfg.min_replay_buffer_size:
                     batch = replay_buffer.sample(train_cfg.batch_size)
-                    losses = self.nn.train(*batch)
+                    delay = (update_step % 2 == 0)
+                    losses = self.nn.train(*batch, delayed=delay)
                     update_step += 1
 
                     # Save weights sometimes
@@ -485,12 +524,15 @@ class SAC_Agent(BaseAgent):
                     if update_step % train_cfg.log_freq == 0:
                         logger.scalar("001-loss_q1", losses[0])
                         logger.scalar("002-loss_q2", losses[1])
-                        logger.scalar("003-loss_policy", losses[2])
-                        logger.scalar("004-loss_alpha", losses[3])
+                        if losses[2] is not None:
+                            logger.scalar("003-loss_policy", losses[2])
+                        if losses[3] is not None:
+                            logger.scalar("004-loss_alpha", losses[3])
                         logger.scalar("005-alpha", self.nn.alpha)
                         logger.write(update_step)
 
             step += s
+            obs = obs_next
 
             # Episode metrics logging
             if done and not tested:
@@ -506,6 +548,7 @@ class SAC_Agent(BaseAgent):
                 self.stdout("Rewards sum:\t{:.2f}".format(episode_rewards_sum))
                 self.stdout("Difficulty:\t{}".format(difficulty))
                 self.stdout("Buffer size:\t{}".format(replay_buffer.size()))
+                self.stdout("Episode:\t{}".format(episode))
 
                 # Episode metrics reset
                 episode_steps = 0
