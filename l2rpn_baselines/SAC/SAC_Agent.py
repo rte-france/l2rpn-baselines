@@ -50,8 +50,8 @@ class SAC_Agent(BaseAgent):
                          verbose=verbose)
         self.training = training
         self.verbose = verbose
-        self.sample = self.training
-        self.threshold = 0.35
+        self.threshold = 0.33
+        self.target_max_recurs = 2
 
     def stdout(self, *print_args):
         if self.verbose:
@@ -305,7 +305,7 @@ class SAC_Agent(BaseAgent):
             self.stdout("Consume target: ", a_grid2op)
 
         # Too many tries, go with it
-        if recurs > 10:
+        if recurs > self.target_max_recurs:
             self.stdout("Target Max recurs")
             return a_grid2op, a_nn, i_nn
 
@@ -326,46 +326,6 @@ class SAC_Agent(BaseAgent):
                              sample, recurs)
         else: # Not in danger, play current action
             return a_grid2op, a_nn, i_nn
-
-    def _step(self, env, observation_grid2op):
-        s = 0
-        a_nn = None
-        i_nn = None
-        nn_in = None
-        nn_next = None
-
-        default_action = self.action_space({})
-        if self.danger(observation_grid2op, default_action):
-            self.clear_target()
-            nn_in = self.observation_grid2op_to_nn(observation_grid2op)
-            (o_nn, b_nn, s_nn) = nn_in # Obs, bridge, split
-            self.get_target(observation_grid2op, o_nn, b_nn, s_nn, True)
-            a_nn = self.target_nn
-            i_nn = self.impact_nn
-            self.prune_target(observation_grid2op)
-            if self.has_target:
-                done = False
-                reward = []
-                info = {}
-
-                while done is False and self.has_target:
-                    a_grid2op = self.consume_target()
-                    obs, r, done, info = env.step(a_grid2op)
-                    s += 1
-                    self.stdout("Applied:", a_grid2op)
-                    reward.append(r)
-
-                # Prepare transition result
-                t_reward = np.mean(reward)
-                self.stdout("Target reward:", t_reward)
-                nn_next = self.observation_grid2op_to_nn(obs)
-                return obs, nn_in, nn_next, t_reward, done, info, a_nn, i_nn, s
-
-        # No danger or target pruned: DN
-        obs, reward, done, info = env.step(default_action)
-        if a_nn is not None:
-            nn_next = self.observation_grid2op_to_nn(obs)
-        return obs, nn_in, nn_next, reward, done, info, a_nn, i_nn, 1
 
     ###
     ## Baseline train
@@ -422,6 +382,7 @@ class SAC_Agent(BaseAgent):
         # Init training vars
         replay_buffer = SAC_ReplayBuffer(train_cfg.replay_buffer_size)
         self.rpbf = replay_buffer
+        self.target_max_recurs = 20
         target_step = 0
         update_step = 0
         step = 0
@@ -477,9 +438,7 @@ class SAC_Agent(BaseAgent):
             # Operate
             nn_in = self.observation_grid2op_to_nn(obs)
             (o_nn, b_nn, s_nn) = nn_in # Obs, bridge, split
-            #stepped = self._step(env, obs)
-            #(obs, nn, nn_next, reward, done, info, a_nn, i_nn, s) = stepped
-            a_grid2op, a_nn, i_nn = self._act(obs, o_nn, b_nn, s_nn)
+            a_grid2op, a_nn, i_nn = self._act(obs, o_nn, b_nn, s_nn, True)
             obs_next, reward, done, info = env.step(a_grid2op)
             s = 1
 
@@ -559,9 +518,6 @@ class SAC_Agent(BaseAgent):
         self.nn.save_network(save_path, name=self.name)
 
     def train_test(self, env, logger, update_step):
-        # Use policy eval
-        self.sample = False
-
         # Cache current training scenario
         save_id = env.chronics_handler._prev_cache_id
 
@@ -590,5 +546,3 @@ class SAC_Agent(BaseAgent):
         # Restore training scenario
         env.chronics_handler.tell_id(save_id)
         env.reset()
-        # Restore policy sampling
-        self.sample = True

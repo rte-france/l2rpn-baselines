@@ -95,23 +95,26 @@ class SAC_NN(object):
         return d
 
     def _build_emb_NN(self, model_name):
-        input_state = tfkl.Input(shape=self.observation_shape)
+        #input_state = tfkl.Input(shape=self.observation_shape)
         input_bridge = tfkl.Input(shape=self.bridge_shape)
         input_split = tfkl.Input(shape=self.split_shape)
-        emb_obs = self._build_mlp(input_state,
+
+        input_cat = tf.concat([input_bridge, input_split], axis=1)
+        emb_obs = self._build_mlp(input_cat,
                                   self._cfg.sizes_emb,
                                   self._cfg.activations_emb,
                                   model_name,
                                   norm=self._cfg.norm_emb)
-        emb_bridge = self._build_ltau(emb_obs, input_bridge,
-                                      model_name + "-b")
-        emb_split = self._build_ltau(emb_obs, input_split,
-                                     model_name + "-s")
-        emb = tfkl.add([emb_obs, emb_bridge, emb_split],
-                       name=model_name + "-acc")
+        #emb_bridge = self._build_ltau(emb_obs, input_bridge,
+        #                              model_name + "-b")
+        #emb_split = self._build_ltau(emb_obs, input_split,
+        #                             model_name + "-s")
+        #emb = tfkl.add([emb_obs, emb_bridge, emb_split],
+        #               name=model_name + "-acc")
 
-        model_inputs = [input_state, input_bridge, input_split]
-        model_outputs = [emb]
+        #model_inputs = [input_state, input_bridge, input_split]
+        model_inputs = [input_bridge, input_split]
+        model_outputs = [emb_obs]
         model = tfk.Model(inputs=model_inputs,
                           outputs=model_outputs,
                           name=model_name)
@@ -255,7 +258,8 @@ class SAC_NN(object):
 
     def sample(self, net_observation, net_bridge, net_split, eps=1e-6):
         # Compute policy common embedding
-        emb = self.emb([net_observation, net_bridge, net_split])
+        #emb = self.emb([net_observation, net_bridge, net_split])
+        emb = self.emb([net_bridge, net_split])
 
         # Get actor rsample
         mean, log_std = self.actor(emb)
@@ -284,7 +288,8 @@ class SAC_NN(object):
 
     def mean(self, net_observation, net_bridge, net_split):
         # Compute common embedding
-        emb = self.emb([net_observation, net_bridge, net_split])
+        #emb = self.emb([net_observation, net_bridge, net_split])
+        emb = self.emb([net_bridge, net_split])
 
         # Get actor eval
         mean, _ = self.actor(emb)
@@ -310,7 +315,8 @@ class SAC_NN(object):
         s2_split = np.vstack(s2_batch[:, 2])
 
         # Compute Q target
-        emb = self.emb([s_obs, s_bridge, s_split])
+        #emb = self.emb([s_obs, s_bridge, s_split])
+        emb = self.emb([s_bridge, s_split])
         sample_next = self.sample(s2_obs, s2_bridge, s2_split)
         (a_next, a_log_next, i_next, i_log_next, emb_next) = sample_next
         log_next = a_log_next + i_log_next

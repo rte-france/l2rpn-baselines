@@ -100,6 +100,7 @@ if __name__ == "__main__":
     # Create grid2op game environment
     env = make(args.dataset,
                reward_class=SAC_Reward,
+               difficulty="0",
                backend=backend)
 
     # Shuffle scenarios
