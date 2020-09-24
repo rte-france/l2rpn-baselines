@@ -16,7 +16,19 @@ import pandas as pd
 
 class ExpertAgent(BaseAgent):
     """
-    Do nothing agent of grid2op, as a lowerbond baseline for l2rpn competition.
+    This is an Expert System Agent which tries to solve an overload when it happens and which does not require any training.
+    For any new overloaded situations, it computes an influence graph around the overload of interest, and rank the substations and topologies to explore to find a solution.
+    It simulates the top ranked topologies to eventually give a score of success:
+    #4 - it solves all overloads,
+    #3 - it solves only the overload of interest
+    #2 - it partially solves the overload of interest
+    #1 - it solves the overload of interest but worsen other overloads
+    #0 - it fails
+
+    #You can tune:
+    #- the number of simulations it is allowed to run each for each overload
+    #- the number of overload you "study" at each given time if there are multiple overloads
+    #- if you decide to take an action now with a score of 1 (which is not necessarily good or bad, there is a tradeoff) or delay it
     """
 
     def __init__(self,
@@ -36,7 +48,7 @@ class ExpertAgent(BaseAgent):
         self.threshold_powerFlow_safe = 0.95
         self.maxOverloadsAtATime = 2#We should not run it more than
         self.config = {
-            "totalnumberofsimulatedtopos": 25,#30,
+            "totalnumberofsimulatedtopos": 15,#30,
             "numberofsimulatedtopospernode": 5,#10,
             "maxUnusedLines": 3,
             "ratioToReconsiderFlowDirection": 0.75,
@@ -50,13 +62,13 @@ class ExpertAgent(BaseAgent):
         #ltc = None
         #rho_max = 0
         self.curr_iter+=1
-        # Look for an overload
 
+        # Look for overloads and rank them
         ltc_list=self.getRankedOverloads(observation)
         counterTestedOverloads=0
 
         n_overloads=len(ltc_list)
-        if n_overloads==0:
+        if n_overloads==0:#if no overloads
 
             if(len(self.sub_2nodes)!=0):# if any substation is not in the original topology, we will try to get back to it if it is safe
                 for sub_id in self.sub_2nodes:
@@ -71,12 +83,12 @@ class ExpertAgent(BaseAgent):
                 return self.action_space({})
         # otherwise, we try to solve it
         else:
-            best_action = self.action_space({})  # do nothing action
+            best_action = self.action_space({})  # instantiate an action with do nothing action
             subID_ToSplitOn = -1
             scoreBestAction=0#range from 0 to 4, 4 is best
             efficacy_best_action=-999
             #ltc_considered_for_action=-1
-            subsInCooldown=[i for i in range(observation.n_sub) if (observation.time_before_cooldown_sub[i]>=1)]
+            subsInCooldown=[i for i in range(observation.n_sub) if (observation.time_before_cooldown_sub[i]>=1)]#if you can not run an action currently on a susbtation, so no need to simulate on it
 
             timestepsOverflowAllowed = self.observation_space.parameters.NB_TIMESTEP_OVERFLOW_ALLOWED
             isManyOverloads=(n_overloads>timestepsOverflowAllowed)
@@ -85,13 +97,13 @@ class ExpertAgent(BaseAgent):
 
             for ltc in ltc_list:
 
-                isOverflowCritical = (observation.timestep_overflow[ltc] == timestepsOverflowAllowed) #or (n_overloads>timestepsOverflowAllowed)
+                isOverflowCritical = (observation.timestep_overflow[ltc] == timestepsOverflowAllowed)
                 if (isOverflowCritical) or (ltc not in ltcAlreadyConsidered):
                     ltcAlreadyConsidered.append(ltc)
                     #current_timestep=self.env.chronics_handler.real_data.curr_iter
                     print('running Expert Agent on line with id:'+str(ltc)+' at timestep:'+str(self.curr_iter))
 
-                    additionalLinesToCut,linesConsidered=self.additionalLinesToCut(ltc)
+                    additionalLinesToCut,linesConsidered=self.additionalLinesToCut(ltc)#for IEEE118_R2, rather than considering one overload, we consider an overloaded corridor of multiple lines
                     ltcAlreadyConsidered+=linesConsidered
                     simulator = Grid2opSimulation(observation, self.action_space, self.observation_space, param_options=self.config, debug=False,
                                                   ltc=[ltc],reward_type=self.reward_type)
@@ -99,11 +111,12 @@ class ExpertAgent(BaseAgent):
                     ranked_combinations, expert_system_results, actions = expert_operator(simulator, plot=False, debug=False)
 
 
-                    if (expert_system_results.shape[0]>=1) and not (expert_system_results["Efficacity"].isnull().values.all()):#if not empty
+                    if (expert_system_results is not None) and (expert_system_results.shape[0]>=1) and not (expert_system_results["Efficacity"].isnull().values.all()):#if not empty
 
+                        #we take the best action from the result of the expert system
                         New_scoreBestAction = expert_system_results['Topology simulated score'].max()
                         index_best_action = expert_system_results[
-                            expert_system_results['Topology simulated score'] == New_scoreBestAction]["Efficacity"].idxmax()
+                            expert_system_results['Topology simulated score'] == New_scoreBestAction]["Efficacity"].idxmax()#
 
 
 
@@ -119,17 +132,18 @@ class ExpertAgent(BaseAgent):
                             best_action = actions[index_best_action]
                             efficacy_best_action,scoreBestAction,subID_ToSplitOn=expert_system_results[['Efficacity', 'Topology simulated score', 'Substation ID']].iloc[index_best_action]
 
-                        if(scoreBestAction==4):#we have our good action here, no need to search further
+                        if(scoreBestAction==4):#we have our good action here that solves all overloads, no need to search further
                             #ltc_considered_for_action=ltc
                             break
                             #TO DO: not necessarily a substation but also line disconnections possibly to consider
 
 
-                        if ((scoreBestAction == 3) & isOverflowCritical ):
+                        if ((scoreBestAction == 3) & isOverflowCritical ):#it is a good action to solve our critical overload
                             #ltc_considered_for_action = ltc
                             break
 
                         # case 1: the overload has no timestep_overflow left, we solve it anyway (score 1) and try to create new overloads
+                        # case 2: we have many overloads to solve and it is maybe better to start solving some even with a score of 1
                         if (isOverflowCritical) or ((isManyOverloads) and (scoreBestAction==0)):
                             indexActionToKeep = self.get_action_with_least_worsened_lines(expert_system_results, ltc_list)
                             ltc_considered_for_action = ltc
@@ -143,10 +157,13 @@ class ExpertAgent(BaseAgent):
                     if(self.maxOverloadsAtATime==counterTestedOverloads):
                         break
 
+            #when the expert system results are not very satisfying, we try some more simulations to merge back nodes in the reference topology for substations with 2 nodes
+            #we see if it has a better effect
             if (scoreBestAction <= 1):
                 #if (scoreBestAction==0):#get efficacity from do nothing to assess if it is perhaps better to do an action
                 #    efficacity = info["rewards"][self.reward_type]
                 action=None
+                subs_expert_system_results = []
                 #in case of IEEE14 grid, disconnecting line 14 is a good action.
                 # #The expert system would guess it if we had the ability to look for line disconnections as well
 
@@ -155,7 +172,7 @@ class ExpertAgent(BaseAgent):
                     action=self.bonus_action_IEEE14(simulator, scoreBestAction, efficacy_best_action, isOverflowCritical)
 
                 # we will try to get back to initial topology if possible for susbstations considered by the expert system
-                if action is None:
+                if (action is None) and (expert_system_results is not None):
                     subs_expert_system_results=expert_system_results["Substation ID"]
                     action=self.try_out_reference_topologies(simulator, scoreBestAction,efficacy_best_action, isOverflowCritical,
                                                  subs_expert_system_results, subsInCooldown)
@@ -204,6 +221,7 @@ class ExpertAgent(BaseAgent):
         ltc_list=ltc_critical+ltc_not_critical
         return ltc_list
 
+    #we reconnect lines that were in maintenance or attacked when possible
     def reco_line(self,observation):
           # add the do nothing
         line_stat_s = observation.line_status
@@ -218,6 +236,7 @@ class ExpertAgent(BaseAgent):
                 return action
         return None
 
+    # for a substation we get the reference topology action
     def reference_topology_sub_action(self, observation, sub_id):
         topo_vec_sub = observation.state_of(substation_id=sub_id)['topo_vect']
         topo_target = list(np.ones(len(topo_vec_sub)))
@@ -238,6 +257,7 @@ class ExpertAgent(BaseAgent):
 
         return None
 
+    # we try actions disconnecting overloaded lines
     def try_out_overload_disconnections(self,simulator,scoreBestAction,efficacy_best_action,isOverflowCritical,ltc_list):
         new_ranked_combinations = []
 
@@ -255,7 +275,7 @@ class ExpertAgent(BaseAgent):
             print("check")
         return action
 
-
+    # we try actions merging back a substation in its reference topology
     def try_out_reference_topologies(self,simulator,scoreBestAction,efficacy_best_action,isOverflowCritical,subs_expert_system_results,subsInCooldown):
         # we will try to get back to initial topology if possible for susbstations considered by the expert system
         new_ranked_combinations = []
@@ -270,6 +290,7 @@ class ExpertAgent(BaseAgent):
         action=self.compute_score_on_new_combinations( simulator, new_ranked_combinations,scoreBestAction,efficacy_best_action,isOverflowCritical)
         return action
 
+    # for new actions we call the Expert System method that gives a score for a simulation
     def compute_score_on_new_combinations(self,simulator,new_ranked_combinations,scoreBestAction,efficacy_best_action,isOverflowCritical,isLineDisconnection=False):
         if (len(new_ranked_combinations) >= 1):
             new_expert_system_results, new_actions = simulator.compute_new_network_changes(new_ranked_combinations)
@@ -353,7 +374,7 @@ class ExpertAgent(BaseAgent):
 
         return additionalLinesToCut,linesConsidered
 
-
+#using a specific reward to assess the efficacy of an action for the Expert System, in addition to the score 0 to 4
 class MinMargin_reward(BaseReward):
     """
     if you want to control the reward used by the envrionment when your agent is being assessed, you need
