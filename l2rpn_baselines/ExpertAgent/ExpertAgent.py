@@ -22,16 +22,19 @@ class ExpertAgent(BaseAgent):
     def __init__(self,
                  action_space,
                  observation_space,
-                 name,
+                 name,gridName="IEEE14",
                  **kwargs):
         super().__init__(action_space)
         self.name = name
+        self.grid = gridName #IEEE14,IEEE118_R2 (WCCI or Neurips Track Robustness), IEEE118
+        print("the grid you indicated to the Expert System is:"+gridName)
         self.curr_iter = 0
         self.sub_2nodes=set()
         self.lines_disconnected =set()
         self.action_space = action_space
         self.observation_space = observation_space
         self.threshold_powerFlow_safe = 0.95
+        self.maxOverloadsAtATime = 2#We should not run it more than
         self.config = {
             "totalnumberofsimulatedtopos": 25,#30,
             "numberofsimulatedtopospernode": 5,#10,
@@ -48,9 +51,9 @@ class ExpertAgent(BaseAgent):
         #rho_max = 0
         self.curr_iter+=1
         # Look for an overload
-        sort_rho=-np.sort(-observation.rho)#sort in descending order for positive values
-        sort_indices=np.argsort(-observation.rho)
-        ltc_list=[sort_indices[i] for i in range(len(sort_rho)) if sort_rho[i]>=1 ]
+
+        ltc_list=self.getRankedOverloads(observation)
+        counterTestedOverloads=0
 
         n_overloads=len(ltc_list)
         if n_overloads==0:
@@ -78,66 +81,77 @@ class ExpertAgent(BaseAgent):
             timestepsOverflowAllowed = self.observation_space.parameters.NB_TIMESTEP_OVERFLOW_ALLOWED
             isManyOverloads=(n_overloads>timestepsOverflowAllowed)
 
+            ltcAlreadyConsidered=[]
+
             for ltc in ltc_list:
 
                 isOverflowCritical = (observation.timestep_overflow[ltc] == timestepsOverflowAllowed) #or (n_overloads>timestepsOverflowAllowed)
+                if (isOverflowCritical) or (ltc not in ltcAlreadyConsidered):
+                    ltcAlreadyConsidered.append(ltc)
+                    #current_timestep=self.env.chronics_handler.real_data.curr_iter
+                    print('running Expert Agent on line with id:'+str(ltc)+' at timestep:'+str(self.curr_iter))
 
-                #current_timestep=self.env.chronics_handler.real_data.curr_iter
-                print('running Expert Agent on line with id:'+str(ltc)+' at timestep:'+str(self.curr_iter))
-                simulator = Grid2opSimulation(observation, self.action_space, self.observation_space, param_options=self.config, debug=False, ltc=[ltc],reward_type=self.reward_type)
-                print("doing simulations")
-                ranked_combinations, expert_system_results, actions = expert_operator(simulator, plot=False, debug=False)
-
-
-                if (expert_system_results.shape[0]>=1) and not (expert_system_results["Efficacity"].isnull().values.all()):#if not empty
-
-                    New_scoreBestAction = expert_system_results['Topology simulated score'].max()
-                    index_best_action = expert_system_results[
-                        expert_system_results['Topology simulated score'] == New_scoreBestAction]["Efficacity"].idxmax()
+                    additionalLinesToCut,linesConsidered=self.additionalLinesToCut(ltc)
+                    ltcAlreadyConsidered+=linesConsidered
+                    simulator = Grid2opSimulation(observation, self.action_space, self.observation_space, param_options=self.config, debug=False,
+                                                  ltc=[ltc],reward_type=self.reward_type)
+                    print("doing simulations")
+                    ranked_combinations, expert_system_results, actions = expert_operator(simulator, plot=False, debug=False)
 
 
+                    if (expert_system_results.shape[0]>=1) and not (expert_system_results["Efficacity"].isnull().values.all()):#if not empty
 
-                    print("overloaded line id")
-                    print(ltc)
-                    print("index_best_action")
-                    print(index_best_action)
-                    print("New_score_best_action")
-                    print(New_scoreBestAction)
+                        New_scoreBestAction = expert_system_results['Topology simulated score'].max()
+                        index_best_action = expert_system_results[
+                            expert_system_results['Topology simulated score'] == New_scoreBestAction]["Efficacity"].idxmax()
 
 
-                    if ((not np.isnan(index_best_action)) &(New_scoreBestAction>scoreBestAction)&(New_scoreBestAction>=3)):
-                        best_action = actions[index_best_action]
-                        efficacy_best_action,scoreBestAction,subID_ToSplitOn=expert_system_results[['Efficacity', 'Topology simulated score', 'Substation ID']].iloc[index_best_action]
 
-                    if(scoreBestAction==4):#we have our good action here, no need to search further
-                        #ltc_considered_for_action=ltc
-                        break
-                        #TO DO: not necessarily a substation but also line disconnections possibly to consider
+                        print("overloaded line id")
+                        print(ltc)
+                        print("index_best_action")
+                        print(index_best_action)
+                        print("New_score_best_action")
+                        print(New_scoreBestAction)
 
 
-                    if ((scoreBestAction == 3) & isOverflowCritical ):
-                        #ltc_considered_for_action = ltc
-                        break
+                        if ((not np.isnan(index_best_action)) &(New_scoreBestAction>scoreBestAction)&(New_scoreBestAction>=3)):
+                            best_action = actions[index_best_action]
+                            efficacy_best_action,scoreBestAction,subID_ToSplitOn=expert_system_results[['Efficacity', 'Topology simulated score', 'Substation ID']].iloc[index_best_action]
 
-                    # case 1: the overload has no timestep_overflow left, we solve it anyway (score 1) and try to create new overloads
-                    if (isOverflowCritical) or ((isManyOverloads) and (scoreBestAction==0)):
-                        indexActionToKeep = self.get_action_with_least_worsened_lines(expert_system_results, ltc_list)
-                        ltc_considered_for_action = ltc
-                        if (indexActionToKeep is not None):
-                            best_action = actions[indexActionToKeep]
-                            efficacy_best_action, scoreBestAction, subID_ToSplitOn = expert_system_results[['Efficacity', 'Topology simulated score', 'Substation ID']].iloc[indexActionToKeep]
-                            subID_ToSplitOn=int(subID_ToSplitOn)
-                        if (isOverflowCritical):
+                        if(scoreBestAction==4):#we have our good action here, no need to search further
+                            #ltc_considered_for_action=ltc
+                            break
+                            #TO DO: not necessarily a substation but also line disconnections possibly to consider
+
+
+                        if ((scoreBestAction == 3) & isOverflowCritical ):
+                            #ltc_considered_for_action = ltc
                             break
 
+                        # case 1: the overload has no timestep_overflow left, we solve it anyway (score 1) and try to create new overloads
+                        if (isOverflowCritical) or ((isManyOverloads) and (scoreBestAction==0)):
+                            indexActionToKeep = self.get_action_with_least_worsened_lines(expert_system_results, ltc_list)
+                            ltc_considered_for_action = ltc
+                            if (indexActionToKeep is not None):
+                                best_action = actions[indexActionToKeep]
+                                efficacy_best_action, scoreBestAction, subID_ToSplitOn = expert_system_results[['Efficacity', 'Topology simulated score', 'Substation ID']].iloc[indexActionToKeep]
+                                subID_ToSplitOn=int(subID_ToSplitOn)
+                            if (isOverflowCritical):
+                                break
+                    counterTestedOverloads+=1
+                    if(self.maxOverloadsAtATime==counterTestedOverloads):
+                        break
 
             if (scoreBestAction <= 1):
                 #if (scoreBestAction==0):#get efficacity from do nothing to assess if it is perhaps better to do an action
                 #    efficacity = info["rewards"][self.reward_type]
-
+                action=None
                 #in case of IEEE14 grid, disconnecting line 14 is a good action.
                 # #The expert system would guess it if we had the ability to look for line disconnections as well
-                if (observation.n_sub==14):
+
+                if (self.grid=="IEEE14"):
+                    print("TRYING L 14 Disconnection!!!!!!!")
                     action=self.bonus_action_IEEE14(simulator, scoreBestAction, efficacy_best_action, isOverflowCritical)
 
                 # we will try to get back to initial topology if possible for susbstations considered by the expert system
@@ -174,6 +188,21 @@ class ExpertAgent(BaseAgent):
     def save(self, path):
         # Nothing to save
         pass
+
+    #we order overloads by usage rate but also by criticity giving remaining timesteps for overload before disconnect
+    def getRankedOverloads(self,observation):
+        timestepsOverflowAllowed = self.observation_space.parameters.NB_TIMESTEP_OVERFLOW_ALLOWED
+
+        sort_rho=-np.sort(-observation.rho)#sort in descending order for positive values
+        sort_indices=np.argsort(-observation.rho)
+        ltc_list=[sort_indices[i] for i in range(len(sort_rho)) if sort_rho[i]>=1 ]
+
+        #now reprioritize ltc if critical or not
+        ltc_critical=[l for l in ltc_list if (observation.timestep_overflow[l] == timestepsOverflowAllowed)]
+        ltc_not_critical = [l for l in ltc_list if (observation.timestep_overflow[l] != timestepsOverflowAllowed)]
+
+        ltc_list=ltc_critical+ltc_not_critical
+        return ltc_list
 
     def reco_line(self,observation):
           # add the do nothing
@@ -305,6 +334,24 @@ class ExpertAgent(BaseAgent):
                     indexActionToKeep=idx
 
         return indexActionToKeep
+
+    #to be used when we have lines in parallel that are also overloaded or about to be overloaded
+    #The Expert System will compute an overflow graph with those lines cut as well, to tell it that they also belonhg to the constrained path
+    def additionalLinesToCut(self,lineToCut):
+        additionalLinesToCut=[]
+        linesConsidered=[]
+        if(self.grid=="IEEE118_R2"):
+            linesToConsider=[22,23,33,35,34,32]
+            pairs=[(22,23),(33,35),(34,32)]
+            if(lineToCut in linesToConsider):
+                print("TRYING Multi Line  Disconnection for IEEE118_R2!!!!!!!")
+                for p in pairs:
+                    if(lineToCut in p):
+                       additionalLinesToCut=[l for l in p if l!=lineToCut]
+                       linesConsidered=linesToConsider
+                       break
+
+        return additionalLinesToCut,linesConsidered
 
 
 class MinMargin_reward(BaseReward):

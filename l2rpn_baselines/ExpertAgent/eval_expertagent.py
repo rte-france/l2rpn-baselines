@@ -10,6 +10,8 @@
 
 import os
 import argparse
+import numpy as np
+from grid2op.dtypes import dt_int
 
 from grid2op.MakeEnv import make
 from grid2op.Runner import Runner
@@ -52,6 +54,8 @@ def evaluate(env,
              nb_episode=DEFAULT_NB_EPISODE,
              nb_process=DEFAULT_NB_PROCESS,
              max_steps=DEFAULT_MAX_STEPS,
+             grid="IEEE14", #IEEE14,IEEE118_3 (WCCI or Neurips Track Robustness), IEEE118
+             seed=None,
              verbose=False,
              save_gif=False):
 
@@ -59,11 +63,17 @@ def evaluate(env,
     runner_params["verbose"] = verbose
 
     # Build runner
-    agent = ExpertAgent(env.action_space, env.observation_space, "Template")
+    agent = ExpertAgent(env.action_space, env.observation_space, "Template",grid)
     runner = Runner(**runner_params,
                     agentClass=None,
                     agentInstance=agent
                     )
+
+    if seed is not None:
+        np.random.seed(seed)
+        max_int = np.iinfo(dt_int).max
+        env_seeds = list(np.random.randint(max_int, size=int(nb_episode)))
+        agent_seeds = list(np.random.randint(max_int, size=int(nb_episode)))
 
     # Run
     os.makedirs(logs_path, exist_ok=True)
@@ -71,6 +81,8 @@ def evaluate(env,
                      nb_episode=nb_episode,
                      nb_process=nb_process,
                      max_iter=max_steps,
+                     env_seeds=env_seeds,
+                     agent_seeds=agent_seeds,
                      pbar=True)
 
     # Print summary
