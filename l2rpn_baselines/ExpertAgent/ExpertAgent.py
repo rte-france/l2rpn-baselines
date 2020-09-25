@@ -34,7 +34,7 @@ class ExpertAgent(BaseAgent):
     def __init__(self,
                  action_space,
                  observation_space,
-                 name,gridName="IEEE14",
+                 name,gridName="IEEE118",
                  **kwargs):
         super().__init__(action_space)
         self.name = name
@@ -46,11 +46,11 @@ class ExpertAgent(BaseAgent):
         self.action_space = action_space
         self.observation_space = observation_space
         self.threshold_powerFlow_safe = 0.95
-        self.maxOverloadsAtATime = 2#We should not run it more than
+        self.maxOverloadsAtATime = 3#We should not run it more than
         self.config = {
-            "totalnumberofsimulatedtopos": 15,#30,
+            "totalnumberofsimulatedtopos": 25,#30,
             "numberofsimulatedtopospernode": 5,#10,
-            "maxUnusedLines": 3,
+            "maxUnusedLines": 2,
             "ratioToReconsiderFlowDirection": 0.75,
             "ratioToKeepLoop": 0.25,
             "ThersholdMinPowerOfLoop": 0.1,
@@ -364,13 +364,19 @@ class ExpertAgent(BaseAgent):
         if(self.grid=="IEEE118_R2"):
             linesToConsider=[22,23,33,35,34,32]
             pairs=[(22,23),(33,35),(34,32)]
-            if(lineToCut in linesToConsider):
-                print("TRYING Multi Line  Disconnection for IEEE118_R2!!!!!!!")
-                for p in pairs:
-                    if(lineToCut in p):
-                       additionalLinesToCut=[l for l in p if l!=lineToCut]
-                       linesConsidered=linesToConsider
-                       break
+
+        if (self.grid == "IEEE118"):
+            linesToConsider = [135, 136, 149, 147, 148, 146]
+            pairs = [(135, 136), (149, 147), (148, 146)]
+
+        if (lineToCut in linesToConsider):
+            print("TRYING Multi Line  Disconnection for IEEE118_R2!!!!!!!")
+            for p in pairs:
+                if (lineToCut in p):
+                    additionalLinesToCut = [l for l in p if l != lineToCut]
+                    linesConsidered = linesToConsider
+                    break
+
 
         return additionalLinesToCut,linesConsidered
 
