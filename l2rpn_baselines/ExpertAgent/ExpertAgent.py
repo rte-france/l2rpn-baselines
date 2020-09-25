@@ -361,6 +361,8 @@ class ExpertAgent(BaseAgent):
     def additionalLinesToCut(self,lineToCut):
         additionalLinesToCut=[]
         linesConsidered=[]
+
+        linesToConsider=[]
         if(self.grid=="IEEE118_R2"):
             linesToConsider=[22,23,33,35,34,32]
             pairs=[(22,23),(33,35),(34,32)]
