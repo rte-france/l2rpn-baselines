@@ -13,9 +13,9 @@ import tensorflow as tf
 import warnings
 
 from l2rpn_baselines.utils import cli_train
-from l2rpn_baselines.SAC.SAC import SAC, DEFAULT_NAME
-from l2rpn_baselines.SAC.SAC_NNParam import SAC_NNParam
-from l2rpn_baselines.SAC.SAC_NN import SAC_NN
+from l2rpn_baselines.SACOld.SACOld import SACOld, DEFAULT_NAME
+from l2rpn_baselines.SACOld.SACOld_NNParam import SACOld_NNParam
+from l2rpn_baselines.SACOld.SACOld_NN import SACOld_NN
 from l2rpn_baselines.utils import TrainingParam
 from l2rpn_baselines.utils.waring_msgs import _WARN_GPU_MEMORY
 
@@ -32,7 +32,8 @@ def train(env,
           kwargs_converters={},
           kwargs_archi={}):
     """
-    This function implements the "training" part of the balines "DeepQSimple".
+    This function implements the "training" part of the baselines "SAC" (old buggy implementation).
+    Please use the :class:`l2rpn_baselines.SAC.SAC` for new projects.
 
     Parameters
     ----------
@@ -76,11 +77,11 @@ def train(env,
     Returns
     -------
 
-    baseline: :class:`DeepQSimple`
+    baseline: :class:`SACOld`
         The trained baseline.
 
 
-    .. _Example-sac:
+    .. _Example-sacold:
 
     Examples
     ---------
@@ -93,7 +94,7 @@ def train(env,
         import grid2op
         from grid2op.Reward import L2RPNReward
         from l2rpn_baselines.utils import TrainingParam, NNParam
-        from l2rpn_baselines.SAC import train
+        from l2rpn_baselines.SACOld import train
 
         # define the environment
         env = grid2op.make("l2rpn_case14_sandbox",
@@ -167,23 +168,23 @@ def train(env,
         training_param = TrainingParam()
 
     # compute the proper size for the converter
-    kwargs_archi["action_size"] = SAC.get_action_size(env.action_space, filter_action_fun, kwargs_converters)
+    kwargs_archi["action_size"] = SACOld.get_action_size(env.action_space, filter_action_fun, kwargs_converters)
 
     if load_path is not None:
-        path_model, path_target_model = SAC_NN.get_path_model(load_path, name)
+        path_model, path_target_model = SACOld_NN.get_path_model(load_path, name)
         if verbose:
             print("INFO: Reloading a model, the architecture parameters provided will be ignored")
-        nn_archi = SAC_NNParam.from_json(os.path.join(path_model, "nn_architecture.json"))
+        nn_archi = SACOld_NNParam.from_json(os.path.join(path_model, "nn_architecture.json"))
     else:
-        nn_archi = SAC_NNParam(**kwargs_archi)
+        nn_archi = SACOld_NNParam(**kwargs_archi)
 
-    baseline = SAC(action_space=env.action_space,
-                   nn_archi=nn_archi,
-                   name=name,
-                   istraining=True,
-                   verbose=verbose,
-                   **kwargs_converters
-                   )
+    baseline = SACOld(action_space=env.action_space,
+                      nn_archi=nn_archi,
+                      name=name,
+                      istraining=True,
+                      verbose=verbose,
+                      **kwargs_converters
+                      )
 
     if load_path is not None:
         if verbose:
@@ -310,7 +311,7 @@ if __name__ == "__main__":
                      "time_before_cooldown_sub", "rho", "timestep_overflow", "line_status"]
 
     # nn architecture
-    observation_size = SAC_NNParam.get_obs_size(env_init, li_attr_obs_X)
+    observation_size = SACOld_NNParam.get_obs_size(env_init, li_attr_obs_X)
     sizes_q = [800, 800, 800, 494, 494, 494]  # sizes of each hidden layers
     sizes_v = [800, 800]  # sizes of each hidden layers
     sizes_pol = [800, 800, 800, 494, 494, 494]  # sizes of each hidden layers

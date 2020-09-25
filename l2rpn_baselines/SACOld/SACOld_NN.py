@@ -25,16 +25,26 @@ from l2rpn_baselines.utils import BaseDeepQ, TrainingParam
 # This class implements the "Sof Actor Critic" model.
 # It is a custom implementation, courtesy to Clement Goubet
 # The original paper is: https://arxiv.org/abs/1801.01290
-class SAC_NN(BaseDeepQ):
+class SACOld_NN(BaseDeepQ):
     """
     Constructs the desired soft actor critic network.
 
     Compared to other baselines shown elsewhere (*eg* :class:`l2rpn_baselines.DeepQSimple` or
-    :class:`l2rpn_baselines.DeepQSimple`) the implementation of the SAC is a bit more tricky.
+    :class:`l2rpn_baselines.DeepQSimple`) the implementation of the SAC is a bit more tricky
+    (and was most likely NOT done properly in this class). For a more correct implementation
+    of SAC please look at the :class:`l2rpn_baselines.SAC.SAC` instead. This class is only
+    present for backward compatibility.
 
     However, we demonstrate here that the use of :class:`l2rpn_baselines.utils.BaseDeepQ` with custom
-    parameters class (in this calse :class:`SAC_NNParam` is flexible enough to meet our needs.
+    parameters class (in this case :class:`SACOld_NNParam` is flexible enough to meet our needs.
 
+    References
+    -----------
+    Original paper:
+    https://arxiv.org/abs/1801.01290
+
+    modified for discrete action space:
+    https://arxiv.org/abs/1910.07207
     """
     def __init__(self,
                  nn_params,
@@ -60,7 +70,6 @@ class SAC_NN(BaseDeepQ):
         self.model_Q2 = None
         self.model_policy = None
 
-        self.construct_q_network()
         self.previous_size = 0
         self.previous_eyes = None
         self.previous_arange = None
@@ -76,6 +85,8 @@ class SAC_NN(BaseDeepQ):
         self.optimizer_Q2 = None
         self.schedule_lr_value = None
         self.optimizer_value = None
+
+        self.construct_q_network()
 
     def _build_q_NN(self):
         input_states = Input(shape=(self._observation_size,))
@@ -147,19 +158,19 @@ class SAC_NN(BaseDeepQ):
             self.previous_size = batch_size
         return self.previous_eyes, self.previous_arange
 
-    def predict_movement(self, data, epsilon, batch_size=None):
+    def predict_movement(self, data, epsilon, batch_size=None, training=False):
         """
         predict the next movements in a vectorized fashion
         """
         if batch_size is None:
             batch_size = data.shape[0]
         rand_val = np.random.random(data.shape[0])
-        p_actions = self.model_policy.predict(data, batch_size=batch_size)
+        p_actions = self.model_policy(data, training=training).numpy()
         opt_policy_orig = np.argmax(np.abs(p_actions), axis=-1)
         opt_policy = 1.0 * opt_policy_orig
         opt_policy[rand_val < epsilon] = np.random.randint(0, self._action_size, size=(np.sum(rand_val < epsilon)))
         opt_policy = opt_policy.astype(np.int)
-        return opt_policy, p_actions[:, opt_policy]
+        return opt_policy, p_actions[:, opt_policy], p_actions
 
     def _get_eye_train(self, batch_size):
         if batch_size != self.previous_size_train:
@@ -175,18 +186,25 @@ class SAC_NN(BaseDeepQ):
         if batch_size is None:
             batch_size = s_batch.shape[0]
         target = np.zeros((batch_size, 1))
+
         # training of the action state value networks
         last_action = np.zeros((batch_size, self._action_size))
+
         # Save the graph just the first time
         if tf_writer is not None:
             tf.summary.trace_on()
-        fut_action = self.model_value_target.predict(s2_batch, batch_size=batch_size).reshape(-1)
+        # TODO is it s2 or s ? For me it should be s...
+        fut_action = self.model_value_target(s2_batch, training=True).numpy().reshape(-1)
+        # TODO ***_target should be for the Q function instead imho
+
         if tf_writer is not None:
             with tf_writer.as_default():
                 tf.summary.trace_export("model_value_target-graph", 0)
             tf.summary.trace_off()
 
+        # TODO is it rather `targets[:, a_batch]`
         target[:, 0] = r_batch + (1 - d_batch) * self._training_param.discount_factor * fut_action
+        # target[:, a_batch] = r_batch + (1 - d_batch) * self._training_param.discount_factor * fut_action
         loss = self.model_Q.train_on_batch([s_batch, last_action], target)
         loss_2 = self.model_Q2.train_on_batch([s_batch, last_action], target)
 

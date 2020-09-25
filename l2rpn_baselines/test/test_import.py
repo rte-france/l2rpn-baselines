@@ -45,9 +45,14 @@ class TestDeepQSimple(TestImport, unittest.TestCase):
         return "DeepQSimple"
 
 
-class TestSAC(TestImport, unittest.TestCase):
+class TestSACOld(TestImport, unittest.TestCase):
     def load_module(self):
-        return "SAC"
+        return "SACOld"
+
+
+class TestLeapNetEnc(TestImport, unittest.TestCase):
+    def load_module(self):
+        return "LeapNetEncoded"
 
 
 class TestDuelQSimple(TestImport, unittest.TestCase):

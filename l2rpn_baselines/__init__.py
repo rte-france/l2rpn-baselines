@@ -7,7 +7,9 @@ __all__ = [
     "SliceRDQN",
     "DeepQSimple",
     "DuelQSimple",
-    "SAC",
+    "LeapNetEncoded",
+    # Backward compatibility
+    "SACOld",
     # contribution
     "PandapowerOPFAgent",
     "Geirina",
@@ -16,4 +18,4 @@ __all__ = [
     "utils"
 ]
 
-__version__ = "0.4.4"
+__version__ = "0.5.0"

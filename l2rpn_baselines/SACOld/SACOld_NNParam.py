@@ -8,11 +8,15 @@
 import copy
 
 from l2rpn_baselines.utils import NNParam
-from l2rpn_baselines.SAC.SAC_NN import SAC_NN
+from l2rpn_baselines.SACOld.SACOld_NN import SACOld_NN
 
 
-class SAC_NNParam(NNParam):
+class SACOld_NNParam(NNParam):
     """
+
+    Do not use this SACOld class, prefer the use of the "more correct"
+    class :class:`l2rpn_baselines.SAC.SAC`  for new projects instead. This module is only here
+    for backward compatibility.
 
     Attributes
     ----------
@@ -39,7 +43,7 @@ class SAC_NNParam(NNParam):
     _list_str += ["activs_value", "activs_policy"]
     _list_int += ["sizes_value", "sizes_policy"]
 
-    nn_class = SAC_NN
+    nn_class = SACOld_NN
 
     def __init__(self,
                  action_size,

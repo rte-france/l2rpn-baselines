@@ -17,9 +17,11 @@ from grid2op.Reward import *
 from grid2op.Action import *
 
 from l2rpn_baselines.utils.save_log_gif import save_log_gif
-from l2rpn_baselines.SAC.SAC import SAC, DEFAULT_NAME
-from l2rpn_baselines.SAC.SAC_NNParam import SAC_NNParam
-from l2rpn_baselines.SAC.SAC_NN import SAC_NN
+from l2rpn_baselines.LeapNetEncoded.LeapNetEncoded import LeapNetEncoded, DEFAULT_NAME
+from l2rpn_baselines.LeapNetEncoded.LeapNetEncoded_NNParam import LeapNetEncoded_NNParam
+from l2rpn_baselines.LeapNetEncoded.LeapNetEncoded_NN import LeapNetEncoded_NN
+
+import pdb
 
 DEFAULT_LOGS_DIR = "./logs-eval/do-nothing-baseline"
 DEFAULT_NB_EPISODE = 1
@@ -37,7 +39,7 @@ def evaluate(env,
              verbose=False,
              save_gif=False):
     """
-    How to evaluate the performances of the trained SAC agent.
+    How to evaluate the performances of the trained DeepQSimple agent.
 
     Parameters
     ----------
@@ -86,7 +88,7 @@ def evaluate(env,
     .. code-block:: python
 
         from grid2op.Reward import L2RPNSandBoxScore, L2RPNReward
-        from l2rpn_baselines.SAC import eval
+        from l2rpn_baselines.LeapNetEncoded import eval
 
         # Create dataset env
         env = make("l2rpn_case14_sandbox",
@@ -105,6 +107,8 @@ def evaluate(env,
                  max_steps=-1,
                  verbose=False,
                  save_gif=False)
+
+
     """
 
     # Limit gpu usage
@@ -117,32 +121,31 @@ def evaluate(env,
 
     if load_path is None:
         raise RuntimeError("Cannot evaluate a model if there is nothing to be loaded.")
-    path_model, path_target_model = SAC_NN.get_path_model(load_path, name)
-    nn_archi = SAC_NNParam.from_json(os.path.join(path_model, "nn_architecture.json"))
+    path_model, path_target_model = LeapNetEncoded_NN.get_path_model(load_path, name)
+    nn_archi = LeapNetEncoded_NNParam.from_json(os.path.join(path_model, "nn_architecture.json"))
 
     # Run
     # Create agent
-    agent = SAC(action_space=env.action_space,
-                name=name,
-                store_action=nb_process == 1,
-                nn_archi=nn_archi,
-                observation_space=env.observation_space)
+    agent = LeapNetEncoded(action_space=env.action_space,
+                         name=name,
+                         store_action=nb_process == 1,
+                         nn_archi=nn_archi,
+                         observation_space=env.observation_space)
 
     # Load weights from file
     agent.load(load_path)
-
-    # Print model summary
-    stringlist = []
-    agent.deep_q.model_value.summary(print_fn=lambda x: stringlist.append(x))
-    short_model_summary = "\n".join(stringlist)
-
-    if verbose:
-        print("Value model: {}".format(short_model_summary))
 
     # Build runner
     runner = Runner(**runner_params,
                     agentClass=None,
                     agentInstance=agent)
+
+    # Print model summary
+    stringlist = []
+    agent.deep_q._model.summary(print_fn=lambda x: stringlist.append(x))
+    short_model_summary = "\n".join(stringlist)
+    if verbose:
+        print(short_model_summary)
 
     # Run
     os.makedirs(logs_path, exist_ok=True)
@@ -153,7 +156,6 @@ def evaluate(env,
                      pbar=verbose)
 
     # Print summary
-
     if verbose:
         print("Evaluation summary:")
         for _, chron_name, cum_reward, nb_time_step, max_ts in res:
@@ -169,6 +171,10 @@ def evaluate(env,
                 print("Action with ID {} was played {} times".format(id_, nb))
                 print("{}".format(act))
                 print("-----------")
+
+    # if logs_path is not None:
+    #     for path_dhron, chron_name, cum_reward, nb_time_step, max_ts in res:
+    #         ep_data = EpisodeData.from_disk(logs_path, chron_name)
 
     if save_gif:
         if verbose:

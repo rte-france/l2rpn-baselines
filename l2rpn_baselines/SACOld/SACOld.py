@@ -7,12 +7,15 @@
 # This file is part of L2RPN Baselines, L2RPN Baselines a repository to host baselines for l2rpn competitions.
 
 from l2rpn_baselines.utils import DeepQAgent
-from l2rpn_baselines.SAC.SAC_NN import SAC_NN
-DEFAULT_NAME = "SAC"
+from l2rpn_baselines.SACOld.SACOld_NN import SACOld_NN
+DEFAULT_NAME = "SACOld"
 
 
-class SAC(DeepQAgent):
+class SACOld(DeepQAgent):
     """
-    This is the :class:`l2rpn_baselines.utils` agent representing the SAC agent. This does nothing in particular.
+    This is the :class:`l2rpn_baselines.utils` agent representing the SAC agent (old implementation).
+
+    Please don't use this baseline if you start a new project, prefer using the new, double check
+    SAC implementation instead (:class:`l2rpn_baselines.SAC.SAC`) instead.
     """
     pass

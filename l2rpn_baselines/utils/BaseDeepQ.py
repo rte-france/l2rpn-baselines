@@ -108,38 +108,60 @@ class BaseDeepQ(ABC):
         """
         raise NotImplementedError("Not implemented")
 
-    def predict_movement(self, data, epsilon, batch_size=None):
+    def predict_movement(self, data, epsilon, batch_size=None, training=False):
         """
         Predict movement of game controler where is epsilon probability randomly move."""
         if batch_size is None:
             batch_size = data.shape[0]
 
-        rand_val = np.random.random(batch_size)
-        q_actions = self._model.predict(data, batch_size=batch_size)
-
-        opt_policy = np.argmax(np.abs(q_actions), axis=-1)
-        opt_policy[rand_val < epsilon] = np.random.randint(0, self._action_size, size=(np.sum(rand_val < epsilon)))
-        return opt_policy, q_actions[0, opt_policy]
+        # q_actions = self._model.predict(data, batch_size=batch_size)  # q value of each action
+        q_actions = self._model(data, training=training).numpy()
+        opt_policy = np.argmax(q_actions, axis=-1)
+        if epsilon > 0.:
+            rand_val = np.random.random(batch_size)
+            opt_policy[rand_val < epsilon] = np.random.randint(0, self._action_size, size=(np.sum(rand_val < epsilon)))
+        return opt_policy, q_actions[np.arange(batch_size), opt_policy], q_actions
 
     def train(self, s_batch, a_batch, r_batch, d_batch, s2_batch, tf_writer=None, batch_size=None):
-        """Trains network to fit given parameters"""
+        """Trains network to fit given parameters:
+        Parameters
+        ----------
+        s_batch:
+            the state vector (before the action is taken)
+        a_batch:
+            the action taken
+        s2_batch:
+            the state vector (after the action is taken)
+        d_batch:
+            says whether or not the episode was over
+        r_batch:
+            the reward obtained this step
+
+        see https://towardsdatascience.com/dueling-double-deep-q-learning-using-tensorflow-2-x-7bbbcec06a2a
+        for the update rules
+        """
         if batch_size is None:
             batch_size = s_batch.shape[0]
 
         # Save the graph just the first time
         if tf_writer is not None:
             tf.summary.trace_on()
-        targets = self._model.predict(s_batch, batch_size=batch_size)
+        target = self._model(s_batch, training=True).numpy()
+        fut_action = self._model(s2_batch, training=True).numpy()
         if tf_writer is not None:
             with tf_writer.as_default():
                 tf.summary.trace_export("model-graph", 0)
             tf.summary.trace_off()
-        fut_action = self._target_model.predict(s2_batch, batch_size=batch_size)
+        target_next = self._target_model(s2_batch, training=True).numpy()
 
-        targets[:, a_batch.flatten()] = r_batch
-        targets[d_batch, a_batch[d_batch]] += self._training_param.discount_factor * np.max(fut_action[d_batch], axis=-1)
-
-        loss = self.train_on_batch(self._model, self._optimizer_model, s_batch, targets)
+        idx = np.arange(batch_size)
+        target[idx, a_batch] = r_batch
+        # update the value for not done episode
+        nd_batch = ~d_batch  # update with this rule only batch that did not game over
+        next_a = np.argmax(fut_action, axis=-1)  # compute the future action i will take in the next state
+        fut_Q = target_next[idx, next_a]  # get its Q value
+        target[nd_batch, a_batch[nd_batch]] += self._training_param.discount_factor * fut_Q[nd_batch]
+        loss = self.train_on_batch(self._model, self._optimizer_model, s_batch, target)
         return loss
 
     def train_on_batch(self, model, optimizer_model, x, y_true):
@@ -213,14 +235,22 @@ class BaseDeepQ(ABC):
         if self.verbose:
             print("Succesfully loaded network.")
 
-    def target_train(self):
+    def target_train(self, tau=None):
         """
         update the target model with the parameters given in the :attr:`BaseDeepQ._training_param`.
         """
-        # nothing has changed from the original implementation
-        model_weights = self._model.get_weights()
-        target_model_weights = self._target_model.get_weights()
-        for i in range(len(model_weights)):
-            target_model_weights[i] = self._training_param.tau * model_weights[i] + (1 - self._training_param.tau) * \
-                                      target_model_weights[i]
-        self._target_model.set_weights(target_model_weights)
+        if tau is None:
+            tau = self._training_param.tau
+        tau_inv = 1.0 - tau
+
+        target_params = self._target_model.trainable_variables
+        source_params = self._model.trainable_variables
+        for src, dest in zip(source_params, target_params):
+            # Polyak averaging
+            var_update = src.value() * tau
+            var_persist = dest.value() * tau_inv
+            dest.assign(var_update + var_persist)
+
+    def save_tensorboard(self, current_step):
+        """function used to save other information to tensorboard"""
+        pass

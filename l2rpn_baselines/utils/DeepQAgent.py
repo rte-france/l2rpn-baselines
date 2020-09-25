@@ -135,9 +135,6 @@ class DeepQAgent(AgentWithConverter):
         self.store_action = store_action
         self.dict_action = {}
         self.istraining = istraining
-        self._actions_per_1000steps = np.zeros((1000, self.action_space.size()), dtype=np.int)
-        self._illegal_actions_per_1000steps = np.zeros(1000, dtype=np.int)
-        self._ambiguous_actions_per_1000steps = np.zeros(1000, dtype=np.int)
         self.epsilon = 1.0
 
         # for tensorbaord
@@ -166,9 +163,6 @@ class DeepQAgent(AgentWithConverter):
         # this is for the "limit the episode length" depending on your previous success
         self._total_sucesses = 0
 
-        # update frequency of action types
-        self._nb_updated_act_tensorboard = None
-
         # neural network architecture
         self._nn_archi = nn_archi
 
@@ -181,6 +175,23 @@ class DeepQAgent(AgentWithConverter):
             pass
         else:
             self.init_obs_extraction(observation_space)
+
+        # for the frequency of action type
+        self.current_ = 0
+        self.nb_ = 10
+        self._nb_this_time = np.zeros((self.nb_, 6))
+
+        #
+        self._vector_size = None
+        self._actions_per_ksteps = None
+        self._illegal_actions_per_ksteps = None
+        self._ambiguous_actions_per_ksteps = None
+
+    def _fill_vectors(self, training_param):
+        self._vector_size  = self.nb_ * training_param.update_tensorboard_freq
+        self._actions_per_ksteps = np.zeros((self._vector_size, self.action_space.size()), dtype=np.int)
+        self._illegal_actions_per_ksteps = np.zeros(self._vector_size, dtype=np.int)
+        self._ambiguous_actions_per_ksteps = np.zeros(self._vector_size, dtype=np.int)
 
     # grid2op.Agent interface
     def convert_obs(self, observation):
@@ -232,7 +243,9 @@ class DeepQAgent(AgentWithConverter):
             The id the action taken.
 
         """
-        predict_movement_int, *_ = self.deep_q.predict_movement(transformed_observation, epsilon=0.0)
+        predict_movement_int, *_ = self.deep_q.predict_movement(transformed_observation,
+                                                                epsilon=0.0,
+                                                                training=False)
         res = int(predict_movement_int)
         self._store_action_played(res)
         return res
@@ -389,6 +402,7 @@ class DeepQAgent(AgentWithConverter):
         else:
             training_param = self._training_param
         self._init_deep_q(self._training_param, env)
+        self._fill_vectors(self._training_param)
 
         self._init_replay_buffer()
 
@@ -410,7 +424,6 @@ class DeepQAgent(AgentWithConverter):
         UPDATE_FREQ = training_param.update_tensorboard_freq  # update tensorboard every "UPDATE_FREQ" steps
         SAVING_NUM = training_param.save_model_each
 
-    
         if hasattr(env, "nb_env"):
             nb_env = env.nb_env
             warnings.warn("Training using {} environments".format(nb_env))
@@ -478,8 +491,6 @@ class DeepQAgent(AgentWithConverter):
         self._prev_id = 0
         # this is for the "limit the episode length" depending on your previous success
         self._total_sucesses = 0
-        # update the frequency of action types
-        self._nb_updated_act_tensorboard = 0
 
         with tqdm(total=iterations - training_step, disable=not self.verbose) as pbar:
             while training_step < iterations:
@@ -491,7 +502,7 @@ class DeepQAgent(AgentWithConverter):
                 self.epsilon = self._training_param.get_next_epsilon(current_step=training_step)
 
                 # then we need to predict the next moves. Agents have been adapted to predict a batch of data
-                pm_i, pq_v, act = self._next_move(initial_state, self.epsilon)
+                pm_i, pq_v, act = self._next_move(initial_state, self.epsilon, training_step)
 
                 # todo store the illegal / ambiguous / ... actions
                 reward, done = self._init_local_train_loop()
@@ -501,7 +512,6 @@ class DeepQAgent(AgentWithConverter):
                     act = act[0]
 
                 temp_observation_obj, temp_reward, temp_done, info = env.step(act)
-
                 if self.__nb_env == 1:
                     # dirty hack to wrap them into list
                     temp_observation_obj = [temp_observation_obj]
@@ -530,7 +540,6 @@ class DeepQAgent(AgentWithConverter):
                 alive_frames[epoch_num] = np.mean(alive_frame)
                 total_rewards[epoch_num] = np.mean(total_reward)
                 self._store_action_played_train(training_step, pm_i)
-
                 self._save_tensorboard(training_step, epoch_num, UPDATE_FREQ, total_rewards, alive_frames)
                 training_step += 1
                 pbar.update(1)
@@ -549,36 +558,40 @@ class DeepQAgent(AgentWithConverter):
             self._obs_as_vect[i, :] = self.convert_obs(obs).reshape(-1)
         return self._obs_as_vect
 
+    def _create_action_if_not_registered(self, action_int):
+        """make sure that `action_int` is present in dict_action"""
+        if action_int not in self.dict_action:
+            act = self.action_space.all_actions[action_int]
+            is_inj, is_volt, is_topo, is_line_status, is_redisp, is_dn = False, False, False, False, False, False
+            try:
+                # feature unavailble in grid2op <= 0.9.2
+                is_inj, is_volt, is_topo, is_line_status, is_redisp = act.get_types()
+                is_dn = (not is_inj) and (not is_volt) and (not is_topo) and (not is_line_status) and (not is_redisp)
+            except Exception as exc_:
+                pass
+
+            self.dict_action[action_int] = [0, act,
+                                            (is_inj, is_volt, is_topo, is_line_status, is_redisp, is_dn)]
+
     def _store_action_played(self, action_int):
         """if activated, this function will store the action taken by the agent."""
         if self.store_action:
-            if action_int not in self.dict_action:
-                act = self.action_space.all_actions[action_int]
-                is_inj, is_volt, is_topo, is_line_status, is_redisp, is_dn = False, False, False, False, False, False
-                try:
-                    # feature unavailble in grid2op <= 0.9.2
-                    is_inj, is_volt, is_topo, is_line_status, is_redisp = act.get_types()
-                    is_dn = (not is_inj) and (not is_volt) and (not is_topo) and (not is_line_status) and (not is_redisp)
-                except Exception as exc_:
-                    pass
+            self._create_action_if_not_registered(action_int)
 
-                self.dict_action[action_int] = [0, act,
-                                                (is_inj, is_volt, is_topo, is_line_status, is_redisp, is_dn)]
-                self.dict_action[action_int][0] += 1
-
-                (is_inj, is_volt, is_topo, is_line_status, is_redisp, is_dn) = self.dict_action[action_int][2]
-                if is_inj:
-                    self.nb_injection += 1
-                if is_volt:
-                    self.nb_voltage += 1
-                if is_topo:
-                    self.nb_topology += 1
-                if is_line_status:
-                    self.nb_line += 1
-                if is_redisp:
-                    self.nb_redispatching += 1
-                if is_dn:
-                    self.nb_do_nothing += 1
+            self.dict_action[action_int][0] += 1
+            (is_inj, is_volt, is_topo, is_line_status, is_redisp, is_dn) = self.dict_action[action_int][2]
+            if is_inj:
+                self.nb_injection += 1
+            if is_volt:
+                self.nb_voltage += 1
+            if is_topo:
+                self.nb_topology += 1
+            if is_line_status:
+                self.nb_line += 1
+            if is_redisp:
+                self.nb_redispatching += 1
+            if is_dn:
+                self.nb_do_nothing += 1
 
     def _convert_all_act(self, act_as_integer):
         """this function converts the action given as a list of integer. It ouputs a list of valid grid2op Action"""
@@ -611,6 +624,7 @@ class DeepQAgent(AgentWithConverter):
         self._training_param.tell_step(training_step)
         if training_step > max(self._training_param.min_observation, self._training_param.minibatch_size) and \
             self._training_param.do_train():
+
             # train the model
             s_batch, a_batch, r_batch, d_batch, s2_batch = self.replay_buffer.sample(self._training_param.minibatch_size)
             tf_writer = None
@@ -630,14 +644,15 @@ class DeepQAgent(AgentWithConverter):
 
     def _updage_illegal_ambiguous(self, curr_step, info):
         """update the conunt of illegal and ambiguous actions"""
-        self._illegal_actions_per_1000steps[curr_step % 1000] = np.sum([el["is_illegal"] for el in info])
-        self._ambiguous_actions_per_1000steps[curr_step % 1000] = np.sum([el["is_ambiguous"] for el in info])
+        tmp_ = curr_step % self._vector_size
+        self._illegal_actions_per_ksteps[tmp_] = np.sum([el["is_illegal"] for el in info])
+        self._ambiguous_actions_per_ksteps[tmp_] = np.sum([el["is_ambiguous"] for el in info])
 
     def _store_action_played_train(self, training_step, action_id):
         """store which action were played, for tensorboard only."""
-        which_row = training_step % 1000
-        self._actions_per_1000steps[which_row, :] = 0
-        self._actions_per_1000steps[which_row, action_id] += 1
+        which_row = training_step % self._vector_size
+        self._actions_per_ksteps[which_row, :] = 0
+        self._actions_per_ksteps[which_row, action_id] += 1
 
     def _fast_forward_env(self, env, time=7*24*60/5):
         """use this functio to skip some time steps when environment is reset."""
@@ -674,7 +689,8 @@ class DeepQAgent(AgentWithConverter):
 
     def _need_reset(self, env, observation_num, epoch_num, done, new_state):
         """perform the proper reset of the environment"""
-        if self._training_param.step_increase_nb_iter > 0:
+        if self._training_param.step_increase_nb_iter is not None and \
+           self._training_param.step_increase_nb_iter > 0:
             self._max_iter_env(min(max(self._training_param.min_iter,
                                        self._training_param.max_iter_fun(self._total_sucesses)),
                                    self._training_param.max_iter))  # TODO
@@ -748,19 +764,27 @@ class DeepQAgent(AgentWithConverter):
     def _store_new_state(self, initial_state, predict_movement_int, reward, done, new_state):
         """store the new state in the replay buffer"""
         # vectorized version of the previous code
-        for i_s, pm_i, reward, done, new_state in zip(initial_state, predict_movement_int, reward, done, new_state):
+        for i_s, pm_i, reward, done, ns in zip(initial_state, predict_movement_int, reward, done, new_state):
             self.replay_buffer.add(i_s,
                                    pm_i,
                                    reward,
                                    done,
-                                   new_state)
+                                   ns)
 
     def _max_iter_env(self, new_max_iter):
         """update the number of maximum iteration allowed."""
         self._max_iter_env_ = new_max_iter
 
-    def _next_move(self, curr_state, epsilon):
-        pm_i, pq_v = self.deep_q.predict_movement(curr_state, epsilon)
+    def _next_move(self, curr_state, epsilon, training_step):
+        # supposes that 0 encodes for do nothing, otherwise it will NOT work (for the observer)
+        pm_i, pq_v, q_actions = self.deep_q.predict_movement(curr_state, epsilon, training=True)
+
+        if self._training_param.min_observe is not None and \
+                training_step < self._training_param.min_observe:
+            # action is replaced by do nothing due to the "observe only" specification
+            pm_i[:] = 0
+            pq_v[:] = q_actions[:, 0]
+        # TODO implement the "max XXX random action per scenarios"
         act = self._convert_all_act(pm_i)
         return pm_i, pq_v, act
 
@@ -839,12 +863,12 @@ class DeepQAgent(AgentWithConverter):
                 mean_reward_100 = mean_reward
                 mean_alive_100 = mean_alive
 
-                tmp = self._actions_per_1000steps > 0
+                tmp = self._actions_per_ksteps > 0
                 tmp = tmp.sum(axis=0)
-                nb_action_taken_last_1000_step = np.sum(tmp > 0)
+                nb_action_taken_last_kstep = np.sum(tmp > 0)
 
-                nb_illegal_act = np.sum(self._illegal_actions_per_1000steps)
-                nb_ambiguous_act = np.sum(self._ambiguous_actions_per_1000steps)
+                nb_illegal_act = np.sum(self._illegal_actions_per_ksteps)
+                nb_ambiguous_act = np.sum(self._ambiguous_actions_per_ksteps)
 
                 if epoch_num >= 100:
                     mean_reward_100 = np.nanmean(epoch_rewards[(epoch_num-100):epoch_num])
@@ -861,70 +885,119 @@ class DeepQAgent(AgentWithConverter):
 
                 # show first the Mean reward and mine time alive (hence the upper case)
                 tf.summary.scalar("Mean_alive_30", mean_alive_30, step_tb,
-                                  description="Mean reward over the last 30 epochs")
+                                  description="Average number of steps (per episode) made over the last 30 "
+                                              "completed episodes")
                 tf.summary.scalar("Mean_reward_30", mean_reward_30, step_tb,
-                                  description="Mean number of timesteps sucessfully manage the last 30 epochs")
+                                  description="Average (final) reward obtained over the last 30 completed episodes")
 
                 # then it's alpha numerical order, hence the "z_" in front of some information
                 tf.summary.scalar("loss", self._losses[step], step_tb,
-                                  description="last training loss")
+                                  description="Training loss (for the last training batch)")
 
                 tf.summary.scalar("last_alive", last_alive, step_tb,
-                                  description="last number of timestep during which the agent stayed alive")
+                                  description="Final number of steps for the last complete episode")
                 tf.summary.scalar("last_reward", last_reward, step_tb,
-                                  description="last reward get by the agent")
+                                  description="Final reward over the last complete episode")
 
-                tf.summary.scalar("mean_reward", mean_reward, step_tb)
-                tf.summary.scalar("mean_alive", mean_alive, step_tb)
+                tf.summary.scalar("mean_reward", mean_reward, step_tb,
+                                  description="Average reward over the whole episodes played")
+                tf.summary.scalar("mean_alive", mean_alive, step_tb,
+                                  description="Average time alive over the whole episodes played")
 
                 tf.summary.scalar("mean_reward_100", mean_reward_100, step_tb,
-                                  description="Mean reward over the last 100 epochs")
+                                  description="Average number of steps (per episode) made over the last 100 "
+                                              "completed episodes")
                 tf.summary.scalar("mean_alive_100", mean_alive_100, step_tb,
-                                  description="Mean number of timesteps sucessfully manage the last 100 epochs")
+                                  description="Average (final) reward obtained over the last 100 completed episodes")
 
-                tf.summary.scalar("nb_differentaction_taken_1000", nb_action_taken_last_1000_step, step_tb,
-                                  description="Number of different actions played the past 1000 steps")
+                tf.summary.scalar("nb_different_action_taken", nb_action_taken_last_kstep, step_tb,
+                                  description="Number of different actions played the last "
+                                              "{} steps".format(self.nb_ * UPDATE_FREQ))
                 tf.summary.scalar("nb_illegal_act", nb_illegal_act, step_tb,
-                                  description="Number of illegal actions played the past 1000 steps")
+                                  description="Number of illegal actions played the last "
+                                              "{} steps".format(self.nb_ * UPDATE_FREQ))
                 tf.summary.scalar("nb_ambiguous_act", nb_ambiguous_act, step_tb,
-                                  description="Number of ambiguous actions played the past 1000 steps")
+                                  description="Number of ambiguous actions played the last "
+                                              "{} steps".format(self.nb_ * UPDATE_FREQ))
                 tf.summary.scalar("nb_total_success", self._total_sucesses, step_tb,
-                                  description="Number of times I reach the end of scenario (no game over)")
+                                  description="Number of times the episode was completed entirely "
+                                              "(no game over)")
 
                 tf.summary.scalar("z_lr", self._train_lr, step_tb,
-                                  description="current learning rate")
+                                  description="Current learning rate")
                 tf.summary.scalar("z_epsilon", self.epsilon, step_tb,
-                                  description="current epsilon (of the epsilon greedy)")
+                                  description="Current epsilon (from the epsilon greedy)")
                 tf.summary.scalar("z_max_iter", self._max_iter_env_, step_tb,
-                                  description="maximum number of time steps before deciding a scenario is over (=win)")
+                                  description="Maximum number of time steps before deciding a scenario "
+                                              "is over (=win)")
                 tf.summary.scalar("z_total_episode", epoch_num, step_tb,
-                                  description="total number of episode played (~number of \"reset\")")
+                                  description="Total number of episode played (number of \"reset\")")
+
+                self.deep_q.save_tensorboard(step_tb)
 
                 if self.store_action:
-                    nb_ = 10  # reset the frequencies every nb_ saving
-                    self._nb_updated_act_tensorboard += UPDATE_FREQ
-                    tf.summary.scalar("zz_freq_inj", self.nb_injection / self._nb_updated_act_tensorboard, step_tb)
-                    tf.summary.scalar("zz_freq_voltage", self.nb_voltage / self._nb_updated_act_tensorboard, step_tb)
-                    tf.summary.scalar("z_freq_topo", self.nb_topology / self._nb_updated_act_tensorboard, step_tb)
-                    tf.summary.scalar("z_freq_line_status", self.nb_line / self._nb_updated_act_tensorboard, step_tb)
-                    tf.summary.scalar("z_freq_redisp", self.nb_redispatching / self._nb_updated_act_tensorboard, step_tb)
-                    tf.summary.scalar("z_freq_do_nothing", self.nb_do_nothing / self._nb_updated_act_tensorboard, step_tb)
-                    if step % (nb_ * UPDATE_FREQ) == 0:
-                        self.nb_injection = 0
-                        self.nb_voltage = 0
-                        self.nb_topology = 0
-                        self.nb_line = 0
-                        self.nb_redispatching = 0
-                        self.nb_do_nothing = 0
-                        self._nb_updated_act_tensorboard = 0
+                    self._store_frequency_action_type(UPDATE_FREQ, step_tb)
 
                 if self._time_step_lived is not None:
                     tf.summary.histogram(
                         "timestep_lived", self._time_step_lived, step=step_tb, buckets=None,
-                        description="number of time steps lived for all scenarios"
+                        description="Number of time steps lived for all scenarios"
                     )
                 if self._nb_chosen is not None:
                     tf.summary.histogram(
                         "nb_chosen", self._nb_chosen, step=step_tb, buckets=None,
-                        description="number of times this scenarios has been played"
+                        description="Number of times this scenarios has been played"
                     )
+
+    def _store_frequency_action_type(self, UPDATE_FREQ, step_tb):
+        self.current_ += 1
+        self.current_ %= self.nb_
+        nb_inj, nb_volt, nb_topo, nb_line, nb_redisp, nb_dn = self._nb_this_time[self.current_, :]
+        self._nb_this_time[self.current_, :] = [self.nb_injection, self.nb_voltage,
+                                                self.nb_topology, self.nb_line,
+                                                self.nb_redispatching, self.nb_do_nothing]
+
+        curr_inj = self.nb_injection - nb_inj
+        curr_volt = self.nb_voltage - nb_volt
+        curr_topo = self.nb_topology - nb_topo
+        curr_line = self.nb_line - nb_line
+        curr_redisp = self.nb_redispatching - nb_redisp
+        curr_dn = self.nb_do_nothing - nb_dn
+
+        total_act_num = curr_inj + curr_volt + curr_topo + curr_line + curr_redisp + curr_dn
+        tf.summary.scalar("zz_freq_inj",
+                          curr_inj / total_act_num,
+                          step_tb,
+                          description="Frequency of \"injection\" actions "
+                                      "type played over the last {} actions"
+                                      "".format(self.nb_ * UPDATE_FREQ))
+        tf.summary.scalar("zz_freq_voltage",
+                          curr_volt / total_act_num,
+                          step_tb,
+                          description="Frequency of \"voltage\" actions "
+                                      "type played over the last {} actions"
+                                      "".format(self.nb_ * UPDATE_FREQ))
+        tf.summary.scalar("z_freq_topo",
+                          curr_topo / total_act_num,
+                          step_tb,
+                          description="Frequency of \"topo\" actions "
+                                      "type played over the last {} actions"
+                                      "".format(self.nb_ * UPDATE_FREQ))
+        tf.summary.scalar("z_freq_line_status",
+                          curr_line / total_act_num,
+                          step_tb,
+                          description="Frequency of \"line status\" actions "
+                                      "type played over the last {} actions"
+                                      "".format(self.nb_ * UPDATE_FREQ))
+        tf.summary.scalar("z_freq_redisp",
+                          curr_redisp / total_act_num,
+                          step_tb,
+                          description="Frequency of \"redispatching\" actions "
+                                      "type played over the last {} actions"
+                                      "".format(self.nb_ * UPDATE_FREQ))
+        tf.summary.scalar("z_freq_do_nothing",
+                          curr_dn / total_act_num,
+                          step_tb,
+                          description="Frequency of \"do nothing\" actions "
+                                      "type played over the last {} actions"
+                                      "".format(self.nb_ * UPDATE_FREQ))

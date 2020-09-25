@@ -23,10 +23,12 @@ from l2rpn_baselines.DeepQSimple import train as train_dqn
 from l2rpn_baselines.DeepQSimple import evaluate as eval_dqn
 from l2rpn_baselines.DuelQSimple import train as train_d3qs
 from l2rpn_baselines.DuelQSimple import evaluate as eval_d3qs
-from l2rpn_baselines.SAC import train as train_sac
-from l2rpn_baselines.SAC import evaluate as eval_sac
+from l2rpn_baselines.SACOld import train as train_sacold
+from l2rpn_baselines.SACOld import evaluate as eval_sacold
 from l2rpn_baselines.DuelQLeapNet import train as train_leap
 from l2rpn_baselines.DuelQLeapNet import evaluate as eval_leap
+from l2rpn_baselines.LeapNetEncoded import train as train_leapenc
+from l2rpn_baselines.LeapNetEncoded import evaluate as eval_leapenc
 from l2rpn_baselines.DoubleDuelingDQN import train as train_d3qn
 from l2rpn_baselines.DoubleDuelingDQN import evaluate as eval_d3qn
 from l2rpn_baselines.DoubleDuelingDQN import DoubleDuelingDQNConfig as d3qn_cfg
@@ -273,17 +275,17 @@ class TestDuelQSimple(unittest.TestCase):
                       kwargs_archi=kwargs_archi)
 
             baseline_2 = eval_d3qs(env,
-                                  name=nm_,
-                                  load_path=tmp_dir,
-                                  logs_path=tmp_dir,
-                                  nb_episode=1,
-                                  nb_process=1,
-                                  max_steps=30,
-                                  verbose=False,
-                                  save_gif=False)
+                                   name=nm_,
+                                   load_path=tmp_dir,
+                                   logs_path=tmp_dir,
+                                   nb_episode=1,
+                                   nb_process=1,
+                                   max_steps=30,
+                                   verbose=False,
+                                   save_gif=False)
 
 
-class TestSAC(unittest.TestCase):
+class TestSACOld(unittest.TestCase):
     def test_train_eval(self):
         tp = TrainingParam()
         tp.buffer_size = 100
@@ -317,7 +319,7 @@ class TestSAC(unittest.TestCase):
                                  "set_topo_vect": False
                                  }
             nm_ = "AnneOnymous"
-            train_sac(env,
+            train_sacold(env,
                       name=nm_,
                       iterations=100,
                       save_path=tmp_dir,
@@ -328,7 +330,7 @@ class TestSAC(unittest.TestCase):
                       kwargs_converters=kwargs_converters,
                       kwargs_archi=kwargs_archi)
 
-            baseline_2 = eval_sac(env,
+            baseline_2 = eval_sacold(env,
                                   name=nm_,
                                   load_path=tmp_dir,
                                   logs_path=tmp_dir,
@@ -386,6 +388,78 @@ class TestLeapNet(unittest.TestCase):
                        kwargs_archi=kwargs_archi)
 
             baseline_2 = eval_leap(env,
+                                   name=nm_,
+                                   load_path=tmp_dir,
+                                   logs_path=tmp_dir,
+                                   nb_episode=1,
+                                   nb_process=1,
+                                   max_steps=30,
+                                   verbose=False,
+                                   save_gif=False)
+
+
+class TestLeapNetEncoded(unittest.TestCase):
+    def test_train_eval(self):
+        tp = TrainingParam()
+        tp.buffer_size = 100
+        tp.minibatch_size = 8
+        tp.update_freq = 32
+        tp.min_observation = 32
+        tmp_dir = tempfile.mkdtemp()
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore")
+            env = grid2op.make("rte_case5_example", test=True)
+            kwargs_converters = {"all_actions": None,
+                                 "set_line_status": False,
+                                 "change_line_status": True,
+                                 "change_bus_vect": False,
+                                 "set_topo_vect": False,
+                                 "redispacth": False
+                                 }
+
+            # nn architecture
+            li_attr_obs_X = ["prod_p", "prod_v", "load_p", "load_q"]
+            li_attr_obs_input_q = ["time_before_cooldown_line",
+                                   "time_before_cooldown_sub",
+                                   "actual_dispatch",
+                                   "target_dispatch",
+                                   "day_of_week",
+                                   "hour_of_day",
+                                   "minute_of_hour",
+                                   "rho"]
+            li_attr_obs_Tau = ["line_status", "timestep_overflow"]
+            list_attr_gm_out = ["a_or", "a_ex", "p_or", "p_ex", "q_or", "q_ex", "prod_q", "load_v"] + li_attr_obs_X
+
+            kwargs_archi = {'sizes': [],
+                            'activs': [],
+                            'x_dim': -1,
+
+                            "list_attr_obs": li_attr_obs_X,
+                            "list_attr_obs_tau": li_attr_obs_Tau,
+                            "list_attr_obs_x": li_attr_obs_X,
+                            "list_attr_obs_input_q": li_attr_obs_input_q,
+                            "list_attr_obs_gm_out": list_attr_gm_out,
+
+                            'dim_topo': env.dim_topo,
+
+                            "sizes_enc": (10, 10, 10, 10),
+                            "sizes_main": (50, ),
+                            "sizes_out_gm": (50,),
+                            "sizes_Qnet": (50, 50, )
+                            }
+            nm_ = "AnneOnymous"
+            train_leapenc(env,
+                       name=nm_,
+                       iterations=100,
+                       save_path=tmp_dir,
+                       load_path=None,
+                       logs_dir=tmp_dir,
+                       training_param=tp,
+                       verbose=False,
+                       kwargs_converters=kwargs_converters,
+                       kwargs_archi=kwargs_archi)
+
+            baseline_2 = eval_leapenc(env,
                                    name=nm_,
                                    load_path=tmp_dir,
                                    logs_path=tmp_dir,
