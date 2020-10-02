@@ -3,6 +3,9 @@
 
 # How to use
 You need to install ExpertOP4Grid in order to use this agent :
+Detailed documentation here : 
+
+https://expertop4grid.readthedocs.io/en/latest/
 
 - clone the repo :
 

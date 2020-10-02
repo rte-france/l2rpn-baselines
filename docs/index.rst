@@ -28,6 +28,7 @@ Baseline already Available
    DeepQSimple
    DoubleDuelingDQN
    DuelQSimple
+   ExpertAgent
 
 
 More advanced baselines

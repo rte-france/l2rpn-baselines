@@ -38,6 +38,7 @@ from l2rpn_baselines.DoubleDuelingRDQN import DoubleDuelingRDQNConfig as rdqn_cf
 from l2rpn_baselines.SliceRDQN import train as train_srqn
 from l2rpn_baselines.SliceRDQN import evaluate as eval_srqn
 from l2rpn_baselines.SliceRDQN import SliceRDQN_Config as srdqn_cfg
+from l2rpn_baselines.ExpertAgent import evaluate as eval_expert
 
 
 class TestDeepQSimple(unittest.TestCase):
@@ -578,6 +579,13 @@ class TestSRDQN(unittest.TestCase):
                                  save_gif=False)
 
             assert eval_res is not None
+
+
+class TestExpertAgent(unittest.TestCase):
+    def test_train_eval(self):
+        env = grid2op.make("l2rpn_neurips_2020_track1_val")
+        res = eval_expert(env)
+        assert res is not None
 
 
 if __name__ == "__main__":
