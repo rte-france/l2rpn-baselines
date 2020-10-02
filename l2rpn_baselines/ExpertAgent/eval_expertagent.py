@@ -47,6 +47,10 @@ def cli():
                         help="Enable GIF Output")
     parser.add_argument("--verbose", action='store_true',
                         help="Verbose runner output")
+    parser.add_argument("--grid", required=True,
+                        help="Grid id to use")
+    parser.add_argument("--test", required=False, default=False,
+                        help="Whether the data set is test or not")
     return parser.parse_args()
 
 def evaluate(env,
@@ -144,6 +148,7 @@ if __name__ == "__main__":
     args = cli()
     # Create dataset env
     env = make(args.data_dir,
+               test=args.test,
                reward_class=RedispReward,
                action_class=TopologyChangeAction,
                other_rewards=other_rewards
@@ -155,4 +160,5 @@ if __name__ == "__main__":
              nb_process=args.nb_process,
              max_steps=args.max_steps,
              verbose=args.verbose,
-             save_gif=args.gif)
+             save_gif=args.gif,
+             grid=args.grid)

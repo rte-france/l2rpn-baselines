@@ -583,8 +583,8 @@ class TestSRDQN(unittest.TestCase):
 
 class TestExpertAgent(unittest.TestCase):
     def test_train_eval(self):
-        env = grid2op.make("l2rpn_neurips_2020_track1_val")
-        res = eval_expert(env)
+        env = grid2op.make("l2rpn_neurips_2020_track1", True)
+        res = eval_expert(env, grid="IEEE118_3")
         assert res is not None
 
 
