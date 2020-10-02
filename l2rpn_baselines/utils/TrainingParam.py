@@ -116,7 +116,7 @@ class TrainingParam(object):
     _int_attr = ["buffer_size", "minibatch_size", "step_for_final_epsilon",
                  "min_observation", "last_step", "num_frames", "update_freq",
                  "min_iter", "max_iter", "update_tensorboard_freq", "save_model_each", "_update_nb_iter",
-                 "step_increase_nb_iter", "min_observe"]
+                 "step_increase_nb_iter", "min_observe", "sample_one_random_action_begin"]
     _float_attr = ["_final_epsilon", "_initial_epsilon", "lr", "lr_decay_steps", "lr_decay_rate",
                    "discount_factor", "tau", "oversampling_rate",
                    "max_global_norm_grad", "max_value_grad", "max_loss"]
@@ -150,6 +150,11 @@ class TrainingParam(object):
                  # observer: let the neural network "observe" for a given amount of time
                  # all actions are replaced by a do nothing
                  min_observe=None,
+
+                 # i do a random action at the beginning of an episode until a certain number of step
+                 # is made
+                 # it's recommended to have "min_observe" to be larger that this (this is an int)
+                 sample_one_random_action_begin=None,
                  ):
 
         self.random_sample_datetime_start = random_sample_datetime_start
@@ -171,6 +176,7 @@ class TrainingParam(object):
 
         # observer
         self.min_observe = min_observe
+        self.sample_one_random_action_begin = sample_one_random_action_begin
 
         self.last_step = int(0)
         self.num_frames = int(num_frames)

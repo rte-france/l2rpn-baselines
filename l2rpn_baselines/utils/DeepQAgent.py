@@ -741,21 +741,45 @@ class DeepQAgent(AgentWithConverter):
                 self._prev_id = _prev_id + 1
                 self._prev_id %= self._time_step_lived.shape[0]
 
-            env.reset()
-            if self._nb_chosen is not None:
-                self._nb_chosen[self._prev_id] += 1
+            obs = self._reset_env(env, epoch_num)
+            if self._training_param.sample_one_random_action_begin is not None and \
+                    observation_num < self._training_param.sample_one_random_action_begin:
+                done = True
+                while done:
+                    act = env.action_space(env.action_space._sample_set_bus())
+                    obs, reward, done, info = env.step(act)
+                    if info["is_illegal"] or info["is_ambiguous"]:
+                        # there are no guarantee that sampled action are legal nor perfectly
+                        # correct.
+                        # if that is the case, i "simply" restart the process, as if the action
+                        # broke everything
+                        done = True
 
-            # random fast forward between now and next week
-            if self._training_param.random_sample_datetime_start is not None:
-                self._fast_forward_env(env, time=self._training_param.random_sample_datetime_start)
+                    if done:
+                        obs = self._reset_env(env, epoch_num)
+                    else:
+                        if self.verbose:
+                            print("step {}: {}".format(observation_num, act))
 
-            self._curr_iter_env = 0
-            obs = [env.current_obs]
+                obs = [obs]  # for compatibility with multi env...
             new_state = self._convert_obs_train(obs)
-            if epoch_num % len(env.chronics_handler.real_data.subpaths) == 0:
-                # re shuffle the data
-                env.chronics_handler.shuffle(lambda x: x[np.random.choice(len(x), size=len(x), replace=False)])
         return new_state
+
+    def _reset_env(self, env, epoch_num):
+        env.reset()
+        if self._nb_chosen is not None:
+            self._nb_chosen[self._prev_id] += 1
+
+        # random fast forward between now and next week
+        if self._training_param.random_sample_datetime_start is not None:
+            self._fast_forward_env(env, time=self._training_param.random_sample_datetime_start)
+
+        self._curr_iter_env = 0
+        obs = [env.current_obs]
+        if epoch_num % len(env.chronics_handler.real_data.subpaths) == 0:
+            # re shuffle the data
+            env.chronics_handler.shuffle(lambda x: x[np.random.choice(len(x), size=len(x), replace=False)])
+        return obs
 
     def _init_replay_buffer(self):
         """create and initialized the replay buffer"""
@@ -778,15 +802,18 @@ class DeepQAgent(AgentWithConverter):
     def _next_move(self, curr_state, epsilon, training_step):
         # supposes that 0 encodes for do nothing, otherwise it will NOT work (for the observer)
         pm_i, pq_v, q_actions = self.deep_q.predict_movement(curr_state, epsilon, training=True)
+        # TODO implement the "max XXX random action per scenarios"
+        pm_i, pq_v = self._short_circuit_actions(training_step, pm_i, pq_v, q_actions)
+        act = self._convert_all_act(pm_i)
+        return pm_i, pq_v, act
 
+    def _short_circuit_actions(self, training_step, pm_i, pq_v, q_actions):
         if self._training_param.min_observe is not None and \
                 training_step < self._training_param.min_observe:
             # action is replaced by do nothing due to the "observe only" specification
             pm_i[:] = 0
             pq_v[:] = q_actions[:, 0]
-        # TODO implement the "max XXX random action per scenarios"
-        act = self._convert_all_act(pm_i)
-        return pm_i, pq_v, act
+        return pm_i, pq_v
 
     def _init_global_train_loop(self):
         alive_frame = np.zeros(self.__nb_env, dtype=np.int)

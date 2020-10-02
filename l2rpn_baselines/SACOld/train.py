@@ -328,7 +328,7 @@ if __name__ == "__main__":
     # which actions i keep
     kwargs_converters = {"all_actions": None,
                          "set_line_status": False,
-                         "change_bus_vect": True,
+                         "change_bus_vect": False,
                          "set_topo_vect": False,
                          }
     nm_ = args.name if args.name is not None else DEFAULT_NAME
