@@ -13,6 +13,7 @@ __all__ = [
     "PandapowerOPFAgent",
     "Geirina",
     "AsynchronousActorCritic",
+    "Kaist",
     # utilitary scripts
     "utils"
 ]

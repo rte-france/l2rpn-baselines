@@ -75,6 +75,10 @@ class TestPandapowerOPFAgent(TestImport, unittest.TestCase):
         return "PandapowerOPFAgent"
 
 
+class TestKaist(TestImport, unittest.TestCase):
+    def load_module(self):
+        return "Kaist"
+
 # because it deactivates the eager mode
 # class TestPandapowerGeirina(TestImport, unittest.TestCase):
 #     def load_module(self):
