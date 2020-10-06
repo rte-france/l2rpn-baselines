@@ -75,7 +75,7 @@ class TestPandapowerOPFAgent(TestImport, unittest.TestCase):
         return "PandapowerOPFAgent"
 
 
-class TestDN(TestImport, unittest.TestCase):
+class TestKaist(TestImport, unittest.TestCase):
     def load_module(self):
         return "Kaist"
 
