@@ -5,14 +5,18 @@
 # you can obtain one at http://mozilla.org/MPL/2.0/.
 # SPDX-License-Identifier: MPL-2.0
 # This file is part of L2RPN Baselines, L2RPN Baselines a repository to host baselines for l2rpn competitions.
+try:
+    from grid2op.Agent import BaseAgent
+    from alphaDeesp.expert_operator import expert_operator
+    from alphaDeesp.core.grid2op.Grid2opSimulation import Grid2opSimulation, score_changes_between_two_observations
+    from grid2op.Reward import BaseReward, L2RPNReward
+    import numpy as np
+    import pandas as pd
+    import logging
+except ImportError as exc_:
+    raise ImportError("ExpertAgent baseline impossible to load the required dependencies for training the model. The error was: \n {}".format(exc_))
 
-from grid2op.Agent import BaseAgent
-from alphaDeesp.expert_operator import expert_operator
-from alphaDeesp.core.grid2op.Grid2opSimulation import Grid2opSimulation, score_changes_between_two_observations
-from grid2op.Reward import BaseReward, L2RPNReward
-import numpy as np
-import pandas as pd
-import logging
+
 
 
 class ExpertAgent(BaseAgent):
