@@ -103,7 +103,7 @@ class TestDeepQSimple(unittest.TestCase):
             li_attr_obs_X = ["prod_p", "load_p", "rho"]
 
             # neural network architecture
-            observation_size = NNParam.get_obs_size(env, li_attr_obs_X)
+            observation_size = NNParam.get_obs_size(env_init, li_attr_obs_X)
             sizes = [100, 50, 10]  # sizes of each hidden layers
             kwargs_archi = {'observation_size': observation_size,
                             'sizes': sizes,

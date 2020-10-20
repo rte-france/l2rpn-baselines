@@ -98,7 +98,7 @@ class DoubleDuelingRDQN(AgentWithConverter):
             self.exp_buffer.add(exp[0], exp[1], exp[2], exp[3], exp[4], episode)
 
     def _save_hyperparameters(self, logpath, env, steps):
-        r_instance = env.reward_helper.template_reward
+        r_instance = env._reward_helper.template_reward
         hp = {
             "lr": cfg.LR,
             "batch_size": cfg.BATCH_SIZE,
