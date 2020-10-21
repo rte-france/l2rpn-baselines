@@ -12,10 +12,11 @@ import unittest
 import l2rpn_baselines
 
 
-class TestImport():
+class TestImport(object):
     def test_import(self):
         module_name = self.load_module()
-        exec(f"from l2rpn_baselines.{module_name} import {module_name}")
+        exec(f"import l2rpn_baselines.{module_name}")
+        exec(f"import l2rpn_baselines.{module_name}.{module_name}")
         exec(f"from l2rpn_baselines.{module_name} import evaluate")
         assert 1+1 == 2
 

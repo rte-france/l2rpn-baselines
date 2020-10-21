@@ -24,6 +24,7 @@ DEFAULT_BATCH_SIZE = 32
 DEFAULT_LR = 1e-5
 DEFAULT_VERBOSE = True
 
+
 def cli():
     parser = argparse.ArgumentParser(description="Train baseline DDQN")
     # Paths

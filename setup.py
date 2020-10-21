@@ -13,14 +13,10 @@ __version__ = "0.5.0"
 
 pkgs = {
     "required": [
-        "grid2op[optional]>=0.9.1.post1",
-        "tensorflow>=2.2.0",
-        "Keras>=2.3.1",
-        "torch>=1.4.0",
+        "grid2op",
         "statsmodels>=0.11.1",
-        "scikit-learn>=0.22.2.post1",
-        "gym>=0.17.1",
         "scipy>=1.4.1",
+        "numpy"
     ],
     "extras": {
         "docs": [
@@ -30,7 +26,14 @@ pkgs = {
             "sphinxcontrib-trio>=1.1.0",
             "autodocsumm>=0.1.13"
         ],
-        "challenge": ["grid2op[challenge]>=0.9.1.post1"]
+        "challenge": ["grid2op[challenge]>=0.9.1.post1"],
+        "optional": ["grid2op[optional]>=1.2.0",
+                     "tensorflow>=2.2.0",
+                     "Keras>=2.3.1",
+                     "torch>=1.4.0",
+                     "scikit-learn>=0.22.2",
+                     "gym>=0.17.1"
+                     ]
     }
 }
 
@@ -49,6 +52,7 @@ setup(name='l2rpn_baselines',
           'Development Status :: 4 - Beta',
           'Programming Language :: Python :: 3.6',
           'Programming Language :: Python :: 3.7',
+          'Programming Language :: Python :: 3.8',
           "License :: OSI Approved :: Mozilla Public License 2.0 (MPL 2.0)",
           "Intended Audience :: Developers",
           "Intended Audience :: Education",
@@ -66,4 +70,4 @@ setup(name='l2rpn_baselines',
       extras_require=pkgs["extras"],
       zip_safe=False,
       entry_points={}
-)
+      )

@@ -7,11 +7,8 @@
 # This file is part of L2RPN Baselines, L2RPN Baselines a repository to host baselines for l2rpn competitions.
 
 import numpy as np
-import random
 import tensorflow as tf
 import tensorflow.keras as tfk
-import tensorflow.keras.backend as K
-import tensorflow.keras.models as tfkm
 import tensorflow.keras.optimizers as tfko
 import tensorflow.keras.layers as tfkl
 import tensorflow.keras.activations as tfka
