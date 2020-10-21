@@ -4,6 +4,12 @@ Change Log
 --------
 - stack multiple states in `utils/DeepQAgent`
 
+[0.6.0] - 2020-11-xx
+---------------------
+- [FIXED] issue with grid2op version >= 1.2.3 for some baselines
+- [FIXED] `Issue 26 <https://github.com/rte-france/l2rpn-baselines/issues/26>`_ : package can be installed even
+  if the requirement for some baselines is not met.
+
 [0.5.0] - 2020-08-18
 --------------------
 - [BREAKING] remove the SAC baseline that was not correct. For backward compatibility, its code

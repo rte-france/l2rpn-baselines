@@ -28,6 +28,7 @@ DEFAULT_MAX_STEPS = -1
 DEFAULT_NUM_FRAMES = 4
 DEFAULT_VERBOSE = True
 
+
 def cli():
     parser = argparse.ArgumentParser(description="Eval baseline DDDQN")
     parser.add_argument("--data_dir", required=True,

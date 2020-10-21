@@ -18,6 +18,7 @@ from l2rpn_baselines.DoubleDuelingDQN.DoubleDuelingDQNConfig import DoubleDuelin
 from l2rpn_baselines.DoubleDuelingDQN.DoubleDuelingDQN_NN import DoubleDuelingDQN_NN
 from l2rpn_baselines.DoubleDuelingDQN.prioritized_replay_buffer import PrioritizedReplayBuffer
 
+
 class DoubleDuelingDQN(AgentWithConverter):
     def __init__(self,
                  observation_space,
@@ -128,7 +129,11 @@ class DoubleDuelingDQN(AgentWithConverter):
         return ada_eps_low_clip
             
     def _save_hyperparameters(self, logpath, env, steps):
-        r_instance = env.reward_helper.template_reward
+        try:
+            # change of name in grid2op >= 1.2.3
+            r_instance = env._reward_helper.template_reward
+        except AttributeError as nm_exc_:
+            r_instance = env.reward_helper.template_reward
         hp = {
             "lr": cfg.LR,
             "lr_decay_steps": cfg.LR_DECAY_STEPS,

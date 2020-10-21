@@ -12,10 +12,11 @@ import unittest
 import l2rpn_baselines
 
 
-class TestImport():
+class TestImport(object):
     def test_import(self):
         module_name = self.load_module()
-        exec(f"from l2rpn_baselines.{module_name} import {module_name}")
+        exec(f"import l2rpn_baselines.{module_name}")
+        exec(f"import l2rpn_baselines.{module_name}.{module_name}")
         exec(f"from l2rpn_baselines.{module_name} import evaluate")
         assert 1+1 == 2
 
@@ -74,6 +75,10 @@ class TestPandapowerOPFAgent(TestImport, unittest.TestCase):
     def load_module(self):
         return "PandapowerOPFAgent"
 
+
+class TestKaist(TestImport, unittest.TestCase):
+    def load_module(self):
+        return "Kaist"
 
 # because it deactivates the eager mode
 # class TestPandapowerGeirina(TestImport, unittest.TestCase):
