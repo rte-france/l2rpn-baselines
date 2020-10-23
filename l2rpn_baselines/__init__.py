@@ -11,6 +11,7 @@ all_baselines_li = [
     "DoubleDuelingDQN",
     "DoubleDuelingRDQN",
     "DoNothing",
+    "ExpertAgent",
     "SliceRDQN",
     "DeepQSimple",
     "DuelQSimple",
