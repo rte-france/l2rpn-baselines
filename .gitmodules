@@ -7,6 +7,3 @@
 [submodule "l2rpn_baselines/AsynchronousActorCritic"]
 	path = l2rpn_baselines/AsynchronousActorCritic
 	url = https://github.com/KishanGitASU/A3C-RL-baseline-agent-for-Grid2Op-environment.git
-[submodule "l2rpn_baselines/Kaist"]
-	path = l2rpn_baselines/Kaist
-	url = https://github.com/anonymous111111111/L2RPN-WCCI-2020-Winner
