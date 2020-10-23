@@ -12,20 +12,26 @@ import os
 import argparse
 import numpy as np
 import logging
-
 from grid2op.dtypes import dt_int
 from grid2op.MakeEnv import make
 from grid2op.Runner import Runner
 from grid2op.Reward import *
 from grid2op.Action import *
-from l2rpn_baselines.ExpertAgent import ExpertAgent
-from l2rpn_baselines.utils.save_log_gif import save_log_gif
-from l2rpn_baselines.ExpertAgent.ExpertAgent import other_rewards
+
+try:
+    from l2rpn_baselines.ExpertAgent import ExpertAgent
+    from l2rpn_baselines.utils.save_log_gif import save_log_gif
+    from l2rpn_baselines.ExpertAgent.ExpertAgent import other_rewards
+except ImportError as exc_:
+    raise ImportError("ExpertAgent baseline impossible to load the required dependencies for using the model. "
+                      "The error was: \n {}".format(exc_))
+
 
 DEFAULT_LOGS_DIR = "./logs-eval/expert-agent-baseline"
 DEFAULT_NB_EPISODE = 1
 DEFAULT_NB_PROCESS = 1
 DEFAULT_MAX_STEPS = -1
+
 
 def cli():
     parser = argparse.ArgumentParser(description="Eval baseline DDDQN")
@@ -52,6 +58,7 @@ def cli():
     parser.add_argument("--test", required=False, default=False,
                         help="Whether the data set is test or not")
     return parser.parse_args()
+
 
 def evaluate(env,
              load_path=None,
@@ -98,7 +105,8 @@ def evaluate(env,
             verbosity of the output
 
         save_gif: ``bool``
-            Whether or not to save a gif into each episode folder corresponding to the representation of the said episode.
+            Whether or not to save a gif into each episode folder corresponding to the representation of the said
+            episode.
 
         Returns
         -------

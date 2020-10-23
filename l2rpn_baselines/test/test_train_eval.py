@@ -19,29 +19,69 @@ logging.getLogger('tensorflow').setLevel(logging.FATAL)
 import grid2op
 
 from l2rpn_baselines.utils import TrainingParam, NNParam, make_multi_env
-from l2rpn_baselines.DeepQSimple import train as train_dqn
-from l2rpn_baselines.DeepQSimple import evaluate as eval_dqn
-from l2rpn_baselines.DuelQSimple import train as train_d3qs
-from l2rpn_baselines.DuelQSimple import evaluate as eval_d3qs
-from l2rpn_baselines.SACOld import train as train_sacold
-from l2rpn_baselines.SACOld import evaluate as eval_sacold
-from l2rpn_baselines.DuelQLeapNet import train as train_leap
-from l2rpn_baselines.DuelQLeapNet import evaluate as eval_leap
-from l2rpn_baselines.LeapNetEncoded import train as train_leapenc
-from l2rpn_baselines.LeapNetEncoded import evaluate as eval_leapenc
-from l2rpn_baselines.DoubleDuelingDQN import train as train_d3qn
-from l2rpn_baselines.DoubleDuelingDQN import evaluate as eval_d3qn
-from l2rpn_baselines.DoubleDuelingDQN import DoubleDuelingDQNConfig as d3qn_cfg
-from l2rpn_baselines.DoubleDuelingRDQN import train as train_rqn
-from l2rpn_baselines.DoubleDuelingRDQN import evaluate as eval_rqn
-from l2rpn_baselines.DoubleDuelingRDQN import DoubleDuelingRDQNConfig as rdqn_cfg
-from l2rpn_baselines.SliceRDQN import train as train_srqn
-from l2rpn_baselines.SliceRDQN import evaluate as eval_srqn
-from l2rpn_baselines.SliceRDQN import SliceRDQN_Config as srdqn_cfg
-from l2rpn_baselines.ExpertAgent import evaluate as eval_expert
+try:
+    from l2rpn_baselines.DeepQSimple import train as train_dqn
+    from l2rpn_baselines.DeepQSimple import evaluate as eval_dqn
+    has_DeepQSimple = None
+except ImportError as exc_:
+    has_DeepQSimple = exc_
+try:
+    from l2rpn_baselines.DuelQSimple import train as train_d3qs
+    from l2rpn_baselines.DuelQSimple import evaluate as eval_d3qs
+    has_DuelQSimple = None
+except ImportError as exc_:
+    has_DuelQSimple = exc_
+try:
+    from l2rpn_baselines.SACOld import train as train_sacold
+    from l2rpn_baselines.SACOld import evaluate as eval_sacold
+    has_SACOld = None
+except ImportError as exc_:
+    has_SACOld = exc_
+try:
+    from l2rpn_baselines.DuelQLeapNet import train as train_leap
+    from l2rpn_baselines.DuelQLeapNet import evaluate as eval_leap
+    has_DuelQLeapNet = None
+except ImportError as exc_:
+    has_DuelQLeapNet = exc_
+try:
+    from l2rpn_baselines.LeapNetEncoded import train as train_leapenc
+    from l2rpn_baselines.LeapNetEncoded import evaluate as eval_leapenc
+    has_LeapNetEncoded = None
+except ImportError as exc_:
+    has_LeapNetEncoded = exc_
+try:
+    from l2rpn_baselines.DoubleDuelingDQN import train as train_d3qn
+    from l2rpn_baselines.DoubleDuelingDQN import evaluate as eval_d3qn
+    from l2rpn_baselines.DoubleDuelingDQN import DoubleDuelingDQNConfig as d3qn_cfg
+    has_DoubleDuelingDQN = None
+except ImportError as exc_:
+    has_DoubleDuelingDQN = exc_
+try:
+    from l2rpn_baselines.DoubleDuelingRDQN import train as train_rqn
+    from l2rpn_baselines.DoubleDuelingRDQN import evaluate as eval_rqn
+    from l2rpn_baselines.DoubleDuelingRDQN import DoubleDuelingRDQNConfig as rdqn_cfg
+    has_DoubleDuelingRDQN = None
+except ImportError as exc_:
+    has_DoubleDuelingRDQN = exc_
+try:
+    from l2rpn_baselines.SliceRDQN import train as train_srqn
+    from l2rpn_baselines.SliceRDQN import evaluate as eval_srqn
+    from l2rpn_baselines.SliceRDQN import SliceRDQN_Config as srdqn_cfg
+    has_SliceRDQN = None
+except ImportError as exc_:
+    has_SliceRDQN = exc_
+try:
+    from l2rpn_baselines.ExpertAgent import evaluate as eval_expert
+    has_ExpertAgent = None
+except ImportError as exc_:
+    has_ExpertAgent = exc_
 
 
 class TestDeepQSimple(unittest.TestCase):
+    def setUp(self) -> None:
+        if has_DeepQSimple is not None:
+            raise ImportError(f"TestDuelQSimple is not available with error:\n{has_DeepQSimple}")
+
     def test_train_eval(self):
         tp = TrainingParam()
         tp.buffer_size = 100
@@ -239,6 +279,8 @@ class TestDeepQSimple(unittest.TestCase):
 
 class TestDuelQSimple(unittest.TestCase):
     def test_train_eval(self):
+        if has_DuelQSimple is not None:
+            raise ImportError(f"TestDuelQSimple is not available with error:\n{has_DuelQSimple}")
         tp = TrainingParam()
         tp.buffer_size = 100
         tp.minibatch_size = 8
@@ -288,6 +330,8 @@ class TestDuelQSimple(unittest.TestCase):
 
 class TestSACOld(unittest.TestCase):
     def test_train_eval(self):
+        if has_SACOld is not None:
+            raise ImportError(f"TestSACOld is not available with error:\n{has_SACOld}")
         tp = TrainingParam()
         tp.buffer_size = 100
         tp.minibatch_size = 8
@@ -344,6 +388,8 @@ class TestSACOld(unittest.TestCase):
 
 class TestLeapNet(unittest.TestCase):
     def test_train_eval(self):
+        if has_DuelQLeapNet is not None:
+            raise ImportError(f"TestLeapNet is not available with error:\n{has_DuelQLeapNet}")
         tp = TrainingParam()
         tp.buffer_size = 100
         tp.minibatch_size = 8
@@ -407,6 +453,8 @@ class TestLeapNetEncoded(unittest.TestCase):
         tp.update_freq = 32
         tp.min_observation = 32
         tmp_dir = tempfile.mkdtemp()
+        if has_LeapNetEncoded is not None:
+            raise ImportError(f"TestLeapNetEncoded is not available with error:\n{has_LeapNetEncoded}")
         with warnings.catch_warnings():
             warnings.filterwarnings("ignore")
             env = grid2op.make("rte_case5_example", test=True)
@@ -474,6 +522,8 @@ class TestLeapNetEncoded(unittest.TestCase):
 class TestD3QN(unittest.TestCase):
     def test_train_eval(self):
         tmp_dir = tempfile.mkdtemp()
+        if has_DoubleDuelingDQN is not None:
+            raise ImportError(f"TestD3QN is not available with error:\n{has_DoubleDuelingDQN}")
         with warnings.catch_warnings():
             warnings.filterwarnings("ignore")
             env = grid2op.make("rte_case5_example", test=True)
@@ -512,6 +562,8 @@ class TestD3QN(unittest.TestCase):
 class TestRDQN(unittest.TestCase):
     def test_train_eval(self):
         tmp_dir = tempfile.mkdtemp()
+        if has_DoubleDuelingRDQN is not None:
+            raise ImportError(f"TestRDQN is not available with error:\n{has_DoubleDuelingRDQN}")
         with warnings.catch_warnings():
             warnings.filterwarnings("ignore")
             env = grid2op.make("rte_case5_example", test=True)
@@ -548,6 +600,9 @@ class TestRDQN(unittest.TestCase):
 class TestSRDQN(unittest.TestCase):
     def test_train_eval(self):
         tmp_dir = tempfile.mkdtemp()
+        if has_SliceRDQN is not None:
+            raise ImportError(f"TestSRDQN is not available with error:\n{has_SliceRDQN}")
+
         with warnings.catch_warnings():
             warnings.filterwarnings("ignore")
             env = grid2op.make("rte_case5_example", test=True)
@@ -583,6 +638,9 @@ class TestSRDQN(unittest.TestCase):
 
 class TestExpertAgent(unittest.TestCase):
     def test_train_eval(self):
+        if has_ExpertAgent is not None:
+            raise ImportError(f"TestExpertAgent is not available with error:\n{has_ExpertAgent}")
+
         env = grid2op.make("l2rpn_neurips_2020_track1", True)
         res = eval_expert(env, grid="IEEE118_3")
         assert res is not None

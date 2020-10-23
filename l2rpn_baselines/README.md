@@ -50,6 +50,15 @@ of each layers, the activation functions etc.)
    A baseline thats uses an "Optimal Power Flow", a specific method develop by the power system community to 
    control the flows.
    
+ - [Kaist](/l2rpn_baselines/Kaist)
+ 
+   The winning agent of the WCCI 2020 competition based on graph neural networks and transformers.
+   
+ - [ExpertAgent](/l2rpn_baselines/ExpertAgent)
+
+   An "expert" agent. It uses some expert knowledge about powergrid and graph theory to
+   take action facing when there are some overloads.  
+   
 ## 2. How to?
 
 ### 2.a Use a baseline
