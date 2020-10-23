@@ -10,6 +10,7 @@ Change Log
 - [FIXED] `Issue 26 <https://github.com/rte-france/l2rpn-baselines/issues/26>`_ : package can be installed even
   if the requirement for some baselines is not met.
 - [UPDATED] Kaist baselines
+- [ADDED] The expert agent
 
 [0.5.0] - 2020-08-18
 --------------------
