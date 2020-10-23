@@ -80,6 +80,7 @@ class TestKaist(TestImport, unittest.TestCase):
     def load_module(self):
         return "Kaist"
 
+
 class TestExpertAgent(TestImport, unittest.TestCase):
     def load_module(self):
         return "ExpertAgent"

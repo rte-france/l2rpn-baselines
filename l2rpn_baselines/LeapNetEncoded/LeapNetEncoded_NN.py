@@ -225,13 +225,13 @@ class LeapNetEncoded_NN(BaseDeepQ):
 
          I transform it in a vector having twice as many component with the encoding, if we move
          "by pairs":
-         - [0,0] -> disconnected
-         - [1,0] -> connected to bus 1
+         - [1,0] -> disconnected
+         - [0,0] -> connected to bus 1  # normal situation
          - [0,1] -> connected to bus 2
          """
         res = np.zeros((topo_vect.shape[0], 2*topo_vect.shape[1]),
                        dtype=np.float32)
-        tmp_ = np.where(topo_vect == 1.)
+        tmp_ = np.where(topo_vect == -1.)
         res[tmp_[0], 2*tmp_[1]] = 1.
         tmp_ = np.where(topo_vect == 2.)
         res[tmp_[0], 2*tmp_[1]+1] = 1.

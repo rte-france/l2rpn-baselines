@@ -14,26 +14,31 @@ try:
     import pandas as pd
     import logging
 except ImportError as exc_:
-    raise ImportError("ExpertAgent baseline impossible to load the required dependencies for training the model. The error was: \n {}".format(exc_))
-
-
+    raise ImportError("ExpertAgent baseline impossible to load the required dependencies for using the model. "
+                      "The error was: \n {}".format(exc_))
 
 
 class ExpertAgent(BaseAgent):
     """
-    This is an Expert System Agent which tries to solve an overload when it happens and which does not require any training.
-    For any new overloaded situations, it computes an influence graph around the overload of interest, and rank the substations and topologies to explore to find a solution.
+    This is an Expert System Agent which tries to solve an overload when it happens and which does not require any
+    training.
+    For any new overloaded situations, it computes an influence graph around the overload of interest, and rank the
+    substations and topologies to explore to find a solution.
     It simulates the top ranked topologies to eventually give a score of success:
+
     #4 - it solves all overloads,
     #3 - it solves only the overload of interest
     #2 - it partially solves the overload of interest
     #1 - it solves the overload of interest but worsen other overloads
     #0 - it fails
 
-    #You can tune:
-    #- the number of simulations it is allowed to run each for each overload
-    #- the number of overload you "study" at each given time if there are multiple overloads
-    #- if you decide to take an action now with a score of 1 (which is not necessarily good or bad, there is a tradeoff) or delay it
+    You can tune:
+
+      - the number of simulations it is allowed to run each for each overload
+      - the number of overload you "study" at each given time if there are multiple overloads
+      - if you decide to take an action now with a score of 1 (which is not necessarily good or bad, there is a
+        tradeoff) or delay it
+
     """
 
     def __init__(self,

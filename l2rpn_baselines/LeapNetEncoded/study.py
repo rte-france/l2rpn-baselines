@@ -138,6 +138,7 @@ if __name__ == "__main__":
                },
                param=param)
 
+    # python3 study.py --env_name="l2rpn_wcci_2020" --load_path="model_saved" --logs_dir="tf_logs" --name="TestObserver"  --nb_episode 10
     # Call evaluation interface
     study(env,
              name=args.name,

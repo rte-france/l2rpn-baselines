@@ -231,16 +231,16 @@ if __name__ == "__main__":
     # is it highly recommended to modify the reward depening on the algorithm.
     # for example here i will push my algorithm to learn that plyaing illegal or ambiguous action is bad
     class MyReward(BaseReward):
-        power_rho = int(4)  # to which "power" is put the rho values
+        power_rho = int(2)  # to which "power" is put the rho values
 
         penalty_powerline_disco = 1.0  # how to penalize the powerline disconnected that can be reconnected
 
         # how to penalize the fact that a powerline will be disconnected next time steps, because it's close to
         # an overflow
-        penalty_powerline_close_disco = 1.0
+        penalty_powerline_close_disco = 5.0
 
         # cap the minimum reward (put None to ignore)
-        cap_min = -0.5  # if the minimum reward is too low, model will not learn easily. It will be "scared" to take
+        cap_min = -1.0  # if the minimum reward is too low, model will not learn easily. It will be "scared" to take
         # actions. Because you win more or less points 1 by 1, but you can lose them
         # way way faster.
 
@@ -263,7 +263,7 @@ if __name__ == "__main__":
             self.reward_max = 1.0
 
         def flow_penalty(self, rho):
-            tmp = 1 - rho**self.power_rho
+            tmp = 1. - rho**self.power_rho
             return tmp.sum()
 
         def __call__(self, action, env, has_error, is_done, is_illegal, is_ambiguous):
@@ -314,7 +314,7 @@ if __name__ == "__main__":
                )
 
     if env.name == "l2rpn_wcci_2020":
-        env.chronics_handler.real_data.set_filter(lambda x: re.match(".*Scenario_february_.*$", x) is not None)
+        env.chronics_handler.real_data.set_filter(lambda x: re.match(".*Scenario_february_000.*$", x) is not None)
         env.chronics_handler.real_data.reset()
     elif env.name == "l2rpn_case14_sandbox":
         # all data can be loaded into memory
@@ -346,7 +346,8 @@ if __name__ == "__main__":
     tp.buffer_size = 1000000
 
     # just observe the data for a while
-    tp.min_observe = None  # int(10000)
+    tp.min_observe = int(100000)
+    tp.sample_one_random_action_begin = int(tp.min_observe // 2)
 
     # e greedy
     tp.min_observation = 128
