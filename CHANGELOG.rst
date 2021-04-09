@@ -4,7 +4,7 @@ Change Log
 --------
 - stack multiple states in `utils/DeepQAgent`
 
-[0.6.0] - 2020-11-xx
+[0.5.1] - 2021-04-09
 ---------------------
 - [FIXED] issue with grid2op version >= 1.2.3 for some baselines
 - [FIXED] `Issue 26 <https://github.com/rte-france/l2rpn-baselines/issues/26>`_ : package can be installed even
