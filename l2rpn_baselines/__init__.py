@@ -26,4 +26,4 @@ all_baselines_li = [
     # utilitary scripts
     "utils"
 ]
-__version__ = "0.5.0"
+__version__ = "0.5.1"
