@@ -117,7 +117,7 @@ class ExpertAgent(BaseAgent):
             subsInCooldown = [i for i in range(observation.n_sub) if (observation.time_before_cooldown_sub[
                                                                           i] >= 1)]  # if you can not run an action currently on a susbtation, so no need to simulate on it
 
-            timestepsOverflowAllowed = self.observation_space.parameters.NB_TIMESTEP_OVERFLOW_ALLOWED
+            timestepsOverflowAllowed = observation._obs_env.parameters.NB_TIMESTEP_OVERFLOW_ALLOWED
             isManyOverloads = (n_overloads > timestepsOverflowAllowed)
 
             ltcAlreadyConsidered = []
@@ -234,7 +234,7 @@ class ExpertAgent(BaseAgent):
 
     # we order overloads by usage rate but also by criticity giving remaining timesteps for overload before disconnect
     def getRankedOverloads(self, observation):
-        timestepsOverflowAllowed = self.observation_space.parameters.NB_TIMESTEP_OVERFLOW_ALLOWED
+        timestepsOverflowAllowed = observation._obs_env.parameters.NB_TIMESTEP_OVERFLOW_ALLOWED
 
         sort_rho = -np.sort(-observation.rho)  # sort in descending order for positive values
         sort_indices = np.argsort(-observation.rho)
