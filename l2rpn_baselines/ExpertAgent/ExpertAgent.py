@@ -265,7 +265,7 @@ class ExpertAgent(BaseAgent):
     # for a substation we get the reference topology action
     def reference_topology_sub_action(self, observation, sub_id):
         topo_vec_sub = observation.state_of(substation_id=sub_id)['topo_vect']
-        topo_target = list(np.ones(len(topo_vec_sub)))
+        topo_target = list(np.ones(len(topo_vec_sub)).astype('int'))
         action_def = {"set_bus": {"substations_id": [(sub_id, topo_target)]}}
         action = self.action_space(action_def)
         return action
