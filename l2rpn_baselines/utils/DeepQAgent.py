@@ -185,7 +185,7 @@ class DeepQAgent(AgentWithConverter):
         # for the frequency of action type
         self.current_ = 0
         self.nb_ = 10
-        self._nb_this_time = np.zeros((self.nb_, 7))
+        self._nb_this_time = np.zeros((self.nb_, 7), dtype=int)
 
         #
         self._vector_size = None

@@ -29,6 +29,8 @@ class DuelQ_NN(BaseDeepQ):
         BaseDeepQ.__init__(self,
                            nn_params,
                            training_param)
+        if self._action_size == 0:
+            raise RuntimeError("Impossible to make a DeepQ network with an action space of size 0!")
         self.construct_q_network()
 
     def construct_q_network(self):

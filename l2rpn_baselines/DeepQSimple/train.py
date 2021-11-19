@@ -176,6 +176,7 @@ def train(env,
                            name=name,
                            istraining=True,
                            verbose=verbose,
+                           filter_action_fun=filter_action_fun,
                             **kwargs_converters
                             )
 
