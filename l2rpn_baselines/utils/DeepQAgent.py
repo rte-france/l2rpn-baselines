@@ -100,6 +100,11 @@ class DeepQAgent(AgentWithConverter):
         Number of action tagged as "storage". See the
         `official grid2op documentation <https://grid2op.readthedocs.io/en/v0.9.3/action.html?highlight=get_types#grid2op.Action.BaseAction.get_types>`_
         for more information.
+        
+    nb_curtail: ``int``
+        Number of action tagged as "curtailment". See the
+        `official grid2op documentation <https://grid2op.readthedocs.io/en/v0.9.3/action.html?highlight=get_types#grid2op.Action.BaseAction.get_types>`_
+        for more information.
 
     nb_do_nothing: ``int``
         Number of action tagged as "do_nothing", *ie* when an action is not modifiying the state of the grid. See the
@@ -157,6 +162,7 @@ class DeepQAgent(AgentWithConverter):
         self.nb_topology = 0
         self.nb_line = 0
         self.nb_redispatching = 0
+        self.nb_curtail = 0
         self.nb_storage = 0
         self.nb_do_nothing = 0
 
@@ -185,7 +191,7 @@ class DeepQAgent(AgentWithConverter):
         # for the frequency of action type
         self.current_ = 0
         self.nb_ = 10
-        self._nb_this_time = np.zeros((self.nb_, 7), dtype=int)
+        self._nb_this_time = np.zeros((self.nb_, 8), dtype=int)
 
         #
         self._vector_size = None
@@ -471,6 +477,7 @@ class DeepQAgent(AgentWithConverter):
         self.nb_topology = 0
         self.nb_line = 0
         self.nb_redispatching = 0
+        self.nb_curtail = 0
         self.nb_storage = 0
         self.nb_do_nothing = 0
 
@@ -569,23 +576,27 @@ class DeepQAgent(AgentWithConverter):
         """make sure that `action_int` is present in dict_action"""
         if action_int not in self.dict_action:
             act = self.action_space.all_actions[action_int]
-            is_inj, is_volt, is_topo, is_line_status, is_redisp, is_storage, is_dn = \
-                False, False, False, False, False, False, False
+            is_inj, is_volt, is_topo, is_line_status, is_redisp, is_storage, is_dn, is_curtail = \
+                False, False, False, False, False, False, False, False
             try:
                 # feature unavailble in grid2op <= 0.9.2
                 try:
                     # storage introduced in grid2op 1.5.0 so if below it is not supported
                     is_inj, is_volt, is_topo, is_line_status, is_redisp = act.get_types()
                 except ValueError as exc_:
-                    is_inj, is_volt, is_topo, is_line_status, is_redisp, is_storage = act.get_types()
+                    try:
+                        is_inj, is_volt, is_topo, is_line_status, is_redisp, is_storage = act.get_types()
+                    except ValueError as exc_:
+                        is_inj, is_volt, is_topo, is_line_status, is_redisp, is_storage, is_curtail = act.get_types()
 
                 is_dn = (not is_inj) and (not is_volt) and (not is_topo) and (not is_line_status) and (not is_redisp)
                 is_dn = is_dn and (not is_storage)
+                is_dn = is_dn and (not is_curtail)
             except Exception as exc_:
                 pass
 
             self.dict_action[action_int] = [0, act,
-                                            (is_inj, is_volt, is_topo, is_line_status, is_redisp, is_storage, is_dn)]
+                                            (is_inj, is_volt, is_topo, is_line_status, is_redisp, is_storage, is_curtail, is_dn)]
 
     def _store_action_played(self, action_int):
         """if activated, this function will store the action taken by the agent."""
@@ -593,7 +604,7 @@ class DeepQAgent(AgentWithConverter):
             self._create_action_if_not_registered(action_int)
 
             self.dict_action[action_int][0] += 1
-            (is_inj, is_volt, is_topo, is_line_status, is_redisp, is_storage, is_dn) = self.dict_action[action_int][2]
+            (is_inj, is_volt, is_topo, is_line_status, is_redisp, is_storage, is_curtail, is_dn) = self.dict_action[action_int][2]
             if is_inj:
                 self.nb_injection += 1
             if is_volt:
@@ -606,6 +617,9 @@ class DeepQAgent(AgentWithConverter):
                 self.nb_redispatching += 1
             if is_storage:
                 self.nb_storage += 1
+                self.nb_redispatching += 1
+            if is_curtail:
+                self.nb_curtail += 1
             if is_dn:
                 self.nb_do_nothing += 1
 
@@ -995,13 +1009,14 @@ class DeepQAgent(AgentWithConverter):
     def _store_frequency_action_type(self, UPDATE_FREQ, step_tb):
         self.current_ += 1
         self.current_ %= self.nb_
-        nb_inj, nb_volt, nb_topo, nb_line, nb_redisp, nb_storage, nb_dn = self._nb_this_time[self.current_, :]
+        nb_inj, nb_volt, nb_topo, nb_line, nb_redisp, nb_storage, nb_curtail, nb_dn = self._nb_this_time[self.current_, :]
         self._nb_this_time[self.current_, :] = [self.nb_injection,
                                                 self.nb_voltage,
                                                 self.nb_topology,
                                                 self.nb_line,
                                                 self.nb_redispatching,
                                                 self.nb_storage,
+                                                self.nb_curtail,
                                                 self.nb_do_nothing]
 
         curr_inj = self.nb_injection - nb_inj
@@ -1010,6 +1025,7 @@ class DeepQAgent(AgentWithConverter):
         curr_line = self.nb_line - nb_line
         curr_redisp = self.nb_redispatching - nb_redisp
         curr_storage = self.nb_storage - nb_storage
+        curr_curtail = self.nb_curtail - nb_curtail
         curr_dn = self.nb_do_nothing - nb_dn
 
         total_act_num = curr_inj + curr_volt + curr_topo + curr_line + curr_redisp + curr_dn + curr_storage
@@ -1053,5 +1069,11 @@ class DeepQAgent(AgentWithConverter):
                           curr_storage / total_act_num,
                           step_tb,
                           description="Frequency of \"storage\" actions "
+                                      "type played over the last {} actions"
+                                      "".format(self.nb_ * UPDATE_FREQ))
+        tf.summary.scalar("z_freq_curtail",
+                          curr_curtail / total_act_num,
+                          step_tb,
+                          description="Frequency of \"curtailment\" actions "
                                       "type played over the last {} actions"
                                       "".format(self.nb_ * UPDATE_FREQ))
