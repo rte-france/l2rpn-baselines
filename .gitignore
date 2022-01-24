@@ -166,3 +166,6 @@ l2rpn_baselines/LeapNetEncoded/tf_logs/
 l2rpn_baselines/LeapNetEncoded/tf_logs_test/
 l2rpn_baselines/LeapNetEncoded/model_test/
 l2rpn_baselines/SACOld/trained_models/
+l2rpn_baselines/ppo_stablebaselines/logs
+l2rpn_baselines/ppo_stablebaselines/saved_baseline
+l2rpn_baselines/ppo_stablebaselines/saved_model

@@ -19,7 +19,8 @@ __all__ = [
            "NNParam",
            "ReplayBuffer",
            "BaseDeepQ",
-           "DeepQAgent"
+           "DeepQAgent",
+           "GymAgent"
 ]
 
 from l2rpn_baselines.utils.cli_eval import cli_eval
@@ -35,3 +36,4 @@ from l2rpn_baselines.utils.NNParam import NNParam
 from l2rpn_baselines.utils.ReplayBuffer import ReplayBuffer
 from l2rpn_baselines.utils.BaseDeepQ import BaseDeepQ
 from l2rpn_baselines.utils.DeepQAgent import DeepQAgent
+from l2rpn_baselines.utils.gymAgent import GymAgent
