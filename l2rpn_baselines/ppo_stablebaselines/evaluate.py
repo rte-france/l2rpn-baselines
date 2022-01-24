@@ -27,7 +27,116 @@ def evaluate(env,
              verbose=False,
              save_gif=False,
              **kwargs):
+    """
+    This function will use stable baselines 3 to train a PPO agent on
+    a grid2op environment "env".
+
+    It will use the grid2op "gym_compat" module to convert the action space
+    to a BoxActionSpace and the observation to a BoxObservationSpace.
+
+    It is suited for the studying the impact of continuous actions:
+
+    - on storage units
+    - on dispatchable generators
+    - on generators with renewable energy sources
+
+    Parameters
+    ----------
+    env: :class:`grid2op.Environment`
+        Then environment on which you need to train your agent.
+
+    name: ``str```
+        The name of your agent.
+
+    load_path: ``str``
+        If you want to reload your baseline, specify the path where it is located. **NB** if a baseline is reloaded
+        some of the argument provided to this function will not be used.
+
+    logs_dir: ``str``
+        Where to store the tensorboard generated logs during the training. ``None`` if you don't want to log them.
     
+    nb_episode: ``str``
+        How many episodes to run during the assessment of the performances
+
+    nb_process: ``int``
+        On how many process the assessment will be made. (setting this > 1 can lead to some speed ups but can be
+        unstable on some plaform)
+
+    max_steps: ``int``
+        How many steps at maximum your agent will be assessed
+
+    verbose: ``bool``
+        Currently un used
+
+    save_gif: ``bool``
+        Whether or not you want to save, as a gif, the performance of your agent. It might cause memory issues (might
+        take a lot of ram) and drastically increase computation time.
+
+    kwargs:
+        extra parameters passed to the PPO from stable baselines 3
+
+    Returns
+    -------
+
+    baseline: 
+        The loaded baseline as a stable baselines PPO element.
+
+    Examples
+    ---------
+
+    Here is an example on how to train a ppo_stablebaseline .
+
+    First define a python script, for example
+
+    .. code-block:: python
+
+        import grid2op
+        from grid2op.Reward import LinesCapacityReward  # or any other rewards
+        from grid2op.Chronics import MultifolderWithCache  # highly recommended
+        from lightsim2grid import LightSimBackend  # highly recommended !
+        from l2rpn_baselines.ppo_stablebaselines import evaluate
+
+        nb_episode = 7
+        nb_process = 1
+        verbose = True
+
+        env_name = "l2rpn_case14_sandbox"
+        env = grid2op.make(env_name,
+                           reward_class=LinesCapacityReward,
+                           backend=LightSimBackend()
+                           )
+
+        try:
+            evaluate(env,
+                    nb_episode=nb_episode,
+                    load_path="./saved_model",  # should be the same as what has been called in the train function !
+                    name="test",  # should be the same as what has been called in the train function !
+                    nb_process=1,
+                    verbose=verbose,
+                    )
+
+            # you can also compare your agent with the do nothing agent relatively
+            # easily
+            runner_params = env.get_params_for_runner()
+            runner = Runner(**runner_params)
+
+            res = runner.run(nb_episode=nb_episode,
+                            nb_process=nb_process
+                            )
+
+            # Print summary
+            if verbose:
+                print("Evaluation summary for DN:")
+                for _, chron_name, cum_reward, nb_time_step, max_ts in res:
+                    msg_tmp = "chronics at: {}".format(chron_name)
+                    msg_tmp += "\ttotal score: {:.6f}".format(cum_reward)
+                    msg_tmp += "\ttime steps: {:.0f}/{:.0f}".format(nb_time_step, max_ts)
+                    print(msg_tmp)
+        finally:
+            env.close()
+
+    """
+
     # load the attributes kept
     my_path = os.path.join(load_path, name)
     if not os.path.exists(load_path):
@@ -84,45 +193,119 @@ def evaluate(env,
 
 
 if __name__ == "__main__":
-    import grid2op
-    from grid2op.Action import CompleteAction
-    from grid2op.Reward import L2RPNReward, EpisodeDurationReward, LinesCapacityReward
-    from grid2op.gym_compat import GymEnv, DiscreteActSpace, BoxGymObsSpace
-    from lightsim2grid import LightSimBackend
-    from grid2op.Chronics import MultifolderWithCache
-    import pdb
 
-    nb_episode = 7
-    nb_process = 1
-    verbose = True
+        import grid2op
+        from grid2op.Reward import LinesCapacityReward  # or any other rewards
+        from grid2op.Chronics import MultifolderWithCache  # highly recommended
+        from lightsim2grid import LightSimBackend  # highly recommended !
+        # from l2rpn_baselines.ppo_stablebaselines import evaluate
 
-    env = grid2op.make("educ_case14_storage",
-                       test=True,
-                       action_class=CompleteAction,
-                       reward_class=LinesCapacityReward,
-                       backend=LightSimBackend())
+        nb_episode = 7
+        nb_process = 1
+        verbose = True
 
-    evaluate(env,
-             nb_episode=nb_episode,
-             load_path="./saved_model", 
-             name="test4",
-             nb_process=1,
-             verbose=verbose,
-             )
+        env_name = "l2rpn_case14_sandbox"
+        env = grid2op.make(env_name,
+                           reward_class=LinesCapacityReward,
+                           backend=LightSimBackend()
+                           )
 
-    # to compare with do nothing
-    runner_params = env.get_params_for_runner()
-    runner = Runner(**runner_params)
+        try:
+            evaluate(env,
+                    nb_episode=nb_episode,
+                    load_path="./saved_model", 
+                    name="test",
+                    nb_process=1,
+                    verbose=verbose,
+                    )
 
-    res = runner.run(nb_episode=nb_episode,
-                     nb_process=nb_process
-                     )
+            # you can also compare your agent with the do nothing agent relatively
+            # easily
+            runner_params = env.get_params_for_runner()
+            runner = Runner(**runner_params)
 
-    # Print summary
-    if verbose:
-        print("Evaluation summary for DN:")
-        for _, chron_name, cum_reward, nb_time_step, max_ts in res:
-            msg_tmp = "chronics at: {}".format(chron_name)
-            msg_tmp += "\ttotal score: {:.6f}".format(cum_reward)
-            msg_tmp += "\ttime steps: {:.0f}/{:.0f}".format(nb_time_step, max_ts)
-            print(msg_tmp)
+            res = runner.run(nb_episode=nb_episode,
+                            nb_process=nb_process
+                            )
+
+            # Print summary
+            if verbose:
+                print("Evaluation summary for DN:")
+                for _, chron_name, cum_reward, nb_time_step, max_ts in res:
+                    msg_tmp = "chronics at: {}".format(chron_name)
+                    msg_tmp += "\ttotal score: {:.6f}".format(cum_reward)
+                    msg_tmp += "\ttime steps: {:.0f}/{:.0f}".format(nb_time_step, max_ts)
+                    print(msg_tmp)
+        finally:
+            env.close()
+
+    # import re
+    # from grid2op.Reward import LinesCapacityReward  # or any other rewards
+    # from lightsim2grid import LightSimBackend  # highly recommended !
+    # from grid2op.Chronics import MultifolderWithCache  # highly recommended
+
+    # env_name = "l2rpn_case14_sandbox"
+    # env = grid2op.make(env_name,
+    #                     reward_class=LinesCapacityReward,
+    #                     backend=LightSimBackend(),
+    #                     chronics_class=MultifolderWithCache)
+
+    # env.chronics_handler.real_data.set_filter(lambda x: re.match(".*00$", x) is not None)
+    # env.chronics_handler.real_data.reset()
+    # # see https://grid2op.readthedocs.io/en/latest/environment.html#optimize-the-data-pipeline
+    # # for more information !
+
+    # try:
+    #     train(env,
+    #             iterations=10_000,  # any number of iterations you want
+    #             logs_dir="./logs",  # where the tensorboard logs will be put
+    #             save_path="./saved_model",  # where the NN weights will be saved
+    #             name="test",  # name of the baseline
+    #             net_arch=[100, 100, 100],  # architecture of the NN
+    #             save_every_xxx_steps=2000,  # save the NN every 2k steps
+    #             )
+    # finally:
+    #     env.close()
+
+    # import grid2op
+    # from grid2op.Action import CompleteAction
+    # from grid2op.Reward import L2RPNReward, EpisodeDurationReward, LinesCapacityReward
+    # from grid2op.gym_compat import GymEnv, DiscreteActSpace, BoxGymObsSpace
+    # from lightsim2grid import LightSimBackend
+    # from grid2op.Chronics import MultifolderWithCache
+    # import pdb
+
+    # nb_episode = 7
+    # nb_process = 1
+    # verbose = True
+
+    # env = grid2op.make("educ_case14_storage",
+    #                    test=True,
+    #                    action_class=CompleteAction,
+    #                    reward_class=LinesCapacityReward,
+    #                    backend=LightSimBackend())
+
+    # evaluate(env,
+    #          nb_episode=nb_episode,
+    #          load_path="./saved_model", 
+    #          name="test4",
+    #          nb_process=1,
+    #          verbose=verbose,
+    #          )
+
+    # # to compare with do nothing
+    # runner_params = env.get_params_for_runner()
+    # runner = Runner(**runner_params)
+
+    # res = runner.run(nb_episode=nb_episode,
+    #                  nb_process=nb_process
+    #                  )
+
+    # # Print summary
+    # if verbose:
+    #     print("Evaluation summary for DN:")
+    #     for _, chron_name, cum_reward, nb_time_step, max_ts in res:
+    #         msg_tmp = "chronics at: {}".format(chron_name)
+    #         msg_tmp += "\ttotal score: {:.6f}".format(cum_reward)
+    #         msg_tmp += "\ttime steps: {:.0f}/{:.0f}".format(nb_time_step, max_ts)
+    #         print(msg_tmp)

@@ -127,9 +127,11 @@ def train(env,
     .. code-block:: python
 
         import re
+        import grid2op
         from grid2op.Reward import LinesCapacityReward  # or any other rewards
-        from lightsim2grid import LightSimBackend  # highly recommended !
         from grid2op.Chronics import MultifolderWithCache  # highly recommended
+        from lightsim2grid import LightSimBackend  # highly recommended !
+        from l2rpn_baselines.ppo_stablebaselines import train
 
         env_name = "l2rpn_case14_sandbox"
         env = grid2op.make(env_name,
@@ -235,6 +237,7 @@ def train(env,
 if __name__ == "__main__":
 
     import re
+    import grid2op
     from grid2op.Reward import LinesCapacityReward  # or any other rewards
     from lightsim2grid import LightSimBackend  # highly recommended !
     from grid2op.Chronics import MultifolderWithCache  # highly recommended
