@@ -37,7 +37,8 @@ def evaluate(env,
              nb_process=DEFAULT_NB_PROCESS,
              max_steps=DEFAULT_MAX_STEPS,
              verbose=False,
-             save_gif=False):
+             save_gif=False,
+             filter_action_fun=None):
     """
     How to evaluate the performances of the trained DuelQSimple agent.
 
@@ -71,6 +72,11 @@ def evaluate(env,
     save_gif: ``bool``
         Whether or not you want to save, as a gif, the performance of your agent. It might cause memory issues (might
         take a lot of ram) and drastically increase computation time.
+
+    filter_action_fun: ``function``
+        A function to filter the action space. See
+        `IdToAct.filter_action <https://grid2op.readthedocs.io/en/latest/converter.html#grid2op.Converter.IdToAct.filter_action>`_
+        documentation.
 
     Returns
     -------
@@ -130,7 +136,8 @@ def evaluate(env,
                         name=name,
                         store_action=nb_process == 1,
                         nn_archi=nn_archi,
-                        observation_space=env.observation_space)
+                        observation_space=env.observation_space,
+                        filter_action_fun=filter_action_fun)
 
     # Load weights from file
     agent.load(load_path)

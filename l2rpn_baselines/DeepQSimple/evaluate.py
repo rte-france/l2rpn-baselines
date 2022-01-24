@@ -36,7 +36,8 @@ def evaluate(env,
              nb_process=DEFAULT_NB_PROCESS,
              max_steps=DEFAULT_MAX_STEPS,
              verbose=False,
-             save_gif=False):
+             save_gif=False,
+             filter_action_fun=None):
     """
     How to evaluate the performances of the trained DeepQSimple agent.
 
@@ -128,7 +129,8 @@ def evaluate(env,
                         name=name,
                         store_action=nb_process == 1,
                         nn_archi=nn_archi,
-                        observation_space=env.observation_space)
+                        observation_space=env.observation_space,
+                        filter_action_fun=filter_action_fun)
 
     # Load weights from file
     agent.load(load_path)

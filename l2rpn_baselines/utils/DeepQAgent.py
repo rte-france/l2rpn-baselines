@@ -995,16 +995,16 @@ class DeepQAgent(AgentWithConverter):
                 if self.store_action:
                     self._store_frequency_action_type(UPDATE_FREQ, step_tb)
 
-                if self._time_step_lived is not None:
-                    tf.summary.histogram(
-                        "timestep_lived", self._time_step_lived, step=step_tb, buckets=None,
-                        description="Number of time steps lived for all scenarios"
-                    )
-                if self._nb_chosen is not None:
-                    tf.summary.histogram(
-                        "nb_chosen", self._nb_chosen, step=step_tb, buckets=None,
-                        description="Number of times this scenarios has been played"
-                    )
+                # if self._time_step_lived is not None:
+                #     tf.summary.histogram(
+                #         "timestep_lived", self._time_step_lived, step=step_tb, buckets=None,
+                #         description="Number of time steps lived for all scenarios"
+                #     )
+                # if self._nb_chosen is not None:
+                #     tf.summary.histogram(
+                #         "nb_chosen", self._nb_chosen, step=step_tb, buckets=None,
+                #         description="Number of times this scenarios has been played"
+                #     )
 
     def _store_frequency_action_type(self, UPDATE_FREQ, step_tb):
         self.current_ += 1
