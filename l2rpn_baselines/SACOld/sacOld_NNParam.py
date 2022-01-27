@@ -8,15 +8,17 @@
 import copy
 
 from l2rpn_baselines.utils import NNParam
-from l2rpn_baselines.SACOld.SACOld_NN import SACOld_NN
+from l2rpn_baselines.SACOld.sacOld_NN import SACOld_NN
 
 
 class SACOld_NNParam(NNParam):
     """
-
-    Do not use this SACOld class, prefer the use of the "more correct"
-    class :class:`l2rpn_baselines.SAC.SAC`  for new projects instead. This module is only here
-    for backward compatibility.
+    Do not use this SACOld class that has lots of known (but forgotten) issues.
+    
+    .. warning::
+        We plan to add SAC based agents relying on external frameworks, such as stable baselines3 or ray / rllib.
+        
+        We will not code any SAC agent "from scratch".
 
     Attributes
     ----------

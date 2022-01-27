@@ -31,16 +31,17 @@ You can use this class with:
 Other non exported class
 ------------------------
 These classes need to be imported, if you want to import them with (non exhaustive list):
+
 .. code-block:: python
 
-    from l2rpn_baselines.SACOld.SACOld_NN import SACOld_NN
-    from l2rpn_baselines.SACOld.SACOld_NNParam import SACOld_NNParam
+    from l2rpn_baselines.SACOld.sacOld_NN import SACOld_NN
+    from l2rpn_baselines.SACOld.sacOld_NNParam import SACOld_NNParam
 
 
-.. autoclass:: l2rpn_baselines.SACOld.SACOld_NN.SACOld_NN
+.. autoclass:: l2rpn_baselines.SACOld.sacOld_NN.SACOld_NN
     :members:
     :autosummary:
 
-.. autoclass:: l2rpn_baselines.SACOld.SACOld_NNParam.SACOld_NNParam
+.. autoclass:: l2rpn_baselines.SACOld.sacOld_NNParam.SACOld_NNParam
     :members:
     :autosummary:
