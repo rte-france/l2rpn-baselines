@@ -10,6 +10,7 @@ import os
 import numpy as np
 
 from grid2op.Agent import BaseAgent
+from l2rpn_baselines.utils.trainingParam import TrainingParam
 
 
 class RLAgent(BaseAgent):

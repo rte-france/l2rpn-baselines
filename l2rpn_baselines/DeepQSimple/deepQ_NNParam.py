@@ -8,14 +8,15 @@
 import copy
 
 from l2rpn_baselines.utils import NNParam
-from l2rpn_baselines.DeepQSimple.DeepQ_NN import DeepQ_NN
+from l2rpn_baselines.DeepQSimple.deepQ_NN import DeepQ_NN
 
 
 class DeepQ_NNParam(NNParam):
     """
-    This defined the specific parameters for the DeepQ network. Nothing really different compared to the base class
-    except that :attr:`l2rpn_baselines.utils.NNParam.nn_class` is :class:`DeepQ_NN`
-
+    This defined the specific parameters for the DeepQ network. 
+    
+    Nothing really different compared to the base class
+    except that :attr:`l2rpn_baselines.utils.NNParam.nn_class` (nn_class) is :class:`deepQ_NN.DeepQ_NN`
     """
     _int_attr = copy.deepcopy(NNParam._int_attr)
     _float_attr = copy.deepcopy(NNParam._float_attr)

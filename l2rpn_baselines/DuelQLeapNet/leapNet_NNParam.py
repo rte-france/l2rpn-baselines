@@ -9,7 +9,7 @@ import numpy as np
 import copy
 
 from l2rpn_baselines.utils import NNParam
-from l2rpn_baselines.DuelQLeapNet.DuelQLeapNet_NN import DuelQLeapNet_NN
+from l2rpn_baselines.DuelQLeapNet.duelQLeapNet_NN import DuelQLeapNet_NN
 
 
 class LeapNet_NNParam(NNParam):

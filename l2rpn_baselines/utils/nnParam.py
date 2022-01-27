@@ -11,7 +11,7 @@ import numpy as np
 from collections.abc import Iterable
 
 import grid2op
-from l2rpn_baselines.utils.BaseDeepQ import BaseDeepQ
+from l2rpn_baselines.utils.baseDeepQ import BaseDeepQ
 
 
 class NNParam(object):

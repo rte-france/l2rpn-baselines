@@ -11,7 +11,7 @@
 import os
 from grid2op.Runner import Runner
 
-from l2rpn_baselines.Template.Template import Template
+from l2rpn_baselines.Template.template import Template
 from l2rpn_baselines.utils.save_log_gif import save_log_gif
 
 

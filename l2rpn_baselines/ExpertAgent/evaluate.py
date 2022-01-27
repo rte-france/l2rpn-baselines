@@ -19,7 +19,7 @@ from grid2op.Runner import Runner
 try:
     from l2rpn_baselines.ExpertAgent import ExpertAgent
     from l2rpn_baselines.utils.save_log_gif import save_log_gif
-    from l2rpn_baselines.ExpertAgent.ExpertAgent import other_rewards
+    from l2rpn_baselines.ExpertAgent.expertAgent import other_rewards
     _CAN_USE_EXPERT_BASELINE = True
 except ImportError as exc_:
     _CAN_USE_EXPERT_BASELINE = False

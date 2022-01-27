@@ -9,7 +9,7 @@ import os
 import copy
 
 from l2rpn_baselines.utils import NNParam
-from l2rpn_baselines.DuelQSimple.DuelQ_NN import DuelQ_NN
+from l2rpn_baselines.DuelQSimple.duelQ_NN import DuelQ_NN
 
 
 class DuelQ_NNParam(NNParam):

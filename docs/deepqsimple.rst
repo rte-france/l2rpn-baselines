@@ -25,11 +25,12 @@ You can use this class with:
 Other non exported class
 ------------------------
 These classes need to be imported, if you want to import them with (non exhaustive list):
+
 .. code-block:: python
 
     from l2rpn_baselines.DeepQSimple.DeepQ_NN import DeepQ_NN
 
 
-.. autoclass:: l2rpn_baselines.DeepQSimple.DeepQ_NN.DeepQ_NN
+.. autoclass:: l2rpn_baselines.DeepQSimple.deepQ_NN.DeepQ_NN
     :members:
     :autosummary:

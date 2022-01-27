@@ -12,9 +12,9 @@ import os
 import warnings
 
 from l2rpn_baselines.utils import cli_train
-from l2rpn_baselines.DeepQSimple.DeepQSimple import DeepQSimple, DEFAULT_NAME
-from l2rpn_baselines.DeepQSimple.DeepQ_NNParam import DeepQ_NNParam
-from l2rpn_baselines.DeepQSimple.DeepQ_NN import DeepQ_NN
+from l2rpn_baselines.DeepQSimple.deepQSimple import DeepQSimple, DEFAULT_NAME
+from l2rpn_baselines.DeepQSimple.deepQ_NNParam import DeepQ_NNParam
+from l2rpn_baselines.DeepQSimple.deepQ_NN import DeepQ_NN
 from l2rpn_baselines.utils import TrainingParam
 from l2rpn_baselines.utils.waring_msgs import _WARN_GPU_MEMORY
 

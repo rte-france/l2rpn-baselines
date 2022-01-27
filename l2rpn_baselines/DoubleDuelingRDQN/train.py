@@ -14,8 +14,8 @@ from grid2op.MakeEnv import make
 from grid2op.Reward import *
 from grid2op.Action import *
 
-from l2rpn_baselines.DoubleDuelingRDQN.DoubleDuelingRDQNConfig import DoubleDuelingRDQNConfig as RDQNConfig
-from l2rpn_baselines.DoubleDuelingRDQN.DoubleDuelingRDQN import DoubleDuelingRDQN as RDQNAgent
+from l2rpn_baselines.DoubleDuelingRDQN.doubleDuelingRDQNConfig import DoubleDuelingRDQNConfig as RDQNConfig
+from l2rpn_baselines.DoubleDuelingRDQN.doubleDuelingRDQN import DoubleDuelingRDQN as RDQNAgent
 
 DEFAULT_NAME = "DoubleDuelingRDQN"
 DEFAULT_SAVE_DIR = "./models"

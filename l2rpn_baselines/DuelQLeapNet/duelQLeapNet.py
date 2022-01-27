@@ -8,14 +8,14 @@
 
 import numpy as np
 from l2rpn_baselines.utils import DeepQAgent
-from l2rpn_baselines.DuelQLeapNet.DuelQLeapNet_NN import DuelQLeapNet_NN
+from l2rpn_baselines.DuelQLeapNet.duelQLeapNet_NN import DuelQLeapNet_NN
 
 DEFAULT_NAME = "DuelQLeapNet"
 
 
 class DuelQLeapNet(DeepQAgent):
     """
-    Inheriting from :class:`l2rpn_baselines.DeepQAgent` this class implements the  particular agent used for the
+    Inheriting from :class:`l2rpn_baselines.utils.deepQAgent.DeepQAgent` this class implements the  particular agent used for the
     Double Duelling Deep Q network baseline, with the particularity that the Q network is encoded with a leap net.
 
     It does nothing in particular.

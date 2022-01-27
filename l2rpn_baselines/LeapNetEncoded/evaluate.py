@@ -14,9 +14,9 @@ from grid2op.MakeEnv import make
 from grid2op.Runner import Runner
 
 from l2rpn_baselines.utils.save_log_gif import save_log_gif
-from l2rpn_baselines.LeapNetEncoded.LeapNetEncoded import LeapNetEncoded, DEFAULT_NAME
-from l2rpn_baselines.LeapNetEncoded.LeapNetEncoded_NNParam import LeapNetEncoded_NNParam
-from l2rpn_baselines.LeapNetEncoded.LeapNetEncoded_NN import LeapNetEncoded_NN
+from l2rpn_baselines.LeapNetEncoded.leapNetEncoded import LeapNetEncoded, DEFAULT_NAME
+from l2rpn_baselines.LeapNetEncoded.leapNetEncoded_NNParam import LeapNetEncoded_NNParam
+from l2rpn_baselines.LeapNetEncoded.leapNetEncoded_NN import LeapNetEncoded_NN
 
 import pdb
 

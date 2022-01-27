@@ -8,103 +8,134 @@
 
 import os
 import json
-import copy
+import math
 import numpy as np
 try:
     import tensorflow as tf
     _CAN_USE_TENSORFLOW = True
 except ImportError:
     _CAN_USE_TENSORFLOW = False
-
-
+    
 from grid2op.Agent import AgentWithConverter
 from grid2op.Converter import IdToAct
 
-from l2rpn_baselines.DoubleDuelingRDQN.DoubleDuelingRDQNConfig import DoubleDuelingRDQNConfig as cfg
-from l2rpn_baselines.DoubleDuelingRDQN.ExperienceBuffer import ExperienceBuffer
-from l2rpn_baselines.DoubleDuelingRDQN.DoubleDuelingRDQN_NN import DoubleDuelingRDQN_NN
+from l2rpn_baselines.DoubleDuelingDQN.doubleDuelingDQNConfig import DoubleDuelingDQNConfig as cfg
+from l2rpn_baselines.DoubleDuelingDQN.doubleDuelingDQN_NN import DoubleDuelingDQN_NN
+from l2rpn_baselines.DoubleDuelingDQN.prioritized_replay_buffer import PrioritizedReplayBuffer
 
-class DoubleDuelingRDQN(AgentWithConverter):
+
+class DoubleDuelingDQN(AgentWithConverter):
     def __init__(self,
                  observation_space,
                  action_space,
                  name=__name__,
                  is_training=False):
-                
         if not _CAN_USE_TENSORFLOW:
             raise RuntimeError("Cannot import tensorflow, this function cannot be used.")
         
         # Call parent constructor
         AgentWithConverter.__init__(self, action_space,
                                     action_space_converter=IdToAct)
+        self.obs_space = observation_space
 
+        # Filter
+        #print("Actions filtering...")
+        self.action_space.filter_action(self._filter_action)
+        #print("..Done")
+        
         # Store constructor params
-        self.observation_space = observation_space
         self.name = name
-        self.trace_length = cfg.TRACE_LENGTH
-        self.batch_size = cfg.BATCH_SIZE
+        self.num_frames = cfg.N_FRAMES
         self.is_training = is_training
+        self.batch_size = cfg.BATCH_SIZE
         self.lr = cfg.LR
         
         # Declare required vars
         self.Qmain = None
         self.obs = None
         self.state = []
-        self.mem_state = None
-        self.carry_state = None
+        self.frames = []
 
         # Declare training vars
-        self.exp_buffer = None
+        self.per_buffer = None
         self.done = False
+        self.frames2 = None
         self.epoch_rewards = None
         self.epoch_alive = None
         self.Qtarget = None
+        self.epsilon = 0.0
 
-        # Compute dimensions from intial state
-        self.observation_size = self.observation_space.size_obs()
+        # Compute dimensions from intial spaces
+        self.observation_size = self.obs_space.size_obs()
         self.action_size = self.action_space.size()
 
         # Load network graph
-        self.Qmain = DoubleDuelingRDQN_NN(self.action_size,
-                                          self.observation_size,
-                                          learning_rate = self.lr)
+        self.Qmain = DoubleDuelingDQN_NN(self.action_size,
+                                         self.observation_size,
+                                         num_frames=self.num_frames,
+                                         learning_rate=self.lr,
+                                         learning_rate_decay_steps=cfg.LR_DECAY_STEPS,
+                                         learning_rate_decay_rate=cfg.LR_DECAY_RATE)
         # Setup training vars if needed
         if self.is_training:
             self._init_training()
 
+    def _filter_action(self, action):
+        MAX_ELEM = 2
+        act_dict = action.impact_on_objects()
+        elem = 0
+        elem += act_dict["force_line"]["reconnections"]["count"]
+        elem += act_dict["force_line"]["disconnections"]["count"]
+        elem += act_dict["switch_line"]["count"]
+        elem += len(act_dict["topology"]["bus_switch"])
+        elem += len(act_dict["topology"]["assigned_bus"])
+        elem += len(act_dict["topology"]["disconnect_bus"])
+        elem += len(act_dict["redispatch"]["generators"])
 
+        if elem <= MAX_ELEM:
+            return True
+        return False
+            
     def _init_training(self):
-        self.exp_buffer = ExperienceBuffer(cfg.REPLAY_BUFFER_SIZE,
-                                           self.batch_size,
-                                           self.trace_length)
-        self.done = True
+        self.epsilon = cfg.INITIAL_EPSILON
+        self.frames2 = []
         self.epoch_rewards = []
         self.epoch_alive = []
-        self.Qtarget = DoubleDuelingRDQN_NN(self.action_size,
-                                            self.observation_size,
-                                            learning_rate = self.lr)
+        self.per_buffer = PrioritizedReplayBuffer(cfg.PER_CAPACITY, cfg.PER_ALPHA)
+        self.Qtarget = DoubleDuelingDQN_NN(self.action_size,
+                                           self.observation_size,
+                                           num_frames = self.num_frames)
 
     def _reset_state(self, current_obs):
         # Initial state
         self.obs = current_obs
         self.state = self.convert_obs(self.obs)
         self.done = False
-        self.mem_state = np.zeros(self.Qmain.h_size)
-        self.carry_state = np.zeros(self.Qmain.h_size)
 
-    def _register_experience(self, episode_exp, episode):
-        missing_obs = self.trace_length - len(episode_exp)
+    def _reset_frame_buffer(self):
+        # Reset frame buffers
+        self.frames = []
+        if self.is_training:
+            self.frames2 = []
 
-        if missing_obs > 0: # We are missing exp to make a trace
-            exp = episode_exp[0] # Use inital state to fill out
-            for missing in range(missing_obs):
-                # Use do_nothing action at index 0
-                self.exp_buffer.add(exp[0], 0, exp[2], exp[3], exp[4], episode)
+    def _save_current_frame(self, state):
+        self.frames.append(state.copy())
+        if len(self.frames) > self.num_frames:
+            self.frames.pop(0)
 
-        # Register the actual experience
-        for exp in episode_exp:
-            self.exp_buffer.add(exp[0], exp[1], exp[2], exp[3], exp[4], episode)
+    def _save_next_frame(self, next_state):
+        self.frames2.append(next_state.copy())
+        if len(self.frames2) > self.num_frames:
+            self.frames2.pop(0)
 
+    def _adaptive_epsilon_decay(self, step):
+        ada_div = cfg.DECAY_EPSILON / 10.0
+        step_off = step + ada_div
+        ada_eps = cfg.INITIAL_EPSILON * -math.log10((step_off + 1) / (cfg.DECAY_EPSILON + ada_div))
+        ada_eps_up_clip = min(cfg.INITIAL_EPSILON, ada_eps)
+        ada_eps_low_clip = max(cfg.FINAL_EPSILON, ada_eps_up_clip)
+        return ada_eps_low_clip
+            
     def _save_hyperparameters(self, logpath, env, steps):
         try:
             # change of name in grid2op >= 1.2.3
@@ -113,13 +144,18 @@ class DoubleDuelingRDQN(AgentWithConverter):
             r_instance = env.reward_helper.template_reward
         hp = {
             "lr": cfg.LR,
+            "lr_decay_steps": cfg.LR_DECAY_STEPS,
+            "lr_decay_rate": cfg.LR_DECAY_RATE,
             "batch_size": cfg.BATCH_SIZE,
-            "trace_len": cfg.TRACE_LENGTH,
+            "stack_frames": cfg.N_FRAMES,
+            "iter": steps,
             "e_start": cfg.INITIAL_EPSILON,
             "e_end": cfg.FINAL_EPSILON,
             "e_decay": cfg.DECAY_EPSILON,
             "discount": cfg.DISCOUNT_FACTOR,
-            "buffer_size": cfg.REPLAY_BUFFER_SIZE,
+            "per_alpha": cfg.PER_ALPHA,
+            "per_beta": cfg.PER_BETA,
+            "per_capacity": cfg.PER_CAPACITY,
             "update_freq": cfg.UPDATE_FREQ,
             "update_hard": cfg.UPDATE_TARGET_HARD_FREQ,
             "update_soft": cfg.UPDATE_TARGET_SOFT_TAU,
@@ -132,11 +168,9 @@ class DoubleDuelingRDQN(AgentWithConverter):
 
     ## Agent Interface
     def convert_obs(self, observation):
-        # Made a custom version to normalize per attribute
-        #return observation.to_vect()
         li_vect=  []
         for el in observation.attr_list_vect:
-            v = observation._get_array_from_attr_name(el).astype(np.float)
+            v = observation._get_array_from_attr_name(el).astype(np.float32)
             v_fix = np.nan_to_num(v)
             v_norm = np.linalg.norm(v_fix)
             if v_norm > 1e6:
@@ -149,18 +183,19 @@ class DoubleDuelingRDQN(AgentWithConverter):
     def convert_act(self, action):
         return super().convert_act(action)
 
+    ## Baseline Interface
     def reset(self, observation):
         self._reset_state(observation)
+        self._reset_frame_buffer()
 
     def my_act(self, state, reward, done=False):
-        data_input = np.array(state)
-        data_input.reshape(1, 1, self.observation_size)
-        a, _, m, c = self.Qmain.predict_move(data_input,
-                                             self.mem_state,
-                                             self.carry_state)
-        self.mem_state = m
-        self.carry_state = c
-
+        # Register current state to stacking buffer
+        self._save_current_frame(state)
+        # We need at least num frames to predict
+        if len(self.frames) < self.num_frames:
+            return 0 # Do nothing
+        # Infer with the last num_frames states
+        a, _ = self.Qmain.predict_move(np.array(self.frames))
         return a
     
     def load(self, path):
@@ -175,94 +210,88 @@ class DoubleDuelingRDQN(AgentWithConverter):
     def train(self, env,
               iterations,
               save_path,
-              num_pre_training_steps = 0,
-              logdir = "logs"):
+              num_pre_training_steps=0,
+              logdir = "logs-train"):
+        # Make sure we can fill the experience buffer
+        if num_pre_training_steps < self.batch_size * self.num_frames:
+            num_pre_training_steps = self.batch_size * self.num_frames
 
         # Loop vars
         num_training_steps = iterations
         num_steps = num_pre_training_steps + num_training_steps
         step = 0
-        epsilon = cfg.INITIAL_EPSILON
+        self.epsilon = cfg.INITIAL_EPSILON
         alive_steps = 0
         total_reward = 0
-        episode = 0
-        episode_exp = []
+        self.done = True
 
         # Create file system related vars
         logpath = os.path.join(logdir, self.name)
         os.makedirs(save_path, exist_ok=True)
-        modelpath = os.path.join(save_path, self.name + ".tf")
+        modelpath = os.path.join(save_path, self.name + ".h5")
         self.tf_writer = tf.summary.create_file_writer(logpath, name=self.name)
         self._save_hyperparameters(save_path, env, num_steps)
-        
+
         # Training loop
-        self._reset_state(env.current_obs)
         while step < num_steps:
-            # New episode
+            # Init first time or new episode
             if self.done:
                 new_obs = env.reset() # This shouldn't raise
-                self._reset_state(new_obs)
-                # Push current episode experience to experience buffer
-                self._register_experience(episode_exp, episode)
-                # Reset current episode experience
-                episode += 1
-                episode_exp = []
-
+                self.reset(new_obs)
             if cfg.VERBOSE and step % 1000 == 0:
-                print("Step [{}] -- Dropout [{}]".format(step, epsilon))
+                print("Step [{}] -- Random [{}]".format(step, self.epsilon))
+
+            # Save current observation to stacking buffer
+            self._save_current_frame(self.state)
 
             # Choose an action
             if step <= num_pre_training_steps:
-                a, m, c = self.Qmain.random_move(self.state,
-                                                 self.mem_state,
-                                                 self.carry_state)
-            elif len(episode_exp) < self.trace_length:
-                a, m, c = self.Qmain.random_move(self.state,
-                                                 self.mem_state,
-                                                 self.carry_state)
-                a = 0 # Do Nothing
+                a = self.Qmain.random_move()
+            elif np.random.rand(1) < self.epsilon:
+                a = self.Qmain.random_move()
+            elif len(self.frames) < self.num_frames:
+                a = 0 # Do nothing
             else:
-                a, _, m, c = self.Qmain.bayesian_move(self.state,
-                                                      self.mem_state,
-                                                      self.carry_state,
-                                                      epsilon)
-
-            # Update LSTM state
-            self.mem_state = m
-            self.carry_state = c
+                a, _ = self.Qmain.predict_move(np.array(self.frames))
 
             # Convert it to a valid action
             act = self.convert_act(a)
             # Execute action
             new_obs, reward, self.done, info = env.step(act)
             new_state = self.convert_obs(new_obs)
-            
-            # Save to current episode experience
-            episode_exp.append((self.state, a, reward, self.done, new_state))
+            if info["is_illegal"] or info["is_ambiguous"] or \
+               info["is_dispatching_illegal"] or info["is_illegal_reco"]:
+                if cfg.VERBOSE:
+                    print (a, info)
 
-            # Train when pre-training is over
+            # Save new observation to stacking buffer
+            self._save_next_frame(new_state)
+
+            # Save to experience buffer
+            if len(self.frames2) == self.num_frames:
+                self.per_buffer.add(np.array(self.frames),
+                                    a, reward,
+                                    np.array(self.frames2),
+                                    self.done)
+
+            # Perform training when we have enough experience in buffer
             if step >= num_pre_training_steps:
                 training_step = step - num_pre_training_steps
-                # Slowly decay dropout rate
-                if epsilon > cfg.FINAL_EPSILON:
-                    epsilon -= cfg.STEP_EPSILON
-                if epsilon < cfg.FINAL_EPSILON:
-                    epsilon = cfg.FINAL_EPSILON
+                # Decay chance of random action
+                self.epsilon = self._adaptive_epsilon_decay(training_step)
 
                 # Perform training at given frequency
                 if step % cfg.UPDATE_FREQ == 0 and \
-                   self.exp_buffer.can_sample():
-                    # Sample from experience buffer
-                    batch = self.exp_buffer.sample()
+                   len(self.per_buffer) >= self.batch_size:
                     # Perform training
-                    self._batch_train(batch, step, training_step)
-                    # Update target network towards primary network
-                    if cfg.UPDATE_TARGET_SOFT_TAU > 0:
+                    self._batch_train(training_step, step)
+
+                    if cfg.UPDATE_TARGET_SOFT_TAU > 0.0:
                         tau = cfg.UPDATE_TARGET_SOFT_TAU
+                        # Update target network towards primary network
                         self.Qmain.update_target_soft(self.Qtarget.model, tau)
 
-                # Every UPDATE_TARGET_HARD_FREQ trainings,
-                # update target completely
+                # Every UPDATE_TARGET_HARD_FREQ trainings, update target completely
                 if cfg.UPDATE_TARGET_HARD_FREQ > 0 and \
                    step % (cfg.UPDATE_FREQ * cfg.UPDATE_TARGET_HARD_FREQ) == 0:
                     self.Qmain.update_target_hard(self.Qtarget.model)
@@ -285,52 +314,39 @@ class DoubleDuelingRDQN(AgentWithConverter):
 
             # Iterate to next loop
             step += 1
+            # Make new obs the current obs
             self.obs = new_obs
             self.state = new_state
 
         # Save model after all steps
         self.save(modelpath)
 
-    def _batch_train(self, batch, step, training_step):
+    def _batch_train(self, training_step, step):
         """Trains network to fit given parameters"""
+
+        # Sample from experience buffer
+        sample_batch = self.per_buffer.sample(self.batch_size, cfg.PER_BETA)
+        s_batch = sample_batch[0]
+        a_batch = sample_batch[1]
+        r_batch = sample_batch[2]
+        s2_batch = sample_batch[3]
+        d_batch = sample_batch[4]
+        w_batch = sample_batch[5]
+        idx_batch = sample_batch[6]
+
         Q = np.zeros((self.batch_size, self.action_size))
-        batch_mem = np.zeros((self.batch_size, self.Qmain.h_size))
-        batch_carry = np.zeros((self.batch_size, self.Qmain.h_size))
 
-        input_size = self.observation_size
-        m_data = np.vstack(batch[:, 0])
-        m_data = m_data.reshape(self.batch_size, self.trace_length, input_size)
-        t_data = np.vstack(batch[:, 4])
-        t_data = t_data.reshape(self.batch_size, self.trace_length, input_size)
-        q_input = [
-            copy.deepcopy(batch_mem),
-            copy.deepcopy(batch_carry),
-            copy.deepcopy(m_data)
-        ]
-        q1_input = [
-            copy.deepcopy(batch_mem),
-            copy.deepcopy(batch_carry),
-            copy.deepcopy(t_data)
-        ]
-        q2_input = [
-            copy.deepcopy(batch_mem),
-            copy.deepcopy(batch_carry),
-            copy.deepcopy(t_data)
-        ]
-
-        # Batch predict
-        self.Qmain.trace_length.assign(self.trace_length)
-        self.Qmain.dropout_rate.assign(0.0)
-        self.Qtarget.trace_length.assign(self.trace_length)
-        self.Qtarget.dropout_rate.assign(0.0)
+        # Reshape frames to 1D
+        input_size = self.observation_size * self.num_frames
+        input_t = np.reshape(s_batch, (self.batch_size, input_size))
+        input_t_1 = np.reshape(s2_batch, (self.batch_size, input_size))
 
         # Save the graph just the first time
         if training_step == 0:
             tf.summary.trace_on()
 
         # T Batch predict
-        Q, _, _ = self.Qmain.model.predict(q_input,
-                                           batch_size = self.batch_size)
+        Q = self.Qmain.model.predict(input_t, batch_size = self.batch_size)
 
         ## Log graph once and disable graph logging
         if training_step == 0:
@@ -338,33 +354,27 @@ class DoubleDuelingRDQN(AgentWithConverter):
                 tf.summary.trace_export(self.name + "-graph", step)
 
         # T+1 batch predict
-        Q1, _, _ = self.Qmain.model.predict(q1_input,
-                                            batch_size=self.batch_size)
-        Q2, _, _ = self.Qtarget.model.predict(q2_input,
-                                              batch_size=self.batch_size)
+        Q1 = self.Qmain.model.predict(input_t_1, batch_size=self.batch_size)
+        Q2 = self.Qtarget.model.predict(input_t_1, batch_size=self.batch_size)
 
-        # Compute batch Double Q update to Qtarget
+        # Compute batch Qtarget using Double DQN
         for i in range(self.batch_size):
-            idx = i * (self.trace_length - 1)
             doubleQ = Q2[i, np.argmax(Q1[i])]
-            a = batch[idx][1]
-            r = batch[idx][2]
-            d = batch[idx][3]
-            Q[i, a] = r
-            if d == False:
-                Q[i, a] += cfg.DISCOUNT_FACTOR * doubleQ
+            Q[i, a_batch[i]] = r_batch[i]
+            if d_batch[i] == False:
+                Q[i, a_batch[i]] += cfg.DISCOUNT_FACTOR * doubleQ
 
         # Batch train
-        batch_x = [batch_mem, batch_carry, m_data]
-        batch_y = [Q, batch_mem, batch_carry]
-        loss = self.Qmain.model.train_on_batch(batch_x, batch_y)
-        loss = loss[0]
+        loss = self.Qmain.train_on_batch(input_t, Q, w_batch)
 
-        # Log some useful metrics
+        # Update PER buffer
+        priorities = self.Qmain.batch_sq_error
+        # Can't be zero, no upper limit
+        priorities = np.clip(priorities, a_min=1e-8, a_max=None)
+        self.per_buffer.update_priorities(idx_batch, priorities)
+
+        # Log some useful metrics every even updates
         if step % (cfg.UPDATE_FREQ * 2) == 0:
-            if cfg.VERBOSE:
-                print("loss =", loss)
-
             with self.tf_writer.as_default():
                 mean_reward = np.mean(self.epoch_rewards)
                 mean_alive = np.mean(self.epoch_alive)
@@ -379,3 +389,6 @@ class DoubleDuelingRDQN(AgentWithConverter):
                 tf.summary.scalar("mean_reward_100", mean_reward_100, step)
                 tf.summary.scalar("mean_alive_100", mean_alive_100, step)
                 tf.summary.scalar("loss", loss, step)
+                tf.summary.scalar("lr", self.Qmain.train_lr, step)
+            if cfg.VERBOSE:
+                print("loss =", loss)

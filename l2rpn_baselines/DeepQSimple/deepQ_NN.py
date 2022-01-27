@@ -48,8 +48,6 @@ class DeepQ_NN(BaseDeepQ):
 
     def construct_q_network(self):
         """
-        The network architecture can be changed with the :attr:`l2rpn_baselines.BaseDeepQ.nn_archi`
-
         This function will make 2 identical models, one will serve as a target model, the other one will be trained
         regurlarly.
         """

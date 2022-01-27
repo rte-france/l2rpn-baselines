@@ -16,8 +16,8 @@ from grid2op.Runner import Runner
 from grid2op.Reward import *
 from grid2op.Action import *
 
-from l2rpn_baselines.DoubleDuelingDQN.DoubleDuelingDQN import DoubleDuelingDQN as D3QNAgent
-from l2rpn_baselines.DoubleDuelingDQN.DoubleDuelingDQNConfig import DoubleDuelingDQNConfig as D3QNConfig
+from l2rpn_baselines.DoubleDuelingDQN.doubleDuelingDQN import DoubleDuelingDQN as D3QNAgent
+from l2rpn_baselines.DoubleDuelingDQN.doubleDuelingDQNConfig import DoubleDuelingDQNConfig as D3QNConfig
 from l2rpn_baselines.utils.save_log_gif import save_log_gif
 
 DEFAULT_LOGS_DIR = "./logs-evals"

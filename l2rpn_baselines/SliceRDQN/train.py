@@ -13,8 +13,8 @@ import argparse
 from grid2op.MakeEnv import make
 from grid2op.Parameters import Parameters
 
-from l2rpn_baselines.SliceRDQN.SliceRDQN import SliceRDQN as RDQNAgent
-from l2rpn_baselines.SliceRDQN.SliceRDQN_Config import SliceRDQN_Config as RDQNConfig
+from l2rpn_baselines.SliceRDQN.sliceRDQN import SliceRDQN as RDQNAgent
+from l2rpn_baselines.SliceRDQN.sliceRDQN_Config import SliceRDQN_Config as RDQNConfig
 
 DEFAULT_NAME = "SliceRDQN"
 DEFAULT_SAVE_DIR = "./models"

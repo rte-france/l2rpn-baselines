@@ -12,10 +12,10 @@ import os
 import warnings
 
 from l2rpn_baselines.utils import cli_train
-from l2rpn_baselines.DuelQLeapNet.DuelQLeapNet import DuelQLeapNet, DEFAULT_NAME
-from l2rpn_baselines.DuelQLeapNet.DuelQLeapNet_NN import DuelQLeapNet_NN
+from l2rpn_baselines.DuelQLeapNet.duelQLeapNet import DuelQLeapNet, DEFAULT_NAME
+from l2rpn_baselines.DuelQLeapNet.duelQLeapNet_NN import DuelQLeapNet_NN
 from l2rpn_baselines.utils import TrainingParam
-from l2rpn_baselines.DuelQLeapNet.LeapNet_NNParam import LeapNet_NNParam
+from l2rpn_baselines.DuelQLeapNet.leapNet_NNParam import LeapNet_NNParam
 from l2rpn_baselines.utils.waring_msgs import _WARN_GPU_MEMORY
 
 
@@ -31,7 +31,7 @@ def train(env,
           kwargs_converters={},
           kwargs_archi={}):
     """
-    This function implements the "training" part of the balines "DuelQLeapNet".
+    This function implements the "training" part of the balines :class:`DuelQLeapNet`.
 
     Parameters
     ----------
@@ -83,7 +83,7 @@ def train(env,
 
     Examples
     ---------
-    Here is an example on how to train a DuelQLeapNet baseline.
+    Here is an example on how to train a :class:`DuelQLeapNet` baseline.
 
     First define a python script, for example
 

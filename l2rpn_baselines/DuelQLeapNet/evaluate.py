@@ -14,9 +14,9 @@ from grid2op.MakeEnv import make
 from grid2op.Runner import Runner
 
 from l2rpn_baselines.utils.save_log_gif import save_log_gif
-from l2rpn_baselines.DuelQLeapNet.DuelQLeapNet import DuelQLeapNet, DEFAULT_NAME
-from l2rpn_baselines.DuelQLeapNet.LeapNet_NNParam import LeapNet_NNParam
-from l2rpn_baselines.DuelQLeapNet.DuelQLeapNet_NN import DuelQLeapNet_NN
+from l2rpn_baselines.DuelQLeapNet.duelQLeapNet import DuelQLeapNet, DEFAULT_NAME
+from l2rpn_baselines.DuelQLeapNet.leapNet_NNParam import LeapNet_NNParam
+from l2rpn_baselines.DuelQLeapNet.duelQLeapNet_NN import DuelQLeapNet_NN
 
 DEFAULT_LOGS_DIR = "./logs-eval/do-nothing-baseline"
 DEFAULT_NB_EPISODE = 1
@@ -35,7 +35,7 @@ def evaluate(env,
              save_gif=False,
              filter_action_fun=None):
     """
-    How to evaluate the performances of the trained DeepQSimple agent.
+    How to evaluate the performances of the trained :class:`DuelQLeapNet` agent.
 
     Parameters
     ----------
@@ -70,7 +70,7 @@ def evaluate(env,
 
     Returns
     -------
-    agent: :class:`l2rpn_baselines.utils.DeepQAgent`
+    agent: :class:`DuelQLeapNet`
         The loaded agent that has been evaluated thanks to the runner.
 
     res: ``list``
@@ -79,7 +79,7 @@ def evaluate(env,
 
     Examples
     -------
-    You can evaluate a DeepQSimple this way:
+    You can evaluate a :class:`DuelQLeapNet` this way:
 
     .. code-block:: python
 

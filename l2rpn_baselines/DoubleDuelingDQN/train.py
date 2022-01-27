@@ -10,8 +10,8 @@
 
 import argparse
 
-from l2rpn_baselines.DoubleDuelingDQN.DoubleDuelingDQN import DoubleDuelingDQN as D3QNAgent
-from l2rpn_baselines.DoubleDuelingDQN.DoubleDuelingDQNConfig import DoubleDuelingDQNConfig as D3QNConfig
+from l2rpn_baselines.DoubleDuelingDQN.doubleDuelingDQN import DoubleDuelingDQN as D3QNAgent
+from l2rpn_baselines.DoubleDuelingDQN.doubleDuelingDQNConfig import DoubleDuelingDQNConfig as D3QNConfig
 
 DEFAULT_NAME = "DoubleDuelingDQN"
 DEFAULT_SAVE_DIR = "./models"

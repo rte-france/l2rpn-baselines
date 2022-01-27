@@ -12,9 +12,9 @@ import os
 import warnings
 
 from l2rpn_baselines.utils import cli_train
-from l2rpn_baselines.DuelQSimple.DuelQSimple import DuelQSimple, DEFAULT_NAME
-from l2rpn_baselines.DuelQSimple.DuelQ_NNParam import DuelQ_NNParam
-from l2rpn_baselines.DuelQSimple.DuelQ_NN import DuelQ_NN
+from l2rpn_baselines.DuelQSimple.duelQSimple import DuelQSimple, DEFAULT_NAME
+from l2rpn_baselines.DuelQSimple.duelQ_NNParam import DuelQ_NNParam
+from l2rpn_baselines.DuelQSimple.duelQ_NN import DuelQ_NN
 from l2rpn_baselines.utils import TrainingParam
 from l2rpn_baselines.utils.waring_msgs import _WARN_GPU_MEMORY
 

@@ -2,7 +2,18 @@ Change Log
 ===========
 [TODO]
 --------
+- code a baseline example using ray / rllib
+- code a baseline example using mazerl
 - stack multiple states in `utils/DeepQAgent`
+
+[0.6.0] - 2022-xx-yy
+--------------------
+- [BREAKING] name of the file inside the submodule are now lowercase (PEP 8 compliance)
+  Use `from l2rpn_baselines.[BASELINENAME] import [BASELINENAME]` by replacing 
+  `[BASELINENAME]` with ... the baseline name (*eg* `from l2rpn_baselines.DoNothing import DoNothing`)
+- [FIXED] clean the documentation
+- [FIXED] some bugs (especially in the type of actions) for some agents
+- [ADDED] a code example to use stable baselines 3 (see l2rpn_baselines.ppo_stable_baselines)
 
 [0.5.1] - 2021-04-09
 ---------------------

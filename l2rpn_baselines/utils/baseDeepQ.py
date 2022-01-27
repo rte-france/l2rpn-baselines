@@ -20,7 +20,7 @@ except ImportError:
     
 
 
-from l2rpn_baselines.utils.TrainingParam import TrainingParam
+from l2rpn_baselines.utils.trainingParam import TrainingParam
 
 
 # refactorization of the code in a base class to avoid copy paste.

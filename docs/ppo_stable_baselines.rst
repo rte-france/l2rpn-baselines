@@ -22,7 +22,7 @@ You can use this class with:
 
 .. code-block:: python
 
-    from l2rpn_baselines.ppo_stablebaselines import train, evaluate, PPOSB_Agent
+    from l2rpn_baselines.PPO_SB3 import train, evaluate, PPO_SB3
 
 
 Create an agent from scratch
@@ -34,6 +34,7 @@ For example, to create an agent from scratch, with some parameters:
 
     import grid2op
     from grid2op.gym_compat import GymEnv, BoxGymActSpace
+    from l2rpn_baselines.PPO_SB3 import PPO_SB3
 
     # create the grid2op environment
     env = grid2op.make(...)
@@ -46,20 +47,20 @@ For example, to create an agent from scratch, with some parameters:
     #############
 
     # create the PPO Stable Baselines agent (only some basic configs are given here)
-    agent = PPOSB_Agent(env.action_space,
-                        env_gym.action_space,
-                        env_gym.observation_space,
-                        nn_kwargs={
-                            "policy": MlpPolicy,  # or any other stable baselines 3 policy
-                            "env": env_gym,
-                            "verbose": 1,  # or anything else
-                            "learning_rate": 3e-4,  # you can change that
-                            "policy_kwargs": {
-                                "net_arch": [100, 100, 100]  # and that
-                            }
-                        },
-                        nn_path=None
-                        )
+    agent = PPO_SB3(env.action_space,
+                    env_gym.action_space,
+                    env_gym.observation_space,
+                    nn_kwargs={
+                        "policy": MlpPolicy,  # or any other stable baselines 3 policy
+                        "env": env_gym,
+                        "verbose": 1,  # or anything else
+                        "learning_rate": 3e-4,  # you can change that
+                        "policy_kwargs": {
+                            "net_arch": [100, 100, 100]  # and that
+                        }
+                    },
+                    nn_path=None
+                   )
 
 .. note::
     The agent above is NOT trained. So it will basically output "random" actions.
@@ -76,6 +77,7 @@ in grid2game or any other frameworks related to grid2op.
 
     import grid2op
     from grid2op.gym_compat import GymEnv, BoxGymActSpace
+    from l2rpn_baselines.PPO_SB3 import PPO_SB3
 
     # create the grid2op environment
     env = grid2op.make(...)
@@ -88,28 +90,16 @@ in grid2game or any other frameworks related to grid2op.
     #############
 
     # create the PPO Stable Baselines agent (only some basic configs are given here)
-    agent = PPOSB_Agent(env.action_space,
-                        env_gym.action_space,
-                        env_gym.observation_space,
-                        nn_path=...  # path where you saved it !
-                        )
+    agent = PPO_SB3(env.action_space,
+                    env_gym.action_space,
+                    env_gym.observation_space,
+                    nn_path=...  # path where you saved it !
+                    )
 
 
 Detailed documentation
 ++++++++++++++++++++++++
 
-.. automodule:: l2rpn_baselines.ppo_stablebaselines
-    :members:
-    :autosummary:
-
-Other non exported class
-------------------------
-These classes need to be imported, if you want to import them with (non exhaustive list):
-.. code-block:: python
-
-    from l2rpn_baselines.DeepQSimple.DeepQ_NN import DeepQ_NN
-
-
-.. autoclass:: l2rpn_baselines.DeepQSimple.DeepQ_NN.DeepQ_NN
+.. automodule:: l2rpn_baselines.PPO_SB3
     :members:
     :autosummary:

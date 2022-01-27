@@ -10,12 +10,12 @@ import numpy as np
 import copy
 
 from l2rpn_baselines.utils import NNParam
-from l2rpn_baselines.LeapNetEncoded.LeapNetEncoded_NN import LeapNetEncoded_NN
+from l2rpn_baselines.LeapNetEncoded.leapNetEncoded_NN import LeapNetEncoded_NN
 
 
 class LeapNetEncoded_NNParam(NNParam):
     """
-    This class implements the type of parameters used by the DuelQLeapNet model.
+    This class implements the type of parameters used by the :class:`LeapNetEncoded` model.
 
     More information on the leap net can be found at `Leap Net on Github <https://github.com/BDonnot/leap_net>`_
 

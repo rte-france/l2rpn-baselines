@@ -10,30 +10,29 @@ import os
 import json
 import copy
 import numpy as np
-
 try:
-    import tensorflow as tf   
+    import tensorflow as tf
     _CAN_USE_TENSORFLOW = True
 except ImportError:
     _CAN_USE_TENSORFLOW = False
-    
+
+
 from grid2op.Agent import AgentWithConverter
 from grid2op.Converter import IdToAct
 
-from l2rpn_baselines.SliceRDQN.ExperienceBuffer import ExperienceBuffer
-from l2rpn_baselines.SliceRDQN.SliceRDQN_Config import SliceRDQN_Config as cfg
-from l2rpn_baselines.SliceRDQN.SliceRDQN_NN import SliceRDQN_NN
-from l2rpn_baselines.SliceRDQN.slice_util import *
+from l2rpn_baselines.DoubleDuelingRDQN.doubleDuelingRDQNConfig import DoubleDuelingRDQNConfig as cfg
+from l2rpn_baselines.DoubleDuelingRDQN.experienceBuffer import ExperienceBuffer
+from l2rpn_baselines.DoubleDuelingRDQN.doubleDuelingRDQN_NN import DoubleDuelingRDQN_NN
 
-
-class SliceRDQN(AgentWithConverter):
+class DoubleDuelingRDQN(AgentWithConverter):
     def __init__(self,
                  observation_space,
                  action_space,
                  name=__name__,
                  is_training=False):
+                
         if not _CAN_USE_TENSORFLOW:
-            raise ImportError("Cannot import tensorflow, this function cannot be used.")
+            raise RuntimeError("Cannot import tensorflow, this function cannot be used.")
         
         # Call parent constructor
         AgentWithConverter.__init__(self, action_space,
@@ -46,7 +45,7 @@ class SliceRDQN(AgentWithConverter):
         self.batch_size = cfg.BATCH_SIZE
         self.is_training = is_training
         self.lr = cfg.LR
-
+        
         # Declare required vars
         self.Qmain = None
         self.obs = None
@@ -60,34 +59,15 @@ class SliceRDQN(AgentWithConverter):
         self.epoch_rewards = None
         self.epoch_alive = None
         self.Qtarget = None
-        self.epsilon = cfg.INITIAL_EPSILON
 
         # Compute dimensions from intial state
-        self.action_size = self.action_space.n
-        self.observation_shape = shape_obs(self.observation_space)
-
-        # Slices dict
-        self.slices = {
-            "lines": {
-                "indexes": [1,3,4,9,10,11,14,15,18,20,23,24],
-                "q_len": lines_q_len(self.action_space)
-            },
-            "sub": {
-                "indexes": [1,2,3,4,9,10,11,12,14,15,18,20,23,24],
-                "q_len": topo_q_len(self.action_space)
-            },
-            #"disp": {
-            #    "indexes": [4,7,8,9,10,11,12,14,18,23,24],
-            #    "q_len": disp_q_len(self.action_space)
-            #}
-        }
-        self.n_slices = len(self.slices.keys())
+        self.observation_size = self.observation_space.size_obs()
+        self.action_size = self.action_space.size()
 
         # Load network graph
-        self.Qmain = SliceRDQN_NN(self.action_size,
-                                  self.observation_shape,
-                                  self.slices,
-                                  learning_rate = self.lr)
+        self.Qmain = DoubleDuelingRDQN_NN(self.action_size,
+                                          self.observation_size,
+                                          learning_rate = self.lr)
         # Setup training vars if needed
         if self.is_training:
             self._init_training()
@@ -100,18 +80,17 @@ class SliceRDQN(AgentWithConverter):
         self.done = True
         self.epoch_rewards = []
         self.epoch_alive = []
-        self.Qtarget = SliceRDQN_NN(self.action_size,
-                                    self.observation_shape,
-                                    self.slices,
-                                    learning_rate = self.lr)
+        self.Qtarget = DoubleDuelingRDQN_NN(self.action_size,
+                                            self.observation_size,
+                                            learning_rate = self.lr)
 
     def _reset_state(self, current_obs):
         # Initial state
         self.obs = current_obs
         self.state = self.convert_obs(self.obs)
         self.done = False
-        self.mem_state = np.zeros((self.n_slices, self.Qmain.h_size))
-        self.carry_state = np.zeros((self.n_slices, self.Qmain.h_size))
+        self.mem_state = np.zeros(self.Qmain.h_size)
+        self.carry_state = np.zeros(self.Qmain.h_size)
 
     def _register_experience(self, episode_exp, episode):
         missing_obs = self.trace_length - len(episode_exp)
@@ -133,9 +112,9 @@ class SliceRDQN(AgentWithConverter):
         except AttributeError as nm_exc_:
             r_instance = env.reward_helper.template_reward
         hp = {
-            "lr": self.lr,
-            "batch_size": self.batch_size,
-            "trace_len": self.trace_length,
+            "lr": cfg.LR,
+            "batch_size": cfg.BATCH_SIZE,
+            "trace_len": cfg.TRACE_LENGTH,
             "e_start": cfg.INITIAL_EPSILON,
             "e_end": cfg.FINAL_EPSILON,
             "e_decay": cfg.DECAY_EPSILON,
@@ -144,7 +123,6 @@ class SliceRDQN(AgentWithConverter):
             "update_freq": cfg.UPDATE_FREQ,
             "update_hard": cfg.UPDATE_TARGET_HARD_FREQ,
             "update_soft": cfg.UPDATE_TARGET_SOFT_TAU,
-            "input_bias": cfg.INPUT_BIAS,
             "reward": dict(r_instance)
         }
         hp_filename = "{}-hypers.json".format(self.name)
@@ -154,7 +132,19 @@ class SliceRDQN(AgentWithConverter):
 
     ## Agent Interface
     def convert_obs(self, observation):
-        return convert_obs_pad(observation, bias=cfg.INPUT_BIAS)
+        # Made a custom version to normalize per attribute
+        #return observation.to_vect()
+        li_vect=  []
+        for el in observation.attr_list_vect:
+            v = observation._get_array_from_attr_name(el).astype(np.float)
+            v_fix = np.nan_to_num(v)
+            v_norm = np.linalg.norm(v_fix)
+            if v_norm > 1e6:
+                v_res = (v_fix / v_norm) * 10.0
+            else:
+                v_res = v_fix
+            li_vect.append(v_res)
+        return np.concatenate(li_vect)
 
     def convert_act(self, action):
         return super().convert_act(action)
@@ -164,6 +154,7 @@ class SliceRDQN(AgentWithConverter):
 
     def my_act(self, state, reward, done=False):
         data_input = np.array(state)
+        data_input.reshape(1, 1, self.observation_size)
         a, _, m, c = self.Qmain.predict_move(data_input,
                                              self.mem_state,
                                              self.carry_state)
@@ -171,7 +162,7 @@ class SliceRDQN(AgentWithConverter):
         self.carry_state = c
 
         return a
-
+    
     def load(self, path):
         self.Qmain.load_network(path)
         if self.is_training:
@@ -191,7 +182,7 @@ class SliceRDQN(AgentWithConverter):
         num_training_steps = iterations
         num_steps = num_pre_training_steps + num_training_steps
         step = 0
-        self.epsilon = cfg.INITIAL_EPSILON
+        epsilon = cfg.INITIAL_EPSILON
         alive_steps = 0
         total_reward = 0
         episode = 0
@@ -203,43 +194,38 @@ class SliceRDQN(AgentWithConverter):
         modelpath = os.path.join(save_path, self.name + ".tf")
         self.tf_writer = tf.summary.create_file_writer(logpath, name=self.name)
         self._save_hyperparameters(save_path, env, num_steps)
-
+        
         # Training loop
         self._reset_state(env.current_obs)
         while step < num_steps:
             # New episode
             if self.done:
-                if episode % cfg.SUFFLE_FREQ == 0:
-                    # shuffle the data every now and then
-                    def shuff(x):
-                        s = np.random.choice(len(x),
-                                             size=len(x),
-                                             replace=False)
-                        return x[s]
-                    
-                    env.chronics_handler.shuffle(shuffler=shuff)
-
                 new_obs = env.reset() # This shouldn't raise
-                self.reset(new_obs)
+                self._reset_state(new_obs)
                 # Push current episode experience to experience buffer
                 self._register_experience(episode_exp, episode)
                 # Reset current episode experience
                 episode += 1
                 episode_exp = []
 
-            if cfg.VERBOSE and step % cfg.SUFFLE_FREQ == 0:
-                print("Step [{}] -- Dropout [{}]".format(step, self.epsilon))
+            if cfg.VERBOSE and step % 1000 == 0:
+                print("Step [{}] -- Dropout [{}]".format(step, epsilon))
 
             # Choose an action
             if step <= num_pre_training_steps:
                 a, m, c = self.Qmain.random_move(self.state,
                                                  self.mem_state,
                                                  self.carry_state)
+            elif len(episode_exp) < self.trace_length:
+                a, m, c = self.Qmain.random_move(self.state,
+                                                 self.mem_state,
+                                                 self.carry_state)
+                a = 0 # Do Nothing
             else:
                 a, _, m, c = self.Qmain.bayesian_move(self.state,
                                                       self.mem_state,
                                                       self.carry_state,
-                                                      self.epsilon)
+                                                      epsilon)
 
             # Update LSTM state
             self.mem_state = m
@@ -250,7 +236,7 @@ class SliceRDQN(AgentWithConverter):
             # Execute action
             new_obs, reward, self.done, info = env.step(act)
             new_state = self.convert_obs(new_obs)
-
+            
             # Save to current episode experience
             episode_exp.append((self.state, a, reward, self.done, new_state))
 
@@ -258,10 +244,10 @@ class SliceRDQN(AgentWithConverter):
             if step >= num_pre_training_steps:
                 training_step = step - num_pre_training_steps
                 # Slowly decay dropout rate
-                if self.epsilon > cfg.FINAL_EPSILON:
-                    self.epsilon -= cfg.STEP_EPSILON
-                if self.epsilon < cfg.FINAL_EPSILON:
-                    self.epsilon = cfg.FINAL_EPSILON
+                if epsilon > cfg.FINAL_EPSILON:
+                    epsilon -= cfg.STEP_EPSILON
+                if epsilon < cfg.FINAL_EPSILON:
+                    epsilon = cfg.FINAL_EPSILON
 
                 # Perform training at given frequency
                 if step % cfg.UPDATE_FREQ == 0 and \
@@ -269,13 +255,13 @@ class SliceRDQN(AgentWithConverter):
                     # Sample from experience buffer
                     batch = self.exp_buffer.sample()
                     # Perform training
-                    self._batch_train(batch, training_step, step)
+                    self._batch_train(batch, step, training_step)
                     # Update target network towards primary network
                     if cfg.UPDATE_TARGET_SOFT_TAU > 0:
                         tau = cfg.UPDATE_TARGET_SOFT_TAU
                         self.Qmain.update_target_soft(self.Qtarget.model, tau)
 
-                # Every UPDATE_TARGET_HARD_FREQ trainings
+                # Every UPDATE_TARGET_HARD_FREQ trainings,
                 # update target completely
                 if cfg.UPDATE_TARGET_HARD_FREQ > 0 and \
                    step % (cfg.UPDATE_FREQ * cfg.UPDATE_TARGET_HARD_FREQ) == 0:
@@ -292,7 +278,7 @@ class SliceRDQN(AgentWithConverter):
                 total_reward = 0
             else:
                 alive_steps += 1
-
+            
             # Save the network every 1000 iterations
             if step > 0 and step % 1000 == 0:
                 self.save(modelpath)
@@ -305,22 +291,17 @@ class SliceRDQN(AgentWithConverter):
         # Save model after all steps
         self.save(modelpath)
 
-    def _batch_train(self, batch, training_step, step):
+    def _batch_train(self, batch, step, training_step):
         """Trains network to fit given parameters"""
         Q = np.zeros((self.batch_size, self.action_size))
-        batch_mem = np.zeros((self.batch_size,
-                              self.n_slices,
-                              self.Qmain.h_size))
-        batch_carry = np.zeros((self.batch_size,
-                                self.n_slices,
-                                self.Qmain.h_size))
+        batch_mem = np.zeros((self.batch_size, self.Qmain.h_size))
+        batch_carry = np.zeros((self.batch_size, self.Qmain.h_size))
 
-        input_shape = (self.batch_size,
-                       self.trace_length) + self.observation_shape
+        input_size = self.observation_size
         m_data = np.vstack(batch[:, 0])
-        m_data = m_data.reshape(input_shape)
+        m_data = m_data.reshape(self.batch_size, self.trace_length, input_size)
         t_data = np.vstack(batch[:, 4])
-        t_data = t_data.reshape(input_shape)
+        t_data = t_data.reshape(self.batch_size, self.trace_length, input_size)
         q_input = [
             copy.deepcopy(batch_mem),
             copy.deepcopy(batch_carry),
@@ -347,7 +328,7 @@ class SliceRDQN(AgentWithConverter):
         if training_step == 0:
             tf.summary.trace_on()
 
-        # T batch predict
+        # T Batch predict
         Q, _, _ = self.Qmain.model.predict(q_input,
                                            batch_size = self.batch_size)
 
@@ -358,9 +339,9 @@ class SliceRDQN(AgentWithConverter):
 
         # T+1 batch predict
         Q1, _, _ = self.Qmain.model.predict(q1_input,
-                                            batch_size = self.batch_size)
+                                            batch_size=self.batch_size)
         Q2, _, _ = self.Qtarget.model.predict(q2_input,
-                                              batch_size = self.batch_size)
+                                              batch_size=self.batch_size)
 
         # Compute batch Double Q update to Qtarget
         for i in range(self.batch_size):
@@ -379,19 +360,22 @@ class SliceRDQN(AgentWithConverter):
         loss = self.Qmain.model.train_on_batch(batch_x, batch_y)
         loss = loss[0]
 
-        if cfg.VERBOSE:
-            print("loss =", loss)
-        with self.tf_writer.as_default():
-            mean_reward = np.mean(self.epoch_rewards)
-            mean_alive = np.mean(self.epoch_alive)
-            if len(self.epoch_rewards) >= 100:
-                mean_reward_100 = np.mean(self.epoch_rewards[-100:])
-                mean_alive_100 = np.mean(self.epoch_alive[-100:])
-            else:
-                mean_reward_100 = mean_reward
-                mean_alive_100 = mean_alive
-            tf.summary.scalar("mean_reward", mean_reward, step)
-            tf.summary.scalar("mean_alive", mean_alive, step)
-            tf.summary.scalar("mean_reward_100", mean_reward_100, step)
-            tf.summary.scalar("mean_alive_100", mean_alive_100, step)
-            tf.summary.scalar("loss", loss, step)
+        # Log some useful metrics
+        if step % (cfg.UPDATE_FREQ * 2) == 0:
+            if cfg.VERBOSE:
+                print("loss =", loss)
+
+            with self.tf_writer.as_default():
+                mean_reward = np.mean(self.epoch_rewards)
+                mean_alive = np.mean(self.epoch_alive)
+                if len(self.epoch_rewards) >= 100:
+                    mean_reward_100 = np.mean(self.epoch_rewards[-100:])
+                    mean_alive_100 = np.mean(self.epoch_alive[-100:])
+                else:
+                    mean_reward_100 = mean_reward
+                    mean_alive_100 = mean_alive
+                tf.summary.scalar("mean_reward", mean_reward, step)
+                tf.summary.scalar("mean_alive", mean_alive, step)
+                tf.summary.scalar("mean_reward_100", mean_reward_100, step)
+                tf.summary.scalar("mean_alive_100", mean_alive_100, step)
+                tf.summary.scalar("loss", loss, step)

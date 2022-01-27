@@ -14,7 +14,7 @@ from l2rpn_baselines.utils.save_log_gif import save_log_gif
 
 from grid2op.gym_compat import BoxGymActSpace, BoxGymObsSpace
 
-from l2rpn_baselines.ppo_stablebaselines.utils import SB3Agent
+from l2rpn_baselines.PPO_SB3.utils import SB3Agent
 
 
 def evaluate(env,

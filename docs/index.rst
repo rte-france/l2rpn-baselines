@@ -21,14 +21,20 @@ How to contribute
 Baseline already Available
 ---------------------------
 
+These are the "baselines" that are available. Please note that each of these baselines
+is provided as an example of what can be achieved with grid2op.
+
+It can serve a possible implementation for a usecase. At the moment, we do not provide
+baseline with hyper parameters tuned that performs correctly.
+
 .. toctree::
    :maxdepth: 2
 
    utils
-   DeepQSimple
-   DoubleDuelingDQN
-   DuelQSimple
-   ExpertAgent
+   deepqsimple
+   doubleduelingdqn
+   duelqsimple
+   expertagent
    ppo_stable_baselines
 
 
@@ -38,9 +44,10 @@ More advanced baselines
 .. toctree::
    :maxdepth: 2
 
-   DuelQLeapNet
-   DoubleDuelingRDQN
-   LeapNetEncoded
+   duelqleapnet
+   doubleduelingrdqn
+   leapnetencoded
+   external_contributions
 
 
 Deprecated baselines
@@ -49,7 +56,7 @@ Deprecated baselines
 .. toctree::
    :maxdepth: 2
 
-   SACOld
+   sacold
 
 
 Contributions

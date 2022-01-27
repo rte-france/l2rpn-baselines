@@ -12,7 +12,7 @@ import os
 import argparse
 
 from grid2op.MakeEnv import make
-from l2rpn_baselines.SliceRDQN.SliceRDQN import SliceRDQN as RDQNAgent
+from l2rpn_baselines.SliceRDQN.sliceRDQN import SliceRDQN as RDQNAgent
 from l2rpn_baselines.utils.save_log_gif import save_log_gif
 
 DEFAULT_LOGS_DIR = "./logs-eval"

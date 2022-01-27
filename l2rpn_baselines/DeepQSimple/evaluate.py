@@ -14,9 +14,9 @@ from grid2op.MakeEnv import make
 from grid2op.Runner import Runner
 
 from l2rpn_baselines.utils.save_log_gif import save_log_gif
-from l2rpn_baselines.DeepQSimple.DeepQSimple import DeepQSimple, DEFAULT_NAME
-from l2rpn_baselines.DeepQSimple.DeepQ_NNParam import DeepQ_NNParam
-from l2rpn_baselines.DeepQSimple.DeepQ_NN import DeepQ_NN
+from l2rpn_baselines.DeepQSimple.deepQSimple import DeepQSimple, DEFAULT_NAME
+from l2rpn_baselines.DeepQSimple.deepQ_NNParam import DeepQ_NNParam
+from l2rpn_baselines.DeepQSimple.deepQ_NN import DeepQ_NN
 
 
 DEFAULT_LOGS_DIR = "./logs-eval/do-nothing-baseline"
@@ -36,7 +36,8 @@ def evaluate(env,
              save_gif=False,
              filter_action_fun=None):
     """
-    How to evaluate the performances of the trained DeepQSimple agent.
+    How to evaluate the performances of the trained :class:`DeepQSimple` agent.
+
 
     Parameters
     ----------

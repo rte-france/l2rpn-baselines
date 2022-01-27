@@ -172,3 +172,7 @@ l2rpn_baselines/ppo_stablebaselines/saved_model
 test_Eva.py
 test_box_act.py
 test_eva_dn.py
+test_import_pposb.py
+test_make_gym_env.py
+test_multifolderwithcache.py
+l2rpn_baselines/PPO_SB3/saved_model/**

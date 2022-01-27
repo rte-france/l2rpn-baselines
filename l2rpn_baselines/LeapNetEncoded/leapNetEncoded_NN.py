@@ -27,7 +27,7 @@ except ImportError:
     _CAN_USE_TENSORFLOW = False
     
 from l2rpn_baselines.utils import BaseDeepQ, TrainingParam
-from l2rpn_baselines.DuelQLeapNet.DuelQLeapNet_NN import LtauBis
+from l2rpn_baselines.DuelQLeapNet.duelQLeapNet_NN import LtauBis
 
 
 class LeapNetEncoded_NN(BaseDeepQ):
@@ -43,7 +43,7 @@ class LeapNetEncoded_NN(BaseDeepQ):
     - a q network, that uses the output of the state encoder to predict which action is best.
 
     The Q network can have other types of input, and can also be a leap net, see the class
-    :class:`l2rpn_baselines.LeapNetEncoded_NNParam.LeapNetEncoded_NNParam` for more information
+    :class:`l2rpn_baselines.LeapNetEncoded.leapNetEncoded_NNParam.LeapNetEncoded_NNParam` for more information
 
     """
     def __init__(self,

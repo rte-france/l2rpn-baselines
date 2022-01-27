@@ -17,7 +17,7 @@ import numpy as np
 from grid2op.MakeEnv import make2
 from grid2op.Action import PowerlineChangeAndDispatchAction
 
-from l2rpn_baselines.DoubleDuelingDQN.DoubleDuelingDQN import DoubleDuelingDQN
+from l2rpn_baselines.DoubleDuelingDQN.doubleDuelingDQN import DoubleDuelingDQN
 
 
 class NpEncoder(json.JSONEncoder):

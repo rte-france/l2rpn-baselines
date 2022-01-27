@@ -4,7 +4,7 @@ __all__ = [
     "other_rewards"
 ]
 
-from l2rpn_baselines.ExpertAgent.ExpertAgent import ExpertAgent
+from l2rpn_baselines.ExpertAgent.expertAgent import ExpertAgent
 from l2rpn_baselines.ExpertAgent.evaluate import evaluate
-from l2rpn_baselines.ExpertAgent.ExpertAgent import other_rewards
+from l2rpn_baselines.ExpertAgent.expertAgent import other_rewards
 

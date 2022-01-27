@@ -12,10 +12,10 @@ import os
 import warnings
 
 from l2rpn_baselines.utils import cli_train
-from l2rpn_baselines.LeapNetEncoded.LeapNetEncoded import LeapNetEncoded, DEFAULT_NAME
-from l2rpn_baselines.LeapNetEncoded.LeapNetEncoded_NN import LeapNetEncoded_NN
+from l2rpn_baselines.LeapNetEncoded.leapNetEncoded import LeapNetEncoded, DEFAULT_NAME
+from l2rpn_baselines.LeapNetEncoded.leapNetEncoded_NN import LeapNetEncoded_NN
 from l2rpn_baselines.utils import TrainingParam
-from l2rpn_baselines.LeapNetEncoded.LeapNetEncoded_NNParam import LeapNetEncoded_NNParam
+from l2rpn_baselines.LeapNetEncoded.leapNetEncoded_NNParam import LeapNetEncoded_NNParam
 from l2rpn_baselines.utils.waring_msgs import _WARN_GPU_MEMORY
 
 
@@ -31,9 +31,8 @@ def train(env,
           kwargs_converters={},
           kwargs_archi={}):
     """
-    This function implements the "training" part of the baselines "SAC". This is the "old" implementation
-    that most likely had bugs. We keep it here for backward compatibility, but it is not recommended to
-    use it on new projects.
+    This function implements the "training" part of the baselines :class:`LeapNetEncoded`.
+    
 
     Parameters
     ----------
@@ -56,7 +55,7 @@ def train(env,
     logs_dir: ``str``
         Where to store the tensorboard generated logs during the training. ``None`` if you don't want to log them.
 
-    training_param: :class:`l2rpn_baselines.utils.TrainingParam`
+    training_param: :class:`l2rpn_baselines.utils.trainingParam.TrainingParam`
         The parameters describing the way you will train your model.
 
     filter_action_fun: ``function``
@@ -77,7 +76,7 @@ def train(env,
     Returns
     -------
 
-    baseline: :class:`DuelQLeapNet`
+    baseline: :class:`LeapNetEncoded``
         The trained baseline.
 
 
@@ -85,7 +84,7 @@ def train(env,
 
     Examples
     ---------
-    Here is an example on how to train a DuelQLeapNet baseline.
+    Here is an example on how to train a :class:`LeapNetEncoded` baseline.
 
     First define a python script, for example
 

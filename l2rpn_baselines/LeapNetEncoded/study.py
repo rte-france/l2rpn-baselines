@@ -14,9 +14,9 @@ from tqdm import tqdm
 
 from grid2op.MakeEnv import make
 
-from l2rpn_baselines.LeapNetEncoded.LeapNetEncoded import LeapNetEncoded, DEFAULT_NAME
-from l2rpn_baselines.LeapNetEncoded.LeapNetEncoded_NNParam import LeapNetEncoded_NNParam
-from l2rpn_baselines.LeapNetEncoded.LeapNetEncoded_NN import LeapNetEncoded_NN
+from l2rpn_baselines.LeapNetEncoded.leapNetEncoded import LeapNetEncoded, DEFAULT_NAME
+from l2rpn_baselines.LeapNetEncoded.leapNetEncoded_NNParam import LeapNetEncoded_NNParam
+from l2rpn_baselines.LeapNetEncoded.leapNetEncoded_NN import LeapNetEncoded_NN
 
 import pdb
 
@@ -27,14 +27,14 @@ DEFAULT_MAX_STEPS = -1
 
 
 def study(env,
-             name=DEFAULT_NAME,
-             load_path=None,
-             logs_path=DEFAULT_LOGS_DIR,
-             nb_episode=DEFAULT_NB_EPISODE,
-             nb_process=DEFAULT_NB_PROCESS,
-             max_steps=DEFAULT_MAX_STEPS,
-             verbose=False,
-             save_gif=False):
+          name=DEFAULT_NAME,
+          load_path=None,
+          logs_path=DEFAULT_LOGS_DIR,
+          nb_episode=DEFAULT_NB_EPISODE,
+          nb_process=DEFAULT_NB_PROCESS,
+          max_steps=DEFAULT_MAX_STEPS,
+          verbose=False,
+          save_gif=False):
     """study the prediction of the grid_model"""
 
     import tensorflow as tf

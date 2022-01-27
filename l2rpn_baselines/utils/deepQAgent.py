@@ -11,13 +11,12 @@ import warnings
 import numpy as np
 from tqdm import tqdm
 
-import grid2op
 from grid2op.Exceptions import Grid2OpException
 from grid2op.Agent import AgentWithConverter
 from grid2op.Converter import IdToAct
 
-from l2rpn_baselines.utils.ReplayBuffer import ReplayBuffer
-from l2rpn_baselines.utils.TrainingParam import TrainingParam
+from l2rpn_baselines.utils.replayBuffer import ReplayBuffer
+from l2rpn_baselines.utils.trainingParam import TrainingParam
 
 try:
     from grid2op.Chronics import MultifolderWithCache

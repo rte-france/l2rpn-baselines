@@ -14,9 +14,9 @@ from grid2op.MakeEnv import make
 from grid2op.Runner import Runner
 
 from l2rpn_baselines.utils.save_log_gif import save_log_gif
-from l2rpn_baselines.DuelQSimple.DuelQSimple import DuelQSimple, DEFAULT_NAME
-from l2rpn_baselines.DuelQSimple.DuelQ_NNParam import DuelQ_NNParam
-from l2rpn_baselines.DuelQSimple.DuelQ_NN import DuelQ_NN
+from l2rpn_baselines.DuelQSimple.duelQSimple import DuelQSimple, DEFAULT_NAME
+from l2rpn_baselines.DuelQSimple.duelQ_NNParam import DuelQ_NNParam
+from l2rpn_baselines.DuelQSimple.duelQ_NN import DuelQ_NN
 
 
 DEFAULT_LOGS_DIR = "./logs-eval/do-nothing-baseline"
