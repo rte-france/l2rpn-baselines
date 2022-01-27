@@ -21,7 +21,7 @@ You can use this class with:
     from l2rpn_baselines.DoubleDuelingRDQN import train
     from l2rpn_baselines.DoubleDuelingRDQN import evaluate
 
-.. automodule:: l2rpn_baselines.DoubleDuelingRDQN.DoubleDuelingRDQN
+.. automodule:: l2rpn_baselines.DoubleDuelingRDQN
     :members:
     :autosummary:
 
@@ -37,7 +37,7 @@ Training a model requires tweaking many hyperparameters, these can be found in a
     DoubleDuelingRDQNConfig.LR = 1e-5
     DoubleDuelingRDQNConfig.TRACE_LENGTH = 12
 
-.. automodule:: l2rpn_baselines.DoubleDuelingRDQN.DoubleDuelingRDQNConfig
+.. automodule:: l2rpn_baselines.DoubleDuelingRDQN.doubleDuelingRDQNConfig.DoubleDuelingRDQNConfig
     :members:
     :undoc-members:
 
@@ -48,9 +48,9 @@ You may want to import it manually:
 
 .. code-block:: python
 
-    from l2rpn_baselines.DoubleDuelingRDQN.DoubleDuelingRDQN_NN import DoubleDuelingRDQN_NN
+    from l2rpn_baselines.DoubleDuelingRDQN.doubleDuelingRDQN_NN import DoubleDuelingRDQN_NN
 
 
-.. autoclass:: l2rpn_baselines.DoubleDuelingRDQN.DoubleDuelingRDQN_NN.DoubleDuelingRDQN_NN
+.. autoclass:: l2rpn_baselines.DoubleDuelingRDQN.doubleDuelingRDQN_NN.DoubleDuelingRDQN_NN
     :members:
     :autosummary:
