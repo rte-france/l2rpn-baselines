@@ -74,6 +74,6 @@ highlight_language = 'python3'
 html_static_path = ['_static']
 
 def setup(app):
-  app.add_javascript('custom.js')
+  # app.add_javascript('custom.js')
   if app.config.language == 'ja':
         app.config.intersphinx_mapping['py'] = ('https://docs.python.org/ja/3', None)

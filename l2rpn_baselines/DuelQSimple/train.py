@@ -10,7 +10,6 @@
 
 import os
 import warnings
-import tensorflow as tf
 
 from l2rpn_baselines.utils import cli_train
 from l2rpn_baselines.DuelQSimple.DuelQSimple import DuelQSimple, DEFAULT_NAME
@@ -142,6 +141,7 @@ def train(env,
 
     """
 
+    import tensorflow as tf  # lazy import to save package import time
     # Limit gpu usage
     try:
         physical_devices = tf.config.list_physical_devices('GPU')

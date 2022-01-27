@@ -8,13 +8,17 @@
 
 import numpy as np
 import random
-import tensorflow as tf
-import tensorflow.keras as tfk
-import tensorflow.keras.backend as K
-import tensorflow.keras.models as tfkm
-import tensorflow.keras.optimizers as tfko
-import tensorflow.keras.layers as tfkl
-import tensorflow.keras.activations as tfka
+try:
+    import tensorflow as tf
+    import tensorflow.keras as tfk
+    import tensorflow.keras.backend as K
+    import tensorflow.keras.models as tfkm
+    import tensorflow.keras.optimizers as tfko
+    import tensorflow.keras.layers as tfkl
+    import tensorflow.keras.activations as tfka
+    _CAN_USE_TENSORFLOW = True
+except ImportError:
+    _CAN_USE_TENSORFLOW = False
 
 
 class DoubleDuelingRDQN_NN(object):
@@ -22,6 +26,10 @@ class DoubleDuelingRDQN_NN(object):
                  action_size,
                  observation_size,
                  learning_rate = 1e-5):
+        
+        if not _CAN_USE_TENSORFLOW:
+            raise RuntimeError("Cannot import tensorflow, this function cannot be used.")
+        
         self.action_size = action_size
         self.observation_size = observation_size
         self.h_size = 512

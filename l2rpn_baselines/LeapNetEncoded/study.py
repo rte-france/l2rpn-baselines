@@ -9,13 +9,10 @@
 # This file is part of L2RPN Baselines, L2RPN Baselines a repository to host baselines for l2rpn competitions.
 
 import os
-import tensorflow as tf
 import numpy as np
 from tqdm import tqdm
 
 from grid2op.MakeEnv import make
-from grid2op.Reward import *
-from grid2op.Action import *
 
 from l2rpn_baselines.LeapNetEncoded.LeapNetEncoded import LeapNetEncoded, DEFAULT_NAME
 from l2rpn_baselines.LeapNetEncoded.LeapNetEncoded_NNParam import LeapNetEncoded_NNParam
@@ -40,6 +37,7 @@ def study(env,
              save_gif=False):
     """study the prediction of the grid_model"""
 
+    import tensorflow as tf
     # Limit gpu usage
     physical_devices = tf.config.list_physical_devices('GPU')
     if len(physical_devices):

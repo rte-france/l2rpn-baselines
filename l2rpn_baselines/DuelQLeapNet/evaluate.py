@@ -9,20 +9,14 @@
 # This file is part of L2RPN Baselines, L2RPN Baselines a repository to host baselines for l2rpn competitions.
 
 import os
-import tensorflow as tf
 
 from grid2op.MakeEnv import make
 from grid2op.Runner import Runner
-from grid2op.Reward import *
-from grid2op.Action import *
-from grid2op.Episode import EpisodeData
 
 from l2rpn_baselines.utils.save_log_gif import save_log_gif
 from l2rpn_baselines.DuelQLeapNet.DuelQLeapNet import DuelQLeapNet, DEFAULT_NAME
 from l2rpn_baselines.DuelQLeapNet.LeapNet_NNParam import LeapNet_NNParam
 from l2rpn_baselines.DuelQLeapNet.DuelQLeapNet_NN import DuelQLeapNet_NN
-
-import pdb
 
 DEFAULT_LOGS_DIR = "./logs-eval/do-nothing-baseline"
 DEFAULT_NB_EPISODE = 1
@@ -113,6 +107,7 @@ def evaluate(env,
 
     """
 
+    import tensorflow as tf  # lazy import to save time
     # Limit gpu usage
     physical_devices = tf.config.list_physical_devices('GPU')
     if len(physical_devices):

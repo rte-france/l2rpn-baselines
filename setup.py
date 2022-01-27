@@ -16,7 +16,8 @@ pkgs = {
         "grid2op",
         "statsmodels>=0.11.1",
         "scipy>=1.4.1",
-        "numpy"
+        "numpy",
+        "gym>=0.17.2"
     ],
     "extras": {
         "docs": [

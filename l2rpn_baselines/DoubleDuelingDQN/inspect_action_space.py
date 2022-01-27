@@ -11,7 +11,7 @@
 
 import argparse
 import json
-import tensorflow as tf
+    
 import numpy as np
 
 from grid2op.MakeEnv import make2
@@ -101,6 +101,7 @@ def print_actions(agent):
         
 
 if __name__ == "__main__":
+    import tensorflow as tf
     args = cli()
     env = make2(args.path_data, action_class=PowerlineChangeAndDispatchAction)
     # Limit gpu usage

@@ -15,16 +15,14 @@ import logging
 from grid2op.dtypes import dt_int
 from grid2op.MakeEnv import make
 from grid2op.Runner import Runner
-from grid2op.Reward import *
-from grid2op.Action import *
 
 try:
     from l2rpn_baselines.ExpertAgent import ExpertAgent
     from l2rpn_baselines.utils.save_log_gif import save_log_gif
     from l2rpn_baselines.ExpertAgent.ExpertAgent import other_rewards
+    _CAN_USE_EXPERT_BASELINE = True
 except ImportError as exc_:
-    raise ImportError("ExpertAgent baseline impossible to load the required dependencies for using the model. "
-                      "The error was: \n {}".format(exc_))
+    _CAN_USE_EXPERT_BASELINE = False
 
 
 DEFAULT_LOGS_DIR = "./logs-eval/expert-agent-baseline"
@@ -112,6 +110,9 @@ def evaluate(env,
         -------
         ``None``
     """
+    if not _CAN_USE_EXPERT_BASELINE:
+        raise ImportError("ExpertAgent baseline impossible to load the required dependencies for using the model. "
+                         )
     runner_params = env.get_params_for_runner()
     runner_params["verbose"] = verbose
 

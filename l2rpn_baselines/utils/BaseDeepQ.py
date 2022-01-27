@@ -10,8 +10,15 @@ import os
 from abc import ABC, abstractmethod
 import numpy as np
 import warnings
-import tensorflow as tf
-import tensorflow.keras.optimizers as tfko
+
+try:
+    import tensorflow as tf
+    import tensorflow.keras.optimizers as tfko
+    _CAN_USE_TENSORFLOW = True
+except ImportError:
+    _CAN_USE_TENSORFLOW = False
+    
+
 
 from l2rpn_baselines.utils.TrainingParam import TrainingParam
 
@@ -71,6 +78,9 @@ class BaseDeepQ(ABC):
                  nn_params,
                  training_param=None,
                  verbose=False):
+        if not _CAN_USE_TENSORFLOW:
+            raise RuntimeError("Cannot import tensorflow, this function cannot be used.")
+        
         self._action_size = nn_params.action_size
         self._observation_size = nn_params.observation_size
         self._nn_archi = nn_params

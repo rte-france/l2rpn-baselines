@@ -8,16 +8,19 @@
 
 import numpy as np
 import os
-import tensorflow as tf
 
 # tf2.0 friendly
 import warnings
-
-with warnings.catch_warnings():
-    warnings.filterwarnings("ignore", category=FutureWarning)
-    from tensorflow.keras.models import load_model, Sequential, Model
-    from tensorflow.keras.layers import Activation, Dense
-    from tensorflow.keras.layers import Input, Concatenate
+try:
+    import tensorflow as tf
+    with warnings.catch_warnings():
+        warnings.filterwarnings("ignore", category=FutureWarning)
+        from tensorflow.keras.models import Sequential, Model
+        from tensorflow.keras.layers import Activation, Dense
+        from tensorflow.keras.layers import Input, Concatenate
+    _CAN_USE_TENSORFLOW = True
+except ImportError:
+    _CAN_USE_TENSORFLOW = False
 
 from l2rpn_baselines.utils import BaseDeepQ, TrainingParam
 
@@ -50,6 +53,9 @@ class SACOld_NN(BaseDeepQ):
                  nn_params,
                  training_param=None,
                  verbose=False):
+        if not _CAN_USE_TENSORFLOW:
+            raise RuntimeError("Cannot import tensorflow, this function cannot be used.")
+        
         if training_param is None:
             training_param = TrainingParam()
         BaseDeepQ.__init__(self,

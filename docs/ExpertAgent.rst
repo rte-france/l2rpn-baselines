@@ -1,3 +1,5 @@
+.. currentmodule:: l2rpn_baselines.ExpertAgent
+
 ExpertAgent: A example implementation of using ExpertOpForGrid for empirical overflow solving
 =============================================================================================
 

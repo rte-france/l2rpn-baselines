@@ -10,7 +10,6 @@
 
 import os
 import argparse
-import tensorflow as tf
 
 from grid2op.MakeEnv import make
 from grid2op.Runner import Runner
@@ -67,6 +66,8 @@ def evaluate(env,
              verbose=DEFAULT_VERBOSE,
              save_gif=False):
 
+    import tensorflow as tf  # lazy import to save import time
+    
     # Set config
     D3QNConfig.N_FRAMES = num_frames
     D3QNConfig.VERBOSE = verbose

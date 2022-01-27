@@ -7,8 +7,12 @@
 # This file is part of L2RPN Baselines, L2RPN Baselines a repository to host baselines for l2rpn competitions.
 
 import os
-from grid2op.Episode import EpisodeReplay
-
+try:
+    from grid2op.Episode import EpisodeReplay
+    _CAN_USE = True
+except ImportError:
+    # cannot use the save_log_gif function
+    _CAN_USE = False
 
 def save_log_gif(path_log, res, gif_name=None):
     """
@@ -27,6 +31,10 @@ def save_log_gif(path_log, res, gif_name=None):
         Name of the gif that will be used.
 
     """
+    if not _CAN_USE:
+        raise RuntimeError("Cannot use the \"save_log_gif\" function as the "
+                           "\"from grid2op.Episode import EpisodeReplay\" cannot be imported")
+    
     init_gif_name = gif_name
     ep_replay = EpisodeReplay(path_log)
     for _, chron_name, cum_reward, nb_time_step, max_ts in res:

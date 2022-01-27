@@ -1,3 +1,5 @@
+.. currentmodule:: l2rpn_baselines.DoubleDuelingDQN
+
 DoubleDuelingDQN: A example implementation of Double Duelling Deep Q Network
 ============================================================================
 

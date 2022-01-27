@@ -5,17 +5,18 @@
 # you can obtain one at http://mozilla.org/MPL/2.0/.
 # SPDX-License-Identifier: MPL-2.0
 # This file is part of L2RPN Baselines, L2RPN Baselines a repository to host baselines for l2rpn competitions.
+from grid2op.Agent import BaseAgent
+from grid2op.Reward import BaseReward, L2RPNReward
+import numpy as np
+import pandas as pd
+import logging
+
 try:
-    from grid2op.Agent import BaseAgent
     from alphaDeesp.expert_operator import expert_operator
-    from alphaDeesp.core.grid2op.Grid2opSimulation import Grid2opSimulation, score_changes_between_two_observations
-    from grid2op.Reward import BaseReward, L2RPNReward
-    import numpy as np
-    import pandas as pd
-    import logging
+    from alphaDeesp.core.grid2op.Grid2opSimulation import Grid2opSimulation
+    _CAN_USE_EXPERT_AGENT = True
 except ImportError as exc_:
-    raise ImportError("ExpertAgent baseline impossible to load the required dependencies for using the model. "
-                      "The error was: \n {}".format(exc_))
+    _CAN_USE_EXPERT_AGENT = False
 
 
 class ExpertAgent(BaseAgent):
@@ -44,8 +45,12 @@ class ExpertAgent(BaseAgent):
     def __init__(self,
                  action_space,
                  observation_space,
-                 name, gridName="IEEE118",
+                 name,
+                 gridName="IEEE118",
                  **kwargs):
+        if not _CAN_USE_EXPERT_AGENT:
+            raise ImportError("ExpertAgent baseline impossible to load the required dependencies for using the model. "
+                             )
         super().__init__(action_space)
         self.name = name
         self.grid = gridName  # IEEE14,IEEE118_R2 (WCCI or Neurips Track Robustness), IEEE118

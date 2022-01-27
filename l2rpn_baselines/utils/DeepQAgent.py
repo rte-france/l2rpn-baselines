@@ -10,7 +10,6 @@ import os
 import warnings
 import numpy as np
 from tqdm import tqdm
-import tensorflow as tf
 
 import grid2op
 from grid2op.Exceptions import Grid2OpException
@@ -26,6 +25,11 @@ try:
 except ImportError:
     _CACHE_AVAILABLE_DEEPQAGENT = False
 
+try:
+    import tensorflow as tf
+    _CAN_USE_TENSORFLOW = True
+except ImportError:
+    _CAN_USE_TENSORFLOW = False
 
 class DeepQAgent(AgentWithConverter):
     """
@@ -127,6 +131,9 @@ class DeepQAgent(AgentWithConverter):
                  verbose=False,
                  observation_space=None,
                  **kwargs_converters):
+        if not _CAN_USE_TENSORFLOW:
+            raise RuntimeError("Cannot import tensorflow, this function cannot be used.")
+        
         AgentWithConverter.__init__(self, action_space, action_space_converter=IdToAct, **kwargs_converters)
         self.filter_action_fun = filter_action_fun
         if self.filter_action_fun is not None:

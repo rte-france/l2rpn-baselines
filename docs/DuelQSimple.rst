@@ -1,3 +1,5 @@
+.. currentmodule:: l2rpn_baselines.DuelQSimple
+
 DuelQSimple: Double Duelling Deep Q Learning
 =============================================
 

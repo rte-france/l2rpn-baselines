@@ -10,37 +10,32 @@ import numpy as np
 
 # tf2.0 friendly
 import warnings
-
-import tensorflow as tf
-with warnings.catch_warnings():
-    warnings.filterwarnings("ignore", category=FutureWarning)
-    from tensorflow.keras.models import Sequential, Model
-    from tensorflow.keras.layers import Activation
-    from tensorflow.keras.layers import Input, Lambda, subtract, add
-    import tensorflow.keras.backend as K
+try:
+    import tensorflow as tf
+    with warnings.catch_warnings():
+        warnings.filterwarnings("ignore", category=FutureWarning)
+        from tensorflow.keras.models import Sequential, Model
+        from tensorflow.keras.layers import Activation
+        from tensorflow.keras.layers import Input, Lambda, subtract, add
+        import tensorflow.keras.backend as K
+    
+    # TODO implement that in the leap net package too
+    from tensorflow.keras.layers import Layer
+    from tensorflow.keras.layers import Dense
+    from tensorflow.keras.layers import add as tfk_add
+    from tensorflow.keras.layers import multiply as tfk_multiply
+    
+    _CAN_USE_TENSORFLOW = True
+except ImportError:
+    _CAN_USE_TENSORFLOW = False
+    
+    class Layer(object):
+        """Empty class to be used in the documentation. This should 
+        be `from tensorflow.keras.layers import Layer`
+        """
+        pass
 
 from l2rpn_baselines.utils import BaseDeepQ, TrainingParam
-
-# try:
-#     from leap_net import Ltau  # this import might change if you use the "quick and dirty way".
-# except ImportError:
-#     # Copyright (c) 2019-2020, RTE (https://www.rte-france.com)
-#     # See AUTHORS.txt
-#     # This Source Code Form is subject to the terms of the Mozilla Public License, version 2.0.
-#     # If a copy of the Mozilla Public License, version 2.0 was not distributed with this file,
-#     # you can obtain one at http://mozilla.org/MPL/2.0/.
-#     # SPDX-License-Identifier: MPL-2.0
-#     # This file is part of leap_net, leap_net a keras implementation of the LEAP Net model.
-# MSG_WARNING = "Leap net model is not installed on your system. Please visit \n" \
-#               "https://github.com/BDonnot/leap_net \n" \
-#               "to have the latest Leap net implementation."
-# warnings.warn(MSG_WARNING)
-
-# TODO implement that in the leap net package too
-from tensorflow.keras.layers import Layer
-from tensorflow.keras.layers import Dense
-from tensorflow.keras.layers import add as tfk_add
-from tensorflow.keras.layers import multiply as tfk_multiply
 
 
 class LtauBis(Layer):
@@ -52,6 +47,9 @@ class LtauBis(Layer):
     """
 
     def __init__(self, initializer='glorot_uniform', use_bias=True, trainable=True, name=None, **kwargs):
+        if not _CAN_USE_TENSORFLOW:
+            raise RuntimeError("Cannot import tensorflow, this function cannot be used.")
+        
         super(LtauBis, self).__init__(trainable=trainable, name=name, **kwargs)
         self.initializer = initializer
         self.use_bias = use_bias
@@ -101,6 +99,9 @@ class DuelQLeapNet_NN(BaseDeepQ):
     def __init__(self,
                  nn_params,
                  training_param=None):
+        if not _CAN_USE_TENSORFLOW:
+            raise RuntimeError("Cannot import tensorflow, this function cannot be used.")
+        
         if training_param is None:
             training_param = TrainingParam()
         BaseDeepQ.__init__(self,

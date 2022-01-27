@@ -10,7 +10,6 @@
 
 import os
 import argparse
-import tensorflow as tf
 
 from grid2op.MakeEnv import make
 from grid2op.Runner import Runner
@@ -60,7 +59,7 @@ def evaluate(env,
              max_steps=DEFAULT_MAX_STEPS,
              verbose=DEFAULT_VERBOSE,
              save_gif=False):
-
+    import tensorflow as tf  # lazy import to save import time
     # Limit gpu usage
     physical_devices = tf.config.list_physical_devices('GPU')
     if len(physical_devices):

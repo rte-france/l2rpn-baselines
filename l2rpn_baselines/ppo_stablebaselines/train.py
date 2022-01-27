@@ -11,14 +11,24 @@ import warnings
 import copy
 import os
 import grid2op
-from grid2op.gym_compat import BoxGymActSpace, BoxGymObsSpace, GymEnv
-
 import json
 
-from stable_baselines3.common.callbacks import CheckpointCallback
-from stable_baselines3 import PPO
-from stable_baselines3.ppo import MlpPolicy
+from grid2op.gym_compat import BoxGymActSpace, BoxGymObsSpace, GymEnv
 
+try:
+    from stable_baselines3.common.callbacks import CheckpointCallback
+    from stable_baselines3 import PPO
+    from stable_baselines3.ppo import MlpPolicy
+    _CAN_USE_STABLE_BASELINE = True
+except ImportError:
+    _CAN_USE_STABLE_BASELINE = False
+    class MlpPolicy(object):
+        """
+        Do not use, this class is a template when stable baselines3 is not installed.
+        
+        It represents `from stable_baselines3.ppo import MlpPolicy`
+        """
+    
 _default_obs_attr_to_keep = ["day_of_week", "hour_of_day", "minute_of_hour", "prod_p", "prod_v", "load_p", "load_q",
                              "actual_dispatch", "target_dispatch", "topo_vect", "time_before_cooldown_line",
                              "time_before_cooldown_sub", "rho", "timestep_overflow", "line_status",
@@ -130,7 +140,7 @@ def train(env,
         import grid2op
         from grid2op.Reward import LinesCapacityReward  # or any other rewards
         from grid2op.Chronics import MultifolderWithCache  # highly recommended
-        from lightsim2grid import LightSimBackend  # highly recommended !
+        from lightsim2grid import LightSimBackend  # highly recommended for training !
         from l2rpn_baselines.ppo_stablebaselines import train
 
         env_name = "l2rpn_case14_sandbox"
@@ -157,6 +167,8 @@ def train(env,
             env.close()
 
     """
+    if not _CAN_USE_STABLE_BASELINE:
+        raise ImportError("Cannot use this function as stable baselines3 is not installed")
     if act_attr_to_keep == _default_act_attr_to_keep:
         # by default, i remove all the attributes that are not supported by the action type
         # i do not do that if the user specified specific attributes to keep. This is his responsibility in
@@ -240,7 +252,7 @@ if __name__ == "__main__":
     import grid2op
     from grid2op.Reward import LinesCapacityReward  # or any other rewards
     from lightsim2grid import LightSimBackend  # highly recommended !
-    from grid2op.Chronics import MultifolderWithCache  # highly recommended
+    from grid2op.Chronics import MultifolderWithCache  # highly recommended for training
 
     env_name = "l2rpn_case14_sandbox"
     env = grid2op.make(env_name,
@@ -248,41 +260,16 @@ if __name__ == "__main__":
                        backend=LightSimBackend(),
                        chronics_class=MultifolderWithCache)
 
-    env.chronics_handler.real_data.set_filter(lambda x: re.match(".*00$", x) is not None)
+    env.chronics_handler.real_data.set_filter(lambda x: re.match(".*0$", x) is not None)
     env.chronics_handler.real_data.reset()
     # see https://grid2op.readthedocs.io/en/latest/environment.html#optimize-the-data-pipeline
     # for more information !
 
     train(env,
-          iterations=10_000,
+          iterations=10_000_000,
           logs_dir="./logs",
           save_path="./saved_model", 
-          name="test",
-          net_arch=[100, 100, 100],
+          name="test2",
+          net_arch=[200, 200, 200],
           save_every_xxx_steps=2000,
           )
-
-
-    # from grid2op.Action import CompleteAction
-    # from grid2op.Reward import LinesCapacityReward
-    # from lightsim2grid import LightSimBackend
-    # from grid2op.Chronics import MultifolderWithCache
-
-    # env = grid2op.make("educ_case14_storage",
-    #                    test=True,
-    #                    action_class=CompleteAction,
-    #                    reward_class=LinesCapacityReward,
-    #                    backend=LightSimBackend(),
-    #                    chronics_class=MultifolderWithCache)
-
-    # env.chronics_handler.real_data.set_filter(lambda x: True)
-    # env.chronics_handler.real_data.reset()
-
-    # train(env,
-    #       iterations=10_000,
-    #       logs_dir="./logs",
-    #       save_path="./saved_model", 
-    #       name="test4",
-    #       net_arch=[100, 100, 100],
-    #       save_every_xxx_steps=2000,
-    #       )

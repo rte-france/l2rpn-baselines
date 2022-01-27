@@ -10,9 +10,13 @@ import os
 import json
 import copy
 import numpy as np
-import tensorflow as tf
+try:
+    import tensorflow as tf
+    _CAN_USE_TENSORFLOW = True
+except ImportError:
+    _CAN_USE_TENSORFLOW = False
 
-from grid2op.Parameters import Parameters
+
 from grid2op.Agent import AgentWithConverter
 from grid2op.Converter import IdToAct
 
@@ -26,6 +30,10 @@ class DoubleDuelingRDQN(AgentWithConverter):
                  action_space,
                  name=__name__,
                  is_training=False):
+                
+        if not _CAN_USE_TENSORFLOW:
+            raise RuntimeError("Cannot import tensorflow, this function cannot be used.")
+        
         # Call parent constructor
         AgentWithConverter.__init__(self, action_space,
                                     action_space_converter=IdToAct)

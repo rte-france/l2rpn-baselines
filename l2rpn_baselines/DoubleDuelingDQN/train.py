@@ -9,7 +9,6 @@
 # This file is part of L2RPN Baselines, L2RPN Baselines a repository to host baselines for l2rpn competitions.
 
 import argparse
-import tensorflow as tf
 
 from l2rpn_baselines.DoubleDuelingDQN.DoubleDuelingDQN import DoubleDuelingDQN as D3QNAgent
 from l2rpn_baselines.DoubleDuelingDQN.DoubleDuelingDQNConfig import DoubleDuelingDQNConfig as D3QNConfig
@@ -70,7 +69,8 @@ def train(env,
           batch_size= DEFAULT_BATCH_SIZE,
           learning_rate= DEFAULT_LR,
           verbose=DEFAULT_VERBOSE):
-
+    import tensorflow as tf  # lazy import to save import time
+    
     # Set config
     D3QNConfig.LR = learning_rate
     D3QNConfig.N_FRAMES = num_frames

@@ -1,3 +1,5 @@
+.. currentmodule:: l2rpn_baselines.LeapNetEncoded
+
 LeapNetEncoded: D3QN on a state encoded by a leap net
 ======================================================
 

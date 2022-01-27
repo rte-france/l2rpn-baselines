@@ -29,6 +29,7 @@ Baseline already Available
    DoubleDuelingDQN
    DuelQSimple
    ExpertAgent
+   ppo_stable_baselines
 
 
 More advanced baselines

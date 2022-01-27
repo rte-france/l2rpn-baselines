@@ -5,7 +5,6 @@
 # you can obtain one at http://mozilla.org/MPL/2.0/.
 # SPDX-License-Identifier: MPL-2.0
 # This file is part of L2RPN Baselines, L2RPN Baselines a repository to host baselines for l2rpn competitions.
-import os
 import copy
 
 from l2rpn_baselines.utils import NNParam
@@ -15,7 +14,7 @@ from l2rpn_baselines.DeepQSimple.DeepQ_NN import DeepQ_NN
 class DeepQ_NNParam(NNParam):
     """
     This defined the specific parameters for the DeepQ network. Nothing really different compared to the base class
-    except that :attr:`l2rpn_baselines.NNParam.nn_class` is :class:`DeepQ_NN`
+    except that :attr:`l2rpn_baselines.utils.NNParam.nn_class` is :class:`DeepQ_NN`
 
     """
     _int_attr = copy.deepcopy(NNParam._int_attr)

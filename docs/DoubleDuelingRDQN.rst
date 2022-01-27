@@ -1,3 +1,5 @@
+.. currentmodule:: l2rpn_baselines.DoubleDuelingRDQN
+
 DoubleDuelingRDQN: A example implementation of Recurrent DoubleQ Network
 ========================================================================
 

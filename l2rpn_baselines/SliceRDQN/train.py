@@ -9,11 +9,8 @@
 # This file is part of L2RPN Baselines, L2RPN Baselines a repository to host baselines for l2rpn competitions.
 
 import argparse
-import tensorflow as tf
 
 from grid2op.MakeEnv import make
-from grid2op.Reward import *
-from grid2op.Action import *
 from grid2op.Parameters import Parameters
 
 from l2rpn_baselines.SliceRDQN.SliceRDQN import SliceRDQN as RDQNAgent
@@ -78,6 +75,7 @@ def train(env,
           learning_rate=DEFAULT_LR,
           verbose=DEFAULT_VERBOSE):
 
+    import tensorflow as tf
     # Set config
     RDQNConfig.LR = learning_rate
     RDQNConfig.BATCH_SIZE = batch_size

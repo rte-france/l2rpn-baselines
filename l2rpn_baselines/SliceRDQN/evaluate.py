@@ -10,13 +10,8 @@
 
 import os
 import argparse
-import tensorflow as tf
 
 from grid2op.MakeEnv import make
-from grid2op.Runner import Runner
-from grid2op.Reward import *
-from grid2op.Action import *
-
 from l2rpn_baselines.SliceRDQN.SliceRDQN import SliceRDQN as RDQNAgent
 from l2rpn_baselines.utils.save_log_gif import save_log_gif
 
@@ -60,6 +55,7 @@ def evaluate(env,
              verbose=DEFAULT_VERBOSE,
              save_gif=False):
 
+    import tensorflow as tf
     # Limit gpu usage
     physical_devices = tf.config.list_physical_devices('GPU')
     if len(physical_devices):

@@ -1,3 +1,5 @@
+.. currentmodule:: l2rpn_baselines.DuelQLeapNet
+
 DuelQLeapNet: D3QN with LeapNet
 ================================
 

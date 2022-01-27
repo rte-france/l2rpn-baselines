@@ -12,21 +12,21 @@ import os
 # tf2.0 friendly
 import warnings
 
-import tensorflow as tf
-with warnings.catch_warnings():
-    warnings.filterwarnings("ignore", category=FutureWarning)
-    from tensorflow.keras.models import Sequential, Model
-    from tensorflow.keras.layers import Activation
-    from tensorflow.keras.layers import Input, Lambda, subtract, add
-    import tensorflow.keras.backend as K
-
+try:
+    import tensorflow as tf
+    with warnings.catch_warnings():
+        warnings.filterwarnings("ignore", category=FutureWarning)
+        from tensorflow.keras.models import Sequential, Model
+        from tensorflow.keras.layers import Activation
+        from tensorflow.keras.layers import Input, Lambda, subtract, add
+        import tensorflow.keras.backend as K
+    # TODO implement that in the leap net package too
+    from tensorflow.keras.layers import Dense
+    _CAN_USE_TENSORFLOW = True
+except ImportError:
+    _CAN_USE_TENSORFLOW = False
+    
 from l2rpn_baselines.utils import BaseDeepQ, TrainingParam
-
-
-# TODO implement that in the leap net package too
-from tensorflow.keras.layers import Dense
-
-
 from l2rpn_baselines.DuelQLeapNet.DuelQLeapNet_NN import LtauBis
 
 
@@ -49,6 +49,9 @@ class LeapNetEncoded_NN(BaseDeepQ):
     def __init__(self,
                  nn_params,
                  training_param=None):
+        if not _CAN_USE_TENSORFLOW:
+            raise RuntimeError("Cannot import tensorflow, this function cannot be used.")
+        
         if training_param is None:
             training_param = TrainingParam()
         BaseDeepQ.__init__(self,

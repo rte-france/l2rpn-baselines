@@ -1,3 +1,5 @@
+.. currentmodule:: l2rpn_baselines.DeepQSimple
+
 DeepQSimple: A simple implementation of the Deep Q Learning
 ===========================================================
 

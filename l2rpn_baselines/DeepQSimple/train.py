@@ -9,7 +9,6 @@
 # This file is part of L2RPN Baselines, L2RPN Baselines a repository to host baselines for l2rpn competitions.
 
 import os
-import tensorflow as tf
 import warnings
 
 from l2rpn_baselines.utils import cli_train
@@ -140,7 +139,7 @@ def train(env,
             env.close()
 
     """
-
+    import tensorflow as tf  # lazy import to save import time
     # Limit gpu usage
     try:
         physical_devices = tf.config.list_physical_devices('GPU')

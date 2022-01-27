@@ -7,14 +7,18 @@
 # This file is part of L2RPN Baselines, L2RPN Baselines a repository to host baselines for l2rpn competitions.
 
 import numpy as np
-import random
-import tensorflow as tf
-import tensorflow.keras as tfk
-import tensorflow.keras.backend as K
-import tensorflow.keras.models as tfkm
-import tensorflow.keras.optimizers as tfko
-import tensorflow.keras.layers as tfkl
-import tensorflow.keras.activations as tfka
+
+try:
+    import tensorflow as tf
+    import tensorflow.keras as tfk
+    import tensorflow.keras.backend as K
+    import tensorflow.keras.models as tfkm
+    import tensorflow.keras.optimizers as tfko
+    import tensorflow.keras.layers as tfkl
+    import tensorflow.keras.activations as tfka
+    _CAN_USE_TENSORFLOW = True
+except ImportError:
+    _CAN_USE_TENSORFLOW = False
 
 
 class SliceRDQN_NN(object):
@@ -23,6 +27,9 @@ class SliceRDQN_NN(object):
                  observation_shape,
                  slices,
                  learning_rate = 1e-5):
+        if not _CAN_USE_TENSORFLOW:
+            raise ImportError("Cannot import tensorflow, this function cannot be used.")
+        
         self.action_size = action_size
         self.observation_shape = observation_shape
         self.slices = slices

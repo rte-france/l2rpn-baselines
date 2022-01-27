@@ -1,3 +1,5 @@
+.. currentmodule:: l2rpn_baselines.SACOld
+
 SAC: Soft Actor Critic
 =========================
 
