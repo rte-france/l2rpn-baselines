@@ -27,11 +27,18 @@ You can use this class with:
 Other non exported class
 ------------------------
 These classes need to be imported, if you want to import them with (non exhaustive list):
+
 .. code-block:: python
 
-    from l2rpn_baselines.DuelQSimple.DuelQ_NN import DuelQ_NN
+    from l2rpn_baselines.DuelQSimple.duelQ_NN import DuelQ_NN
+    from l2rpn_baselines.DuelQSimple.duelQ_NN import DuelQ_NNParam
 
 
-.. autoclass:: l2rpn_baselines.DuelQSimple.DuelQ_NN.DuelQ_NN
+.. autoclass:: l2rpn_baselines.DuelQSimple.duelQ_NN.DuelQ_NN
+    :members:
+    :autosummary:
+
+
+.. autoclass:: l2rpn_baselines.DuelQSimple.duelQ_NNParam.DuelQ_NNParam
     :members:
     :autosummary:

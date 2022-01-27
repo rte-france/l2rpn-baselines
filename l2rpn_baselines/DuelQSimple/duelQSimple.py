@@ -12,7 +12,7 @@ DEFAULT_NAME = "DuelQSimple"
 
 class DuelQSimple(DeepQAgent):
     """
-    Inheriting from :class:`l2rpn_baselines.DeepQAgent` this class implements the  particular agent used for the
+    Inheriting from :class:`l2rpn_baselines.utils.DeepQAgent` this class implements the  particular agent used for the
     Double Duelling Deep Q network baseline.
 
     It does nothing in particular.
