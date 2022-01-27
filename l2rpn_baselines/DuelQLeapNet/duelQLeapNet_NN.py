@@ -115,10 +115,14 @@ class DuelQLeapNet_NN(BaseDeepQ):
 
     def construct_q_network(self):
         """
-        First the :attr:`l2rpn_baselines.BaseDeepQ.nn_archi` parameters are used to create a neural network
-        to 'encode' the data. Then the leaps occur.
-
-        Afterward the model is split into value an advantage, and treated as usually in any D3QN.
+        Build the Q network appropriatly.
+        
+        It first build a standard Q network with regular inputs x.
+        
+        Then encodes the tau
+        
+        Then data are split and used in the "value" and the "advantage" networks as
+        done usually in D3QN.
 
         """
         # Uses the network architecture found in DeepMind paper

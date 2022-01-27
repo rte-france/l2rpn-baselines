@@ -3,8 +3,9 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
+============================================
 Welcome to l2rpn-baselines's documentation!
-===========================================
+============================================
 
 In this documentation we expose first what is this package about and how to contribute, and then which baselines
 are already implemented in this package.
@@ -14,6 +15,7 @@ How to contribute
 
 .. toctree::
    :maxdepth: 2
+   :caption: How to contribute
 
    template
    donothing
@@ -29,6 +31,7 @@ baseline with hyper parameters tuned that performs correctly.
 
 .. toctree::
    :maxdepth: 2
+   :caption: Reference baselines
 
    utils
    deepqsimple
@@ -43,6 +46,7 @@ More advanced baselines
 
 .. toctree::
    :maxdepth: 2
+   :caption: More advanced baselines and Contributions
 
    duelqleapnet
    doubleduelingrdqn
@@ -55,6 +59,7 @@ Deprecated baselines
 
 .. toctree::
    :maxdepth: 2
+   :caption: Deprecated baselines
 
    sacold
 

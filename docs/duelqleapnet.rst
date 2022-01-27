@@ -32,16 +32,17 @@ You can use this class with:
 Other non exported class
 ------------------------
 These classes need to be imported, if you want to import them with (non exhaustive list):
+
 .. code-block:: python
 
-    from l2rpn_baselines.DuelQLeapNet.DuelQLeapNet_NN import DuelQLeapNet_NN
-    from l2rpn_baselines.DuelQLeapNet.LeapNet_NNParam import LeapNet_NNParam
+    from l2rpn_baselines.DuelQLeapNet.duelQLeapNet_NN import DuelQLeapNet_NN
+    from l2rpn_baselines.DuelQLeapNet.leapNet_NNParam import LeapNet_NNParam
 
 
-.. autoclass:: l2rpn_baselines.DuelQLeapNet.DuelQLeapNet_NN.DuelQLeapNet_NN
+.. autoclass:: l2rpn_baselines.DuelQLeapNet.duelQLeapNet_NN.DuelQLeapNet_NN
     :members:
     :autosummary:
 
-.. autoclass:: l2rpn_baselines.DuelQLeapNet.LeapNet_NNParam.LeapNet_NNParam
+.. autoclass:: l2rpn_baselines.DuelQLeapNet.leapNet_NNParam.LeapNet_NNParam
     :members:
     :autosummary:
