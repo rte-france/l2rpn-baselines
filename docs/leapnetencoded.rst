@@ -39,14 +39,14 @@ These classes need to be imported, if you want to import them with (non exhausti
 
 .. code-block:: python
 
-    from l2rpn_baselines.LeapNetEncoded.LeapNetEncoded_NN import LeapNetEncoded_NN
-    from l2rpn_baselines.LeapNetEncoded.LeapNetEncoded_NNParam import LeapNetEncoded_NNParam
+    from l2rpn_baselines.LeapNetEncoded.leapNetEncoded_NN import LeapNetEncoded_NN
+    from l2rpn_baselines.LeapNetEncoded.leapNetEncoded_NNParam import LeapNetEncoded_NNParam
 
 
-.. autoclass:: l2rpn_baselines.LeapNetEncoded.LeapNetEncoded_NN.LeapNetEncoded_NN
+.. autoclass:: l2rpn_baselines.LeapNetEncoded.leapNetEncoded_NN.LeapNetEncoded_NN
     :members:
     :autosummary:
 
-.. autoclass:: l2rpn_baselines.LeapNetEncoded.LeapNetEncoded_NNParam.LeapNetEncoded_NNParam
+.. autoclass:: l2rpn_baselines.LeapNetEncoded.leapNetEncoded_NNParam.LeapNetEncoded_NNParam
     :members:
     :autosummary:

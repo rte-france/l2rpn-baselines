@@ -120,7 +120,8 @@ class BaseDeepQ(ABC):
 
     def predict_movement(self, data, epsilon, batch_size=None, training=False):
         """
-        Predict movement of game controler where is epsilon probability randomly move."""
+        Predict movement of game controler where is epsilon probability randomly move.
+        """
         if batch_size is None:
             batch_size = data.shape[0]
 
@@ -133,7 +134,13 @@ class BaseDeepQ(ABC):
         return opt_policy, q_actions[np.arange(batch_size), opt_policy], q_actions
 
     def train(self, s_batch, a_batch, r_batch, d_batch, s2_batch, tf_writer=None, batch_size=None):
-        """Trains network to fit given parameters:
+        """
+        Trains network to fit given parameters:
+        
+        .. seealso::
+            https://towardsdatascience.com/dueling-double-deep-q-learning-using-tensorflow-2-x-7bbbcec06a2a
+            for the update rules
+        
         Parameters
         ----------
         s_batch:
@@ -146,9 +153,6 @@ class BaseDeepQ(ABC):
             says whether or not the episode was over
         r_batch:
             the reward obtained this step
-
-        see https://towardsdatascience.com/dueling-double-deep-q-learning-using-tensorflow-2-x-7bbbcec06a2a
-        for the update rules
         """
         if batch_size is None:
             batch_size = s_batch.shape[0]

@@ -50,9 +50,9 @@ class LeapNetEncoded_NNParam(NNParam):
 
     Examples
     --------
-    All other attributes need to be created once by a call to :func:`LeapNetEncoded_NNParam.compute_dims`:
+    All other attributes need to be created once by a call to :func:`l2rpn_baselines.LeapNetEncoded.leapNetEncoded_NNParam.LeapNetEncoded_NNParam.compute_dims`:
 
-    ..code-block:: python
+    .. code-block:: python
 
         nn_archi.compute_dims(env)
         nn_archi.center_reduce(env)
@@ -155,11 +155,21 @@ class LeapNetEncoded_NNParam(NNParam):
         self.tau_dims = tau_dims
 
     def get_obs_attr(self):
+        """
+        Retrieve the list of the observation attributes that are used for this model.
+        """
         res = self.list_attr_obs_x + self.list_attr_obs_input_q
         res += self.list_attr_obs_tau + ["topo_vect"] + self.list_attr_obs_gm_out
         return res
 
     def compute_dims(self, env):
+        """Compute the dimension of the observations (dimension of x and tau)
+
+        Parameters
+        ----------
+        env : a grid2op environment
+            A grid2op environment
+        """
         self.tau_dims = [int(LeapNetEncoded_NNParam.get_obs_size(env, [el])) for el in self.list_attr_obs_tau]
         self.x_dims = [int(LeapNetEncoded_NNParam.get_obs_size(env, [el])) for el in self.list_attr_obs_x]
         self.gm_out_dims = [int(LeapNetEncoded_NNParam.get_obs_size(env, [el])) for el in self.list_attr_obs_gm_out]
@@ -171,6 +181,9 @@ class LeapNetEncoded_NNParam(NNParam):
         setattr(self, varname, vector)
 
     def center_reduce(self, env):
+        """
+        Compute some basic statistics for x and tau
+        """
         self._center_reduce_vect(env.get_obs(), "x")
         self._center_reduce_vect(env.get_obs(), "tau")
         self._center_reduce_vect(env.get_obs(), "gm_out")

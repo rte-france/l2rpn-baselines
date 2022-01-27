@@ -76,11 +76,7 @@ class LeapNetEncoded_NN(BaseDeepQ):
 
     def construct_q_network(self):
         """
-        First the :attr:`l2rpn_baselines.BaseDeepQ.nn_archi` parameters are used to create a neural network
-        to 'encode' the data. Then the leaps occur.
-
-        Afterward the model is split into value an advantage, and treated as usually in any D3QN.
-
+        Builds the Q network.
         """
         # Uses the network architecture found in DeepMind paper
         # The inputs and outputs size have changed, as well as replacing the convolution by dense layers.
@@ -222,12 +218,14 @@ class LeapNetEncoded_NN(BaseDeepQ):
         """process the topology vector.
 
          As input grid2op encode it:
+         
          - -1 disconnected
          - 1 connected to bus 1
          - 2 connected to bus 2
 
          I transform it in a vector having twice as many component with the encoding, if we move
          "by pairs":
+         
          - [1,0] -> disconnected
          - [0,0] -> connected to bus 1  # normal situation
          - [0,1] -> connected to bus 2
