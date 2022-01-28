@@ -179,3 +179,4 @@ l2rpn_baselines/PPO_SB3/saved_model/**
 l2rpn_baselines/PPO_SB3/logs/**
 l2rpn_baselines/PPO_RLLIB/logs/**
 l2rpn_baselines/PPO_RLLIB/saved_model/**
+test_jsonpickle.json

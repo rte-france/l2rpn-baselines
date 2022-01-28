@@ -14,12 +14,11 @@ from l2rpn_baselines.utils.save_log_gif import save_log_gif
 
 from grid2op.gym_compat import BoxGymActSpace, BoxGymObsSpace
 
-from l2rpn_baselines.PPO_SB3.utils import SB3Agent
-
+from l2rpn_baselines.PPO_RLLIB.rllibagent import RLLIBAgent
 
 def evaluate(env,
              load_path=".",
-             name="ppo_stable_baselines",
+             name="ppo_rllib",
              logs_path=None,
              nb_episode=1,
              nb_process=1,
@@ -28,9 +27,8 @@ def evaluate(env,
              save_gif=False,
              **kwargs):
     """
-    This function will use stable baselines 3 to evaluate a previously trained
-    PPO agent (with stable baselines 3) on
-    a grid2op environment "env".
+    This function will use rllib package to evalute a previously trained
+    PPO agent (with rllib) on a grid2op environment "env".
 
     It will use the grid2op "gym_compat" module to convert the action space
     to a BoxActionSpace and the observation to a BoxObservationSpace.
@@ -94,7 +92,7 @@ def evaluate(env,
         import grid2op
         from grid2op.Reward import LinesCapacityReward  # or any other rewards
         from lightsim2grid import LightSimBackend  # highly recommended !
-        from l2rpn_baselines.PPO_SB3 import evaluate
+        from l2rpn_baselines.PPO_RLLIB import evaluate
 
         nb_episode = 7
         nb_process = 1
@@ -136,7 +134,8 @@ def evaluate(env,
             env.close()
 
     """
-
+    import jsonpickle  # lazy loading to save import time
+    
     # load the attributes kept
     my_path = os.path.join(load_path, name)
     if not os.path.exists(load_path):
@@ -153,12 +152,18 @@ def evaluate(env,
     gym_observation_space =  BoxGymObsSpace(env.observation_space, attr_to_keep=obs_attr_to_keep)
     gym_action_space = BoxGymActSpace(env.action_space, attr_to_keep=act_attr_to_keep)
     
+    # retrieve the env config (for rllib)
+    with open(os.path.join(my_path, "env_config.json"), "r", encoding="utf-8") as f:
+        str_ = f.read()
+    env_config_ppo = jsonpickle.decode(str_)
+    
     # create a grid2gop agent based on that (this will reload the save weights)
     full_path = os.path.join(load_path, name)
-    grid2op_agent = SB3Agent(env.action_space,
-                             gym_action_space,
-                             gym_observation_space,
-                             nn_path=os.path.join(full_path, name))
+    grid2op_agent = RLLIBAgent(env.action_space,
+                               gym_action_space,
+                               gym_observation_space,
+                               nn_config=env_config_ppo,
+                               nn_path=os.path.join(full_path))
 
     # Build runner
     runner_params = env.get_params_for_runner()
@@ -193,48 +198,46 @@ def evaluate(env,
         save_log_gif(logs_path, res)
     return grid2op_agent, res
 
-
 if __name__ == "__main__":
+    import grid2op
+    from grid2op.Reward import LinesCapacityReward  # or any other rewards
+    from lightsim2grid import LightSimBackend  # highly recommended !
 
-        import grid2op
-        from grid2op.Reward import LinesCapacityReward  # or any other rewards
-        from lightsim2grid import LightSimBackend  # highly recommended !
+    nb_episode = 7
+    nb_process = 1
+    verbose = True
 
-        nb_episode = 7
-        nb_process = 1
-        verbose = True
+    env_name = "l2rpn_case14_sandbox"
+    env = grid2op.make(env_name,
+                        reward_class=LinesCapacityReward,
+                        backend=LightSimBackend()
+                        )
 
-        env_name = "l2rpn_case14_sandbox"
-        env = grid2op.make(env_name,
-                           reward_class=LinesCapacityReward,
-                           backend=LightSimBackend()
-                           )
+    try:
+        evaluate(env,
+                 nb_episode=nb_episode,
+                 load_path="./saved_model",  # should be the same as what has been called in the train function !
+                 name="test",  # should be the same as what has been called in the train function !
+                 nb_process=1,
+                 verbose=verbose,
+                 )
 
-        try:
-            evaluate(env,
-                     nb_episode=nb_episode,
-                     load_path="./saved_model", 
-                     name="test",
-                     nb_process=1,
-                     verbose=verbose,
-                     )
+        # you can also compare your agent with the do nothing agent relatively
+        # easily
+        runner_params = env.get_params_for_runner()
+        runner = Runner(**runner_params)
 
-            # you can also compare your agent with the do nothing agent relatively
-            # easily
-            runner_params = env.get_params_for_runner()
-            runner = Runner(**runner_params)
+        res = runner.run(nb_episode=nb_episode,
+                        nb_process=nb_process
+                        )
 
-            res = runner.run(nb_episode=nb_episode,
-                            nb_process=nb_process
-                            )
-
-            # Print summary
-            if verbose:
-                print("Evaluation summary for DN:")
-                for _, chron_name, cum_reward, nb_time_step, max_ts in res:
-                    msg_tmp = "chronics at: {}".format(chron_name)
-                    msg_tmp += "\ttotal score: {:.6f}".format(cum_reward)
-                    msg_tmp += "\ttime steps: {:.0f}/{:.0f}".format(nb_time_step, max_ts)
-                    print(msg_tmp)
-        finally:
-            env.close()
+        # Print summary
+        if verbose:
+            print("Evaluation summary for DN:")
+            for _, chron_name, cum_reward, nb_time_step, max_ts in res:
+                msg_tmp = "chronics at: {}".format(chron_name)
+                msg_tmp += "\ttotal score: {:.6f}".format(cum_reward)
+                msg_tmp += "\ttime steps: {:.0f}/{:.0f}".format(nb_time_step, max_ts)
+                print(msg_tmp)
+    finally:
+        env.close()

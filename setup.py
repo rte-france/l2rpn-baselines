@@ -34,26 +34,30 @@ pkgs = {
                      "torch>=1.4.0",
                      "scikit-learn>=0.22.2",
                      "gym>=0.17.1"
-                     ]
+                     ],
+        "rllib": ["ray[rllib]",
+                  "jsonpickle",
+                  "lightsim2grid"],
+        "stable_baselines": ["stable_baselines3"]
     }
 }
 
+with open("README.md", "r", encoding="utf-8") as fh:
+    long_description = fh.read()
+    
 
 setup(name='l2rpn_baselines',
       version=__version__,
       description='L2RPN Baselines a repository to host ' \
       'baselines for l2rpn competitions.',
-      long_description='This repository aims at facilitating ' \
-      'the use of state of the art algorithm in coming from the ' \
-      'reinforcement learning community or the power system ' \
-      'community in the l2rpn competitions. It  also provides ' \
-      'some usefull function to make life or participants to the ' \
-      'l2rpn competitions easier.',
+      long_description=long_description,
+      long_description_content_type="text/markdown",
       classifiers=[
           'Development Status :: 4 - Beta',
           'Programming Language :: Python :: 3.6',
           'Programming Language :: Python :: 3.7',
           'Programming Language :: Python :: 3.8',
+          'Programming Language :: Python :: 3.9',
           "License :: OSI Approved :: Mozilla Public License 2.0 (MPL 2.0)",
           "Intended Audience :: Developers",
           "Intended Audience :: Education",

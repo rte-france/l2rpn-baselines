@@ -40,15 +40,17 @@ class GymAgent(BaseAgent):
                  gym_obs_space,
                  *,  # to prevent positional argument
                  nn_path=None,
-                 nn_kwargs=None):
+                 nn_kwargs=None,
+                 _check_both_set=True,
+                 _check_none_set=True):
         super().__init__(g2op_action_space)
         self._gym_act_space = gym_act_space
         self._gym_obs_space = gym_obs_space
-        if nn_path is None and nn_kwargs is None:
+        if _check_none_set and (nn_path is None and nn_kwargs is None):
             raise RuntimeError("Impossible to build a GymAgent without providing at "
                                "least one of `nn_path` (to load the agent from disk) "
                                "or `nn_kwargs` (to create the underlying agent).")
-        if nn_path is not None and nn_kwargs is not None:
+        if _check_both_set and (nn_path is not None and nn_kwargs is not None):
             raise RuntimeError("Impossible to build a GymAgent by providing both "
                                "`nn_path` (*ie* you want load the agent from disk) "
                                "and `nn_kwargs` (*ie* you want to create the underlying agent from these "

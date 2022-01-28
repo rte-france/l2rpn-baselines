@@ -4,6 +4,8 @@ Change Log
 [TODO]
 --------
 - wirte github issue templates for normal bugs and also for contributions
+- in the "examples" folder, make some examples for possible "submissions"
+  usable in the competition for PPO_SB3 and PPO_RLLIB
 - code a baseline example using ray / rllib
 - code a baseline example using mazerl
 - code a baseline using deepmind acme

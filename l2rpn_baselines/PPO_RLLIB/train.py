@@ -12,12 +12,17 @@ import copy
 from l2rpn_baselines.PPO_RLLIB.env_rllib import Env_RLLIB
 from l2rpn_baselines.PPO_SB3 import (default_obs_attr_to_keep, 
                                      default_act_attr_to_keep,
-                                     save_used_attribute
+                                     save_used_attribute,
+                                     remove_non_usable_attr
                                     )
 
-import ray
-from ray.rllib.agents import ppo
-from ray.tune.logger import pretty_print
+try:
+    import ray
+    from ray.rllib.agents import ppo
+    from ray.tune.logger import pretty_print
+    _CAN_USE_RLLIB = True
+except ImportError as exc_:
+    _CAN_USE_RLLIB = False
 
 def train(env,
           name="ppo_rllib",
@@ -130,6 +135,7 @@ def train(env,
 
         import re
         import grid2op
+        import ray
         from grid2op.Reward import LinesCapacityReward  # or any other rewards
         from grid2op.Chronics import MultifolderWithCache  # highly recommended
         from lightsim2grid import LightSimBackend  # highly recommended for training !
@@ -137,7 +143,8 @@ def train(env,
         env_name = "l2rpn_case14_sandbox"
         env = grid2op.make(env_name,
                            backend=LightSimBackend())
-            
+
+        ray.init()  # if needed (you might have it already working somewhere)
         try:
             train(env,
                 iterations=10,  # any number of iterations you want
@@ -155,10 +162,12 @@ def train(env,
                 )
         finally:
             env.close()
+            ray.shutdown()  # if needed (you might have it already working somewhere)
     
     """
-    ray.init()
-
+    import jsonpickle
+    if not _CAN_USE_RLLIB:
+        raise ImportError("RLLIB is not installed on your machine")
     
     if save_path is not None:
         if not os.path.exists(save_path):
@@ -169,6 +178,7 @@ def train(env,
             os.mkdir(path_expe)
             
     # save the attributes kept
+    act_attr_to_keep = remove_non_usable_attr(env, act_attr_to_keep)
     need_saving = save_used_attribute(save_path, name, obs_attr_to_keep, act_attr_to_keep)
     
     if env_kwargs is None:
@@ -181,8 +191,7 @@ def train(env,
                   "act_attr_to_keep": default_act_attr_to_keep, 
                   **env_kwargs}
     
-    # then define a "trainer"
-    trainer = ppo.PPOTrainer(env=Env_RLLIB, config={
+    env_config_ppo = {
         # config to pass to env class
         "env_config": env_config,
         #neural network config
@@ -191,7 +200,16 @@ def train(env,
             "fcnet_hiddens": net_arch,
         },
         **kwargs
-    })
+    }
+    
+    # store it
+    encoded = jsonpickle.encode(env_config_ppo)
+    with open(os.path.join(path_expe, "env_config.json"), "w", encoding="utf-8") as f:
+        f.write(encoded)
+    
+    # then define a "trainer"
+    # TODO what if we want to restore it !
+    trainer = ppo.PPOTrainer(env=Env_RLLIB, config=env_config_ppo)
     for step in range(iterations):
         # Perform one iteration of training the policy with PPO
         result = trainer.train()
@@ -202,7 +220,6 @@ def train(env,
             checkpoint = trainer.save(checkpoint_dir=path_expe)
             
     checkpoint = trainer.save(checkpoint_dir=path_expe)
-    ray.shutdown()
     return trainer
     
     
@@ -212,11 +229,14 @@ if __name__ == "__main__":
     from grid2op.Reward import LinesCapacityReward  # or any other rewards
     from grid2op.Chronics import MultifolderWithCache  # highly recommended
     from lightsim2grid import LightSimBackend  # highly recommended for training !
-        
+    import ray
+    
+    
     env_name = "l2rpn_case14_sandbox"
     env = grid2op.make(env_name,
                        backend=LightSimBackend())
-        
+    
+    ray.init()
     try:
         train(env,
               iterations=10,  # any number of iterations you want
@@ -234,4 +254,4 @@ if __name__ == "__main__":
               )
     finally:
         env.close()
-
+        ray.shutdown()
