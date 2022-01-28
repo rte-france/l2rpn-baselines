@@ -1,9 +1,17 @@
 Change Log
 ===========
+
 [TODO]
 --------
+- wirte github issue templates for normal bugs and also for contributions
 - code a baseline example using ray / rllib
 - code a baseline example using mazerl
+- code a baseline using deepmind acme
+- code a baseline with a GNN somewhere
+- show an example on how to use some "heuristic" in training / evaluation of trained agents
+- show an example of model based RL agent
+- train sowhere a working baseline (that does better than do nothing)
+- refactor the `utils.DeepQAgent` to split the different part better: starting at different steps, not training for a certain number of steps, sampling hard scenarios etc.
 - stack multiple states in `utils/DeepQAgent`
 
 [0.6.0] - 2022-xx-yy

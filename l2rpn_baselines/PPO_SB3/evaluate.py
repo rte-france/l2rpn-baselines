@@ -94,7 +94,7 @@ def evaluate(env,
         from grid2op.Reward import LinesCapacityReward  # or any other rewards
         from grid2op.Chronics import MultifolderWithCache  # highly recommended
         from lightsim2grid import LightSimBackend  # highly recommended !
-        from l2rpn_baselines.ppo_stablebaselines import evaluate
+        from l2rpn_baselines.PPO_SB3 import evaluate
 
         nb_episode = 7
         nb_process = 1

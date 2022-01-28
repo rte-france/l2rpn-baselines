@@ -176,3 +176,6 @@ test_import_pposb.py
 test_make_gym_env.py
 test_multifolderwithcache.py
 l2rpn_baselines/PPO_SB3/saved_model/**
+l2rpn_baselines/PPO_SB3/logs/**
+l2rpn_baselines/PPO_RLLIB/logs/**
+l2rpn_baselines/PPO_RLLIB/saved_model/**

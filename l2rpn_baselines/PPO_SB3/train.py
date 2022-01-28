@@ -29,16 +29,14 @@ except ImportError:
         It represents `from stable_baselines3.ppo import MlpPolicy`
         """
     
-_default_obs_attr_to_keep = ["day_of_week", "hour_of_day", "minute_of_hour", "prod_p", "prod_v", "load_p", "load_q",
-                             "actual_dispatch", "target_dispatch", "topo_vect", "time_before_cooldown_line",
-                             "time_before_cooldown_sub", "rho", "timestep_overflow", "line_status",
-                             "storage_power", "storage_charge"]
-
-_default_act_attr_to_keep = ["redispatch", "curtail", "set_storage"]
+from l2rpn_baselines.PPO_SB3.utils import (default_obs_attr_to_keep, 
+                                           default_act_attr_to_keep,
+                                           remove_non_usable_attr,
+                                           save_used_attribute)
 
 
 def train(env,
-          name="ppo_stable_baselines",
+          name="PPO_SB3",
           iterations=1,
           save_path=None,
           load_path=None,
@@ -47,8 +45,8 @@ def train(env,
           learning_rate=3e-4,
           save_every_xxx_steps=None,
           model_policy=MlpPolicy,
-          obs_attr_to_keep=copy.deepcopy(_default_obs_attr_to_keep),
-          act_attr_to_keep=copy.deepcopy(_default_act_attr_to_keep),
+          obs_attr_to_keep=copy.deepcopy(default_obs_attr_to_keep),
+          act_attr_to_keep=copy.deepcopy(default_act_attr_to_keep),
           **kwargs):
     """
     This function will use stable baselines 3 to train a PPO agent on
@@ -141,7 +139,7 @@ def train(env,
         from grid2op.Reward import LinesCapacityReward  # or any other rewards
         from grid2op.Chronics import MultifolderWithCache  # highly recommended
         from lightsim2grid import LightSimBackend  # highly recommended for training !
-        from l2rpn_baselines.ppo_stablebaselines import train
+        from l2rpn_baselines.PPO_SB3 import train
 
         env_name = "l2rpn_case14_sandbox"
         env = grid2op.make(env_name,
@@ -169,32 +167,14 @@ def train(env,
     """
     if not _CAN_USE_STABLE_BASELINE:
         raise ImportError("Cannot use this function as stable baselines3 is not installed")
-    if act_attr_to_keep == _default_act_attr_to_keep:
-        # by default, i remove all the attributes that are not supported by the action type
-        # i do not do that if the user specified specific attributes to keep. This is his responsibility in
-        # in this case
-        modif_attr = []
-        for el in act_attr_to_keep:
-            if env.action_space.supports_type(el):
-                modif_attr.append(el)
-            else:
-                warnings.warn(f"attribute {el} cannot be processed by the allowed "
-                              "action type. It has been removed from the "
-                              "gym space as well.")
-        act_attr_to_keep = modif_attr
-
+    
+    # keep only usable attributes (if default is used)
+    act_attr_to_keep = remove_non_usable_attr(env, act_attr_to_keep)
+    
+    # save the attributes kept
     if save_path is not None:
-        # save the attributes kept
         my_path = os.path.join(save_path, name)
-        if not os.path.exists(save_path):
-            os.mkdir(save_path)
-        if not os.path.exists(my_path):
-            os.mkdir(my_path)
-
-        with open(os.path.join(my_path, "obs_attr_to_keep.json"), encoding="utf-8", mode="w") as f:
-            json.dump(fp=f, obj=obs_attr_to_keep)
-        with open(os.path.join(my_path, "act_attr_to_keep.json"), encoding="utf-8", mode="w") as f:
-            json.dump(fp=f, obj=act_attr_to_keep)
+    save_used_attribute(save_path, name, obs_attr_to_keep, act_attr_to_keep)
 
     # define the gym environment from the grid2op env
     env_gym = GymEnv(env)
@@ -264,12 +244,11 @@ if __name__ == "__main__":
     env.chronics_handler.real_data.reset()
     # see https://grid2op.readthedocs.io/en/latest/environment.html#optimize-the-data-pipeline
     # for more information !
-
     train(env,
-          iterations=10_000_000,
+          iterations=1_000,
           logs_dir="./logs",
           save_path="./saved_model", 
-          name="test2",
+          name="test3",
           net_arch=[200, 200, 200],
           save_every_xxx_steps=2000,
           )
