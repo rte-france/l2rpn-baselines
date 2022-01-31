@@ -54,6 +54,92 @@ class RLLIBAgent(GymAgent):
         from l2rpn_baselines.PPO_RLLIB import Env_RLLIB
         PPOTrainer(env=Env_RLLIB, config=nn_config)
     
+    Examples
+    ---------
+    The best way to have such an agent is either to train it:
+    
+    .. code-block:: python
+    
+        from l2rpn_baselnes.PPO_RLLIB import train
+        agent = train(...)  # see the doc of the `train` function !
+        
+    Or you can also load it when you evaluate it (after it has been trained !):
+    
+    .. code-block:: python
+    
+        from l2rpn_baselnes.PPO_RLLIB import evaluate
+        agent = evaluate(...)  # see the doc of the `evaluate` function !
+        
+    To create such an agent from scratch (NOT RECOMMENDED), you can do:
+    
+    .. code-block:: python
+
+        import grid2op
+        from grid2op.gym_compat import BoxGymObsSpace, BoxGymActSpace, GymEnv
+        from lightsim2grid import LightSimBackend
+        
+        from l2rpn_baselnes.PPO_RLLIB import RLLIBAgent
+            
+        env_name = "l2rpn_case14_sandbox"  # or any other name
+        
+        # customize the observation / action you want to keep
+        obs_attr_to_keep = ["day_of_week", "hour_of_day", "minute_of_hour", "prod_p", "prod_v", "load_p", "load_q",
+                            "actual_dispatch", "target_dispatch", "topo_vect", "time_before_cooldown_line",
+                            "time_before_cooldown_sub", "rho", "timestep_overflow", "line_status",
+                            "storage_power", "storage_charge"]
+        act_attr_to_keep = ["redispatch"]
+        
+        # create the grid2op environment
+        env = grid2op.make(env_name, backend=LightSimBackend())
+        
+        # define the action space and observation space that your agent
+        # will be able to use
+        gym_observation_space = BoxGymObsSpace(env.observation_space, attr_to_keep=obs_attr_to_keep)
+        gym_action_space = BoxGymActSpace(env.action_space, attr_to_keep=act_attr_to_keep)
+
+        # define the configuration for the environment
+        env_config = {"env_name": env.env_name,
+                      "backend_class": LightSimBackend,
+                      "obs_attr_to_keep": obs_attr_to_keep,
+                      "act_attr_to_keep": act_attr_to_keep, 
+                      # other type of parameters used in the "grid2op.make"
+                      # function eg:
+                      # "param": ...
+                      # "reward_class": ...
+                      # "other_reward": ...
+                      # "difficulty": ...
+                      }
+
+        # now define the configuration for the PPOTrainer
+        env_config_ppo = {
+            # config to pass to env class
+            "env_config": env_config,
+            #neural network config
+            "lr": 1e-4, # learning_rate
+            "model": {
+                "fcnet_hiddens": [100, 100, 100],  # neural net architecture
+            },
+            # other keyword arguments
+        }
+        
+        # create a grid2gop agent based on that (this will reload the save weights)
+        grid2op_agent = RLLIBAgent(env.action_space,
+                                    gym_action_space,
+                                    gym_observation_space,
+                                    nn_config=env_config_ppo,
+                                    nn_path=None  # don't load it from anywhere
+                                    )
+        
+        # use it
+        obs = env.reset()
+        reward = env.reward_range[0]
+        done = False
+        grid2op_act = grid2op_agent.act(obs, reward, done)
+        obs, reward, done, info = env.step(grid2op_act)
+        
+        # NB: the agent above is NOT trained ! So it's likely to output "random" 
+        # actions !
+                                   
     """
     def __init__(self,
                  g2op_action_space,
@@ -136,3 +222,64 @@ class RLLIBAgent(GymAgent):
             
         """
         self.nn_model = PPOTrainer(**self._nn_kwargs)
+
+if __name__ == "__main__":
+    import grid2op
+    from grid2op.gym_compat import BoxGymObsSpace, BoxGymActSpace
+    from lightsim2grid import LightSimBackend
+    
+    env_name = "l2rpn_case14_sandbox"  # or any other name
+    obs_attr_to_keep = ["day_of_week", "hour_of_day", "minute_of_hour", "prod_p", "prod_v", "load_p", "load_q",
+                        "actual_dispatch", "target_dispatch", "topo_vect", "time_before_cooldown_line",
+                        "time_before_cooldown_sub", "rho", "timestep_overflow", "line_status",
+                        "storage_power", "storage_charge"]
+    act_attr_to_keep = ["redispatch"]
+    
+    # create the grid2op environment
+    env = grid2op.make(env_name, backend=LightSimBackend())
+    
+    # define the action space and observation space that your agent
+    # will be able to use
+    gym_observation_space =  BoxGymObsSpace(env.observation_space, attr_to_keep=obs_attr_to_keep)
+    gym_action_space = BoxGymActSpace(env.action_space, attr_to_keep=act_attr_to_keep)
+
+    # define the configuration for the environment
+    env_config = {"env_name": env.env_name,
+                  "backend_class": LightSimBackend,
+                  "obs_attr_to_keep": obs_attr_to_keep,
+                  "act_attr_to_keep": act_attr_to_keep, 
+                    # other type of parameters used in the "grid2op.make"
+                    # function eg:
+                    # "param": ...
+                    # "reward_class": ...
+                    # "other_reward": ...
+                    # "difficulty": ...
+                    }
+
+    # now define the configuration for the PPOTrainer
+    env_config_ppo = {
+        # config to pass to env class
+        "env_config": env_config,
+        #neural network config
+        "lr": 1e-4, # learning_rate
+        "model": {
+            "fcnet_hiddens": [100, 100, 100],  # neural net architecture
+        },
+        # other keyword arguments
+    }
+    
+    # create a grid2gop agent based on that (this will reload the save weights)
+    grid2op_agent = RLLIBAgent(env.action_space,
+                                gym_action_space,
+                                gym_observation_space,
+                                nn_config=env_config_ppo,
+                                nn_path=None  # don't load it from anywhere
+                                )
+    
+    # use it
+    obs = env.reset()
+    reward = env.reward_range[0]
+    done = False
+    grid2op_act = grid2op_agent.act(obs, reward, done)
+    obs, reward, done, info = env.step(grid2op_act)
+    

@@ -195,6 +195,7 @@ def train(env,
     # it is not necessary to save it again here. But if you chose not to follow these advice, it is more than
     # recommended to save the "baseline" at the end of this function with:
     # baseline.save(path_save)
+    return baseline
 
 
 if __name__ == "__main__":
@@ -205,7 +206,7 @@ if __name__ == "__main__":
     from grid2op.Reward import L2RPNReward
     import re
     try:
-        from lightsim2grid.LightSimBackend import LightSimBackend
+        from lightsim2grid import LightSimBackend
         backend = LightSimBackend()
     except:
         from grid2op.Backend import PandaPowerBackend

@@ -17,8 +17,8 @@ from grid2op.gym_compat import BoxGymActSpace, BoxGymObsSpace
 from l2rpn_baselines.PPO_RLLIB.rllibagent import RLLIBAgent
 
 def evaluate(env,
-             load_path=".",
              name="ppo_rllib",
+             load_path=".",
              logs_path=None,
              nb_episode=1,
              nb_process=1,
@@ -83,9 +83,7 @@ def evaluate(env,
     Examples
     ---------
 
-    Here is an example on how to train a ppo_stablebaseline .
-
-    First define a python script, for example
+    Here is an example on how to evaluate a PPO agent (trained using RLLIB):
 
     .. code-block:: python
 
@@ -217,7 +215,7 @@ if __name__ == "__main__":
         evaluate(env,
                  nb_episode=nb_episode,
                  load_path="./saved_model",  # should be the same as what has been called in the train function !
-                 name="test",  # should be the same as what has been called in the train function !
+                 name="test3",  # should be the same as what has been called in the train function !
                  nb_process=1,
                  verbose=verbose,
                  )

@@ -179,10 +179,11 @@ def train(env,
     # define the gym environment from the grid2op env
     env_gym = GymEnv(env)
     env_gym.observation_space.close()
-    env_gym.observation_space =  BoxGymObsSpace(env.observation_space,
-                                                attr_to_keep=obs_attr_to_keep)
+    env_gym.observation_space = BoxGymObsSpace(env.observation_space,
+                                               attr_to_keep=obs_attr_to_keep)
     env_gym.action_space.close()
-    env_gym.action_space = BoxGymActSpace(env.action_space, attr_to_keep=act_attr_to_keep)
+    env_gym.action_space = BoxGymActSpace(env.action_space,
+                                          attr_to_keep=act_attr_to_keep)
 
 
     # Save a checkpoint every 1000 steps
@@ -205,26 +206,28 @@ def train(env,
         if logs_dir is not None:
             if not os.path.exists(logs_dir):
                 os.mkdir(logs_dir)
-        model = PPO(model_policy,
-                    env_gym,
-                    verbose=1,
-                    learning_rate=learning_rate,
-                    tensorboard_log=os.path.join(logs_dir, name),
-                    policy_kwargs=policy_kwargs,
-                    **kwargs)
+        # model = PPO(model_policy,
+        #             env_gym,
+        #             verbose=1,
+        #             learning_rate=learning_rate,
+        #             tensorboard_log=os.path.join(logs_dir, name),
+        #             policy_kwargs=policy_kwargs,
+        #             **kwargs)
+        agent = ...
     else:
-        # TODO !
         model = PPO.load(os.path.join(load_path, name))
+        agent = ...
 
     # train it
-    model.learn(total_timesteps=iterations,
-                callback=checkpoint_callback)
+    agent.nn_model.learn(total_timesteps=iterations,
+                         callback=checkpoint_callback)
 
     # save it
     if save_path is not None:
         model.save(os.path.join(my_path, name))
 
     env_gym.close()
+    return agent  # TODO
 
 if __name__ == "__main__":
 

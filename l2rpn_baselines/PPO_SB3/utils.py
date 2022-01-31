@@ -131,6 +131,75 @@ class SB3Agent(GymAgent):
     - `nn_kwargs`: the parameters used to build the neural network from scratch.
     
     Exactly one of `nn_path` and `nn_kwargs` should be provided. No more, no less.
+    
+    Examples
+    ---------
+    
+    The best way to have such an agent is either to train it:
+    
+    .. code-block:: python
+    
+        from l2rpn_baselnes.PPO_SB3 import train
+        agent = train(...)  # see the doc of the `train` function !
+        
+    Or you can also load it when you evaluate it (after it has been trained !):
+    
+    .. code-block:: python
+    
+        from l2rpn_baselnes.PPO_SB3 import evaluate
+        agent = evaluate(...)  # see the doc of the `evaluate` function !
+        
+    To create such an agent from scratch (NOT RECOMMENDED), you can do:
+    
+    .. code-block:: python
+
+        import grid2op
+        from grid2op.gym_compat import BoxGymObsSpace, BoxGymActSpace, GymEnv
+        from lightsim2grid import LightSimBackend
+        
+        from l2rpn_baselnes.PPO_SB3 import PPO_SB3
+            
+        env_name = "l2rpn_case14_sandbox"  # or any other name
+        
+        # customize the observation / action you want to keep
+        obs_attr_to_keep = ["day_of_week", "hour_of_day", "minute_of_hour", "prod_p", "prod_v", "load_p", "load_q",
+                            "actual_dispatch", "target_dispatch", "topo_vect", "time_before_cooldown_line",
+                            "time_before_cooldown_sub", "rho", "timestep_overflow", "line_status",
+                            "storage_power", "storage_charge"]
+        act_attr_to_keep = ["redispatch", "curtail", "set_storage"]
+        
+        # create the grid2op environment
+        env = grid2op.make(env_name, backend=LightSimBackend())
+        
+        # define the action space and observation space that your agent
+        # will be able to use
+        env_gym = GymEnv(env)
+        env_gym.observation_space.close()
+        env_gym.observation_space = BoxGymObsSpace(env.observation_space,
+                                                attr_to_keep=obs_attr_to_keep)
+        env_gym.action_space.close()
+        env_gym.action_space = BoxGymActSpace(env.action_space,
+                                            attr_to_keep=act_attr_to_keep)
+        
+        # create the key word arguments used for the NN
+        nn_kwargs = {
+            "policy": MlpPolicy,
+            "env": env_gym,
+            "verbose": 0,
+            "learning_rate": 1e-3,
+            "tensorboard_log": ...,
+            "policy_kwargs": {
+                "net_arch": [100, 100, 100]
+            }
+        }
+        
+        # create a grid2gop agent based on that (this will reload the save weights)
+        grid2op_agent = PPO_SB3(env.action_space,
+                                env_gym.action_space,
+                                env_gym.observation_space,
+                                nn_kwargs=nn_kwargs  # don't load it from anywhere
+                               )
+        
     """
     def __init__(self,
                  g2op_action_space,
@@ -187,3 +256,54 @@ class SB3Agent(GymAgent):
             PPO(**nn_kwargs)
         """
         self.nn_model = PPO(**self._nn_kwargs)
+
+if __name__ == "__main__":
+    PPO_SB3 = SB3Agent
+    
+    import grid2op
+    from grid2op.gym_compat import BoxGymObsSpace, BoxGymActSpace, GymEnv
+    from lightsim2grid import LightSimBackend
+    from stable_baselines3.ppo import MlpPolicy
+    
+    # from l2rpn_baselnes.PPO_SB3 import PPO_SB3
+        
+    env_name = "l2rpn_case14_sandbox"  # or any other name
+    
+    # customize the observation / action you want to keep
+    obs_attr_to_keep = ["day_of_week", "hour_of_day", "minute_of_hour", "prod_p", "prod_v", "load_p", "load_q",
+                        "actual_dispatch", "target_dispatch", "topo_vect", "time_before_cooldown_line",
+                        "time_before_cooldown_sub", "rho", "timestep_overflow", "line_status",
+                        "storage_power", "storage_charge"]
+    act_attr_to_keep = ["redispatch", "curtail", "set_storage"]
+    
+    # create the grid2op environment
+    env = grid2op.make(env_name, backend=LightSimBackend())
+    
+    # define the action space and observation space that your agent
+    # will be able to use
+    env_gym = GymEnv(env)
+    env_gym.observation_space.close()
+    env_gym.observation_space = BoxGymObsSpace(env.observation_space,
+                                               attr_to_keep=obs_attr_to_keep)
+    env_gym.action_space.close()
+    env_gym.action_space = BoxGymActSpace(env.action_space,
+                                          attr_to_keep=act_attr_to_keep)
+    
+    # create the key word arguments used for the NN
+    nn_kwargs = {
+        "policy": MlpPolicy,
+        "env": env_gym,
+        "verbose": 0,
+        "learning_rate": 1e-3,
+        "tensorboard_log": ...,
+        "policy_kwargs": {
+            "net_arch": [100, 100, 100]
+        }
+    }
+    
+    # create a grid2gop agent based on that (this will reload the save weights)
+    grid2op_agent = PPO_SB3(env.action_space,
+                            env_gym.action_space,
+                            env_gym.observation_space,
+                            nn_kwargs=nn_kwargs  # don't load it from anywhere
+                           )

@@ -1,12 +1,12 @@
 .. currentmodule:: l2rpn_baselines.ppo_stablebaselines
 
-PPO Stable Baselines
+PPO: with stable-baselines3
 ===========================================================
 
 Description
 -----------
 This "baseline" aims at providing a code example on how to use an agent
-from the Sable Baselines repository (see https://stable-baselines3.readthedocs.io/en/master/)
+from the Sable Baselines3 repository (see https://stable-baselines3.readthedocs.io/en/master/)
 with grid2op.
 
 It also serve a second goal, to show how to train a PPO agent to perform

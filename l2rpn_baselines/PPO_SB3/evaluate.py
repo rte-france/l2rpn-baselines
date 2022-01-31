@@ -85,9 +85,8 @@ def evaluate(env,
     Examples
     ---------
 
-    Here is an example on how to train a ppo_stablebaseline .
-
-    First define a python script, for example
+    Here is an example on how to evaluate an  PPO agent (previously trained
+    with stable baselines3):
 
     .. code-block:: python
 

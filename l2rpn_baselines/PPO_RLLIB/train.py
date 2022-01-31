@@ -9,12 +9,15 @@
 import os
 import grid2op
 import copy
+from grid2op.gym_compat import GymEnv, BoxGymObsSpace, BoxGymActSpace
+
 from l2rpn_baselines.PPO_RLLIB.env_rllib import Env_RLLIB
 from l2rpn_baselines.PPO_SB3 import (default_obs_attr_to_keep, 
                                      default_act_attr_to_keep,
                                      save_used_attribute,
                                      remove_non_usable_attr
                                     )
+from l2rpn_baselines.PPO_RLLIB.rllibagent import RLLIBAgent
 
 try:
     import ray
@@ -24,11 +27,12 @@ try:
 except ImportError as exc_:
     _CAN_USE_RLLIB = False
 
+
 def train(env,
           name="ppo_rllib",
           iterations=1,
           save_path=None,
-          load_path=None,  # TODO
+          load_path=None,
           net_arch=None,
           learning_rate=3e-4,
           verbose=False,
@@ -147,19 +151,19 @@ def train(env,
         ray.init()  # if needed (you might have it already working somewhere)
         try:
             train(env,
-                iterations=10,  # any number of iterations you want
-                save_path="./saved_model",  # where the NN weights will be saved
-                name="test",  # name of the baseline
-                net_arch=[100, 100, 100],  # architecture of the NN
-                save_every_xxx_steps=2,  # save the NN every 2 training steps
-                env_kwargs={"reward_class": LinesCapacityReward,
-                            "chronics_class": MultifolderWithCache,  # highly recommended
-                            "data_feeding_kwargs": {
-                                'filter_func': lambda x: re.match(".*00$", x) is not None  #use one over 100 chronics to train (for speed)
-                                }
-                },
-                verbose=True
-                )
+                  iterations=10,  # any number of iterations you want
+                  save_path="./saved_model",  # where the NN weights will be saved
+                  name="test",  # name of the baseline
+                  net_arch=[100, 100, 100],  # architecture of the NN
+                  save_every_xxx_steps=2,  # save the NN every 2 training steps
+                  env_kwargs={"reward_class": LinesCapacityReward,
+                              "chronics_class": MultifolderWithCache,  # highly recommended
+                              "data_feeding_kwargs": {
+                                  'filter_func': lambda x: re.match(".*00$", x) is not None  #use one over 100 chronics to train (for speed)
+                                  }
+                  },
+                  verbose=True
+                  )
         finally:
             env.close()
             ray.shutdown()  # if needed (you might have it already working somewhere)
@@ -187,8 +191,8 @@ def train(env,
     env_params = env.get_kwargs()
     env_config = {"env_name": env.env_name,
                   "backend_class": env_params["_raw_backend_class"],
-                  "obs_attr_to_keep": default_obs_attr_to_keep,
-                  "act_attr_to_keep": default_act_attr_to_keep, 
+                  "obs_attr_to_keep": obs_attr_to_keep,
+                  "act_attr_to_keep": act_attr_to_keep, 
                   **env_kwargs}
     
     env_config_ppo = {
@@ -201,26 +205,40 @@ def train(env,
         },
         **kwargs
     }
-    
+        
     # store it
     encoded = jsonpickle.encode(env_config_ppo)
     with open(os.path.join(path_expe, "env_config.json"), "w", encoding="utf-8") as f:
         f.write(encoded)
     
+    # define the gym environment from the grid2op env
+    env_gym = GymEnv(env)
+    env_gym.observation_space.close()
+    env_gym.observation_space = BoxGymObsSpace(env.observation_space,
+                                               attr_to_keep=obs_attr_to_keep)
+    env_gym.action_space.close()
+    env_gym.action_space = BoxGymActSpace(env.action_space,
+                                          attr_to_keep=act_attr_to_keep)
     # then define a "trainer"
-    # TODO what if we want to restore it !
-    trainer = ppo.PPOTrainer(env=Env_RLLIB, config=env_config_ppo)
+    agent = RLLIBAgent(g2op_action_space=env.action_space,
+                       gym_act_space=env_gym.action_space,
+                       gym_obs_space=env_gym.observation_space,
+                       nn_config=env_config_ppo,
+                       nn_path=load_path)
+    
     for step in range(iterations):
         # Perform one iteration of training the policy with PPO
-        result = trainer.train()
+        result = agent.nn_model.train()
         if verbose:
             print(pretty_print(result))
 
         if need_saving and step % save_every_xxx_steps == 0:
-            checkpoint = trainer.save(checkpoint_dir=path_expe)
+            agent.nn_model.save(checkpoint_dir=path_expe)
             
-    checkpoint = trainer.save(checkpoint_dir=path_expe)
-    return trainer
+    if need_saving:
+        agent.nn_model.save(checkpoint_dir=path_expe)
+        
+    return agent
     
     
 if __name__ == "__main__":
@@ -241,7 +259,7 @@ if __name__ == "__main__":
         train(env,
               iterations=10,  # any number of iterations you want
               save_path="./saved_model",  # where the NN weights will be saved
-              name="test",  # name of the baseline
+              name="test3",  # name of the baseline
               net_arch=[100, 100, 100],  # architecture of the NN
               save_every_xxx_steps=2,  # save the NN every 2 training steps
               env_kwargs={"reward_class": LinesCapacityReward,

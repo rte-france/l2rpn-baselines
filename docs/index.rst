@@ -10,9 +10,6 @@ Welcome to l2rpn-baselines's documentation!
 In this documentation we expose first what is this package about and how to contribute, and then which baselines
 are already implemented in this package.
 
-How to contribute
-------------------
-
 .. toctree::
    :maxdepth: 2
    :caption: How to contribute
@@ -20,54 +17,78 @@ How to contribute
    template
    donothing
 
-Baseline already Available
----------------------------
+Open source libraries
+----------------------
 
-These are the "baselines" that are available. Please note that each of these baselines
-is provided as an example of what can be achieved with grid2op.
+Lots of reinforcement learning algorithms are already implemented by state of
+the art libraries heavily maintained and updated. 
 
-It can serve a possible implementation for a usecase. At the moment, we do not provide
-baseline with hyper parameters tuned that performs correctly.
+We highly recommend to use such packages if you would like to apply reinforcement
+learning to the power grid control problem.
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 1
+   :caption: Open source libraries
+
+   ppo_stable_baselines
+   ppo_rllib
+
+Other contributions
+---------------------
+
+In this section, we grouped up some noticeable contributions for the powergrid control 
+problem. 
+
+These solutions comes either from past top performers of the l2rpn competitions, or
+from custom implementation of some published research performing well
+in some environment.
+
+.. toctree::
+   :maxdepth: 1
+   :caption: Open source libraries
+
+   expertagent
+   external_contributions
+
+Custom implementation
+---------------------------
+
+.. note::
+   WORK IN PROGRESS
+
+For more "in depth" look at what is possible to do, we also wrote some 
+custom implementation of some reinforcement learning algorithms.
+
+We do not necessarily recommend to have a deep look at these packages. However,
+you can check them out if you need some inspiration of what can be done by
+using grid2op more closely that through the gym interface.
+
+.. toctree::
+   :maxdepth: 1
    :caption: Reference baselines
 
    utils
    deepqsimple
    doubleduelingdqn
    duelqsimple
-   expertagent
-   ppo_stable_baselines
-
-
-More advanced baselines
-------------------------
-
-.. toctree::
-   :maxdepth: 2
-   :caption: More advanced baselines and Contributions
-
    duelqleapnet
    doubleduelingrdqn
    leapnetencoded
-   external_contributions
 
 
 Deprecated baselines
 ---------------------------
 
+.. warning::
+   These are "deprecated", won't be fixed / maintained and are not likely to work.
+
+This section is mainly here for "history".
+
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 1
    :caption: Deprecated baselines
 
    sacold
-
-
-Contributions
--------------
-
-TODO
 
 Indices and tables
 ==================
