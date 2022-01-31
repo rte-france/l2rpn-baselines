@@ -27,18 +27,16 @@ pkgs = {
             "sphinxcontrib-trio>=1.1.0",
             "autodocsumm>=0.1.13"
         ],
-        "challenge": ["grid2op[challenge]>=0.9.1.post1"],
-        "optional": ["grid2op[optional]>=1.2.0",
+        "optional": ["grid2op[optional]>=1.6.5",
                      "tensorflow>=2.2.0",
                      "Keras>=2.3.1",
                      "torch>=1.4.0",
                      "scikit-learn>=0.22.2",
-                     "gym>=0.17.1"
                      ],
-        "rllib": ["ray[rllib]",
-                  "jsonpickle",
-                  "lightsim2grid"],
-        "stable_baselines": ["stable_baselines3"]
+        "PPO_RLLIB": ["ray[rllib]",
+                      "jsonpickle",
+                      "lightsim2grid"],
+        "PPO_SB3": ["stable_baselines3"]
     }
 }
 

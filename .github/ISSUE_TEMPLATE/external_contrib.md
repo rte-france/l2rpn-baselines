@@ -21,14 +21,27 @@ Check your model follows the template code for l2rpn-baselines:
   included into l2rpn-baselines, it will be imported with `from l2rpn_baselines.MyAwesomeModel import MyAwesomeModel`
 
 ## License
-<!--  -->
-Detail here the license that is applicable to your code. It will also be written in the documentation.
+<!-- Detail here the license that is applicable to your code. It will also be written in the documentation. -->
+
+ex. I adopted for the MPL v2.0 license
 
 ## Short description
 <!--This description will appear on the documentation-->
 
 
-## Extra references
+## Required packages (optional)
+<!-- Write here the required packages need for your baselines.
+
+If provided, it will be used to allow the use of your baseline easily by installing with
+`pip install l2rpn-baselines[MyAwesomeModel]`
+(eg. `pip install l2rpn-baselines[PPO_SB3]`)
+-->
+
+- grid2op version xx.yy.zz
+- numpy version xx.yy.zz
+- etc.
+
+## Extra references (optional)
 <!--You can link acamemic papers, experiment results with your contribution  -->
 <!--You can also say on which environment your model has been tested and / or
 on which it does not work. -->
