@@ -183,7 +183,8 @@ def train(env,
             
     # save the attributes kept
     act_attr_to_keep = remove_non_usable_attr(env, act_attr_to_keep)
-    need_saving = save_used_attribute(save_path, name, obs_attr_to_keep, act_attr_to_keep)
+    need_saving_final = save_used_attribute(save_path, name, obs_attr_to_keep, act_attr_to_keep)
+    need_saving = need_saving_final and save_every_xxx_steps is not None
     
     if env_kwargs is None:
         env_kwargs = {}
@@ -195,14 +196,15 @@ def train(env,
                   "act_attr_to_keep": act_attr_to_keep, 
                   **env_kwargs}
     
+    model_dict = {}
+    if net_arch is not None:
+        model_dict["fcnet_hiddens"] = net_arch
     env_config_ppo = {
         # config to pass to env class
         "env_config": env_config,
         #neural network config
         "lr": learning_rate,
-        "model": {
-            "fcnet_hiddens": net_arch,
-        },
+        "model": model_dict,
         **kwargs
     }
         
@@ -235,7 +237,7 @@ def train(env,
         if need_saving and step % save_every_xxx_steps == 0:
             agent.nn_model.save(checkpoint_dir=path_expe)
             
-    if need_saving:
+    if need_saving_final:
         agent.nn_model.save(checkpoint_dir=path_expe)
         
     return agent

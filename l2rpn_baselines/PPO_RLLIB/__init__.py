@@ -6,3 +6,12 @@
 # SPDX-License-Identifier: MPL-2.0
 # This file is part of L2RPN Baselines, L2RPN Baselines a repository to host baselines for l2rpn competitions.
 
+__all__ = [
+    "evaluate",
+    "train",
+    "PPO_RLLIB"
+]
+
+from l2rpn_baselines.PPO_RLLIB.rllibagent import RLLIBAgent as PPO_RLLIB
+from l2rpn_baselines.PPO_RLLIB.evaluate import evaluate
+from l2rpn_baselines.PPO_RLLIB.train import train

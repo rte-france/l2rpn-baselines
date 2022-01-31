@@ -89,6 +89,10 @@ class TestPPOSB3(TestImport, unittest.TestCase):
     def load_module(self):
         return "PPO_SB3"
 
+class TestPPOSB3(TestImport, unittest.TestCase):
+    def load_module(self):
+        return "PPO_RLLIB"
+
 
 # because it deactivates the eager mode
 # class TestPandapowerGeirina(TestImport, unittest.TestCase):
