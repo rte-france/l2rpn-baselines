@@ -51,6 +51,9 @@ def train(env,
           obs_attr_to_keep=copy.deepcopy(default_obs_attr_to_keep),
           act_attr_to_keep=copy.deepcopy(default_act_attr_to_keep),
           policy_kwargs=None,
+          normalize_obs=False,
+          normalize_act=False,
+          eval_env=None,  # TODO
           **kwargs):
     """
     This function will use stable baselines 3 to train a PPO agent on
@@ -117,10 +120,18 @@ def train(env,
     verbose: ``bool``
         If you want something to be printed on the terminal (a better logging strategy will be put at some point)
 
+    normalize_obs: ``bool``
+        Attempt to normalize the observation space (so that gym-based stuff will only
+        see numbers between 0 and 1)
+    
+    normalize_act: ``bool``
+        Attempt to normalize the action space (so that gym-based stuff will only
+        manipulate numbers between 0 and 1)
+        
     policy_kwargs: ``dict``
         extra parameters passed to the PPO "policy_kwargs" key word arguments
         (defaults to ``None``)
-        
+    
     kwargs:
         extra parameters passed to the PPO from stable baselines 3
 
@@ -194,8 +205,23 @@ def train(env,
     env_gym.action_space = BoxGymActSpace(env.action_space,
                                           attr_to_keep=act_attr_to_keep)
 
+    if normalize_act:
+        if save_path is not None:
+            with open(os.path.join(my_path, ".normalize_act"), encoding="utf-8", 
+                      mode="w") as f:
+                f.write("I have encoded the action space !\n DO NOT MODIFY !")
+        for attr_nm in act_attr_to_keep:
+            env_gym.action_space.normalize_attr(attr_nm)
 
-    # Save a checkpoint every 1000 steps
+    if normalize_obs:
+        if save_path is not None:
+            with open(os.path.join(my_path, ".normalize_obs"), encoding="utf-8", 
+                      mode="w") as f:
+                f.write("I have encoded the observation space !\n DO NOT MODIFY !")
+        for attr_nm in obs_attr_to_keep:
+            env_gym.observation_space.normalize_attr(attr_nm)
+    
+    # Save a checkpoint every "save_every_xxx_steps" steps
     checkpoint_callback = None
     if save_every_xxx_steps is not None:
         if save_path is None:
@@ -216,13 +242,16 @@ def train(env,
         if logs_dir is not None:
             if not os.path.exists(logs_dir):
                 os.mkdir(logs_dir)
+            this_logs_dir = os.path.join(logs_dir, name)
+        else:
+            this_logs_dir = None
                 
         nn_kwargs = {
             "policy": model_policy,
             "env": env_gym,
             "verbose": verbose,
             "learning_rate": learning_rate,
-            "tensorboard_log": logs_dir,
+            "tensorboard_log": this_logs_dir,
             "policy_kwargs": policy_kwargs,
             **kwargs
         }
@@ -240,7 +269,9 @@ def train(env,
 
     # train it
     agent.nn_model.learn(total_timesteps=iterations,
-                         callback=checkpoint_callback)
+                         callback=checkpoint_callback,
+                         # eval_env=eval_env  # TODO
+                         )
 
     # save it
     if save_path is not None:

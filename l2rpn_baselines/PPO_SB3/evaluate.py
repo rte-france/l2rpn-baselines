@@ -152,6 +152,14 @@ def evaluate(env,
     gym_observation_space =  BoxGymObsSpace(env.observation_space, attr_to_keep=obs_attr_to_keep)
     gym_action_space = BoxGymActSpace(env.action_space, attr_to_keep=act_attr_to_keep)
     
+    if os.path.exists(load_path, ".normalize_act"):
+        for attr_nm in act_attr_to_keep:
+            gym_action_space.normalize_attr(attr_nm)
+
+    if os.path.exists(load_path, ".normalize_obs"):
+        for attr_nm in obs_attr_to_keep:
+            gym_observation_space.normalize_attr(attr_nm)
+            
     # create a grid2gop agent based on that (this will reload the save weights)
     full_path = os.path.join(load_path, name)
     grid2op_agent = SB3Agent(env.action_space,
