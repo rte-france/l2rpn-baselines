@@ -30,8 +30,8 @@ learning to the power grid control problem.
    :maxdepth: 1
    :caption: Open source libraries
 
-   ppo_stable_baselines
    ppo_rllib
+   ppo_stable_baselines
 
 Other contributions
 ---------------------

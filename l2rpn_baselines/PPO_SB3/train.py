@@ -7,6 +7,7 @@
 # This file is part of L2RPN Baselines, L2RPN Baselines a repository to host baselines for l2rpn competitions.
 
 import pdb
+from tabnanny import verbose
 import warnings
 import copy
 import os
@@ -14,6 +15,8 @@ import grid2op
 import json
 
 from grid2op.gym_compat import BoxGymActSpace, BoxGymObsSpace, GymEnv
+
+from l2rpn_baselines.PPO_SB3.utils import SB3Agent
 
 try:
     from stable_baselines3.common.callbacks import CheckpointCallback
@@ -47,6 +50,7 @@ def train(env,
           model_policy=MlpPolicy,
           obs_attr_to_keep=copy.deepcopy(default_obs_attr_to_keep),
           act_attr_to_keep=copy.deepcopy(default_act_attr_to_keep),
+          policy_kwargs=None,
           **kwargs):
     """
     This function will use stable baselines 3 to train a PPO agent on
@@ -113,6 +117,10 @@ def train(env,
     verbose: ``bool``
         If you want something to be printed on the terminal (a better logging strategy will be put at some point)
 
+    policy_kwargs: ``dict``
+        extra parameters passed to the PPO "policy_kwargs" key word arguments
+        (defaults to ``None``)
+        
     kwargs:
         extra parameters passed to the PPO from stable baselines 3
 
@@ -153,7 +161,8 @@ def train(env,
         # for more information !
 
         try:
-            train(env,
+            trained_agent = train(
+                  env,
                   iterations=10_000,  # any number of iterations you want
                   logs_dir="./logs",  # where the tensorboard logs will be put
                   save_path="./saved_model",  # where the NN weights will be saved
@@ -200,23 +209,34 @@ def train(env,
 
     # define the policy
     if load_path is None:
-        policy_kwargs = {}
+        if policy_kwargs is None:
+            policy_kwargs = {}
         if net_arch is not None:
             policy_kwargs["net_arch"] = net_arch
         if logs_dir is not None:
             if not os.path.exists(logs_dir):
                 os.mkdir(logs_dir)
-        # model = PPO(model_policy,
-        #             env_gym,
-        #             verbose=1,
-        #             learning_rate=learning_rate,
-        #             tensorboard_log=os.path.join(logs_dir, name),
-        #             policy_kwargs=policy_kwargs,
-        #             **kwargs)
-        agent = ...
-    else:
-        model = PPO.load(os.path.join(load_path, name))
-        agent = ...
+                
+        nn_kwargs = {
+            "policy": model_policy,
+            "env": env_gym,
+            "verbose": verbose,
+            "learning_rate": learning_rate,
+            "tensorboard_log": logs_dir,
+            "policy_kwargs": policy_kwargs,
+            **kwargs
+        }
+        agent = SB3Agent(env.action_space,
+                         env_gym.action_space,
+                         env_gym.observation_space,
+                         nn_kwargs=nn_kwargs,
+        )
+    else:        
+        agent = SB3Agent(env.action_space,
+                         env_gym.action_space,
+                         env_gym.observation_space,
+                         nn_path=os.path.join(load_path, name)
+        )
 
     # train it
     agent.nn_model.learn(total_timesteps=iterations,
@@ -224,7 +244,7 @@ def train(env,
 
     # save it
     if save_path is not None:
-        model.save(os.path.join(my_path, name))
+        agent.nn_model.save(os.path.join(my_path, name))
 
     env_gym.close()
     return agent  # TODO
@@ -251,7 +271,7 @@ if __name__ == "__main__":
           iterations=1_000,
           logs_dir="./logs",
           save_path="./saved_model", 
-          name="test3",
+          name="test4",
           net_arch=[200, 200, 200],
           save_every_xxx_steps=2000,
           )

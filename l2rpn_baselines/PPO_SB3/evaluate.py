@@ -195,45 +195,46 @@ def evaluate(env,
 
 if __name__ == "__main__":
 
-        import grid2op
-        from grid2op.Reward import LinesCapacityReward  # or any other rewards
-        from lightsim2grid import LightSimBackend  # highly recommended !
+    import grid2op
+    from grid2op.Reward import LinesCapacityReward  # or any other rewards
+    from lightsim2grid import LightSimBackend  # highly recommended !
 
-        nb_episode = 7
-        nb_process = 1
-        verbose = True
+    nb_episode = 7
+    nb_process = 1
+    verbose = True
 
-        env_name = "l2rpn_case14_sandbox"
-        env = grid2op.make(env_name,
-                           reward_class=LinesCapacityReward,
-                           backend=LightSimBackend()
-                           )
+    env_name = "l2rpn_case14_sandbox"
+    env = grid2op.make(env_name,
+                        reward_class=LinesCapacityReward,
+                        backend=LightSimBackend()
+                        )
 
-        try:
-            evaluate(env,
-                     nb_episode=nb_episode,
-                     load_path="./saved_model", 
-                     name="test",
-                     nb_process=1,
-                     verbose=verbose,
-                     )
+    try:
+        trained_agent, res_eval = evaluate(
+                    env,
+                    nb_episode=nb_episode,
+                    load_path="./saved_model", 
+                    name="test4",
+                    nb_process=1,
+                    verbose=verbose,
+                    )
 
-            # you can also compare your agent with the do nothing agent relatively
-            # easily
-            runner_params = env.get_params_for_runner()
-            runner = Runner(**runner_params)
+        # you can also compare your agent with the do nothing agent relatively
+        # easily
+        runner_params = env.get_params_for_runner()
+        runner = Runner(**runner_params)
 
-            res = runner.run(nb_episode=nb_episode,
-                            nb_process=nb_process
-                            )
+        res = runner.run(nb_episode=nb_episode,
+                        nb_process=nb_process
+                        )
 
-            # Print summary
-            if verbose:
-                print("Evaluation summary for DN:")
-                for _, chron_name, cum_reward, nb_time_step, max_ts in res:
-                    msg_tmp = "chronics at: {}".format(chron_name)
-                    msg_tmp += "\ttotal score: {:.6f}".format(cum_reward)
-                    msg_tmp += "\ttime steps: {:.0f}/{:.0f}".format(nb_time_step, max_ts)
-                    print(msg_tmp)
-        finally:
-            env.close()
+        # Print summary
+        if verbose:
+            print("Evaluation summary for DN:")
+            for _, chron_name, cum_reward, nb_time_step, max_ts in res:
+                msg_tmp = "chronics at: {}".format(chron_name)
+                msg_tmp += "\ttotal score: {:.6f}".format(cum_reward)
+                msg_tmp += "\ttime steps: {:.0f}/{:.0f}".format(nb_time_step, max_ts)
+                print(msg_tmp)
+    finally:
+        env.close()
