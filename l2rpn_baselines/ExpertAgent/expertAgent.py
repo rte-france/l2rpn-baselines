@@ -122,7 +122,7 @@ class ExpertAgent(BaseAgent):
             subsInCooldown = [i for i in range(observation.n_sub) if (observation.time_before_cooldown_sub[
                                                                           i] >= 1)]  # if you can not run an action currently on a susbtation, so no need to simulate on it
 
-            timestepsOverflowAllowed = self.observation_space.parameters.NB_TIMESTEP_OVERFLOW_ALLOWED
+            timestepsOverflowAllowed = self.observation_space.obs_env.parameters.NB_TIMESTEP_OVERFLOW_ALLOWED
             isManyOverloads = (n_overloads > timestepsOverflowAllowed)
 
             ltcAlreadyConsidered = []
@@ -239,7 +239,7 @@ class ExpertAgent(BaseAgent):
 
     # we order overloads by usage rate but also by criticity giving remaining timesteps for overload before disconnect
     def getRankedOverloads(self, observation):
-        timestepsOverflowAllowed = self.observation_space.parameters.NB_TIMESTEP_OVERFLOW_ALLOWED
+        timestepsOverflowAllowed = self.observation_space.obs_env.parameters.NB_TIMESTEP_OVERFLOW_ALLOWED
 
         sort_rho = -np.sort(-observation.rho)  # sort in descending order for positive values
         sort_indices = np.argsort(-observation.rho)
@@ -270,7 +270,7 @@ class ExpertAgent(BaseAgent):
     # for a substation we get the reference topology action
     def reference_topology_sub_action(self, observation, sub_id):
         topo_vec_sub = observation.state_of(substation_id=sub_id)['topo_vect']
-        topo_target = list(np.ones(len(topo_vec_sub)))
+        topo_target = list(np.ones(len(topo_vec_sub)).astype('int'))
         action_def = {"set_bus": {"substations_id": [(sub_id, topo_target)]}}
         action = self.action_space(action_def)
         return action

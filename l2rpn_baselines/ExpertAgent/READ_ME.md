@@ -7,20 +7,11 @@ Detailed documentation here :
 
 https://expertop4grid.readthedocs.io/en/latest/
 
-- clone the repo :
-
-` git clone https://github.com/mjothy/ExpertOp4Grid.git
-`
-
 - install in your environment
 
-`cd ExpertOp4Grid`
-
-`pip install -U .`
+`pip install expertOp4grid (compatible with Grid2op 1.5)
 
 - install dependencies manualy
-
-`pip install grid2op==1.1.0`
 
 `pip install matplotlib`
 
