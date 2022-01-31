@@ -3,10 +3,8 @@ Change Log
 
 [TODO]
 --------
-- wirte github issue templates for normal bugs and also for contributions
 - in the "examples" folder, make some examples for possible "submissions"
   usable in the competition for PPO_SB3 and PPO_RLLIB
-- code a baseline example using ray / rllib
 - code a baseline example using mazerl
 - code a baseline using deepmind acme
 - code a baseline with a GNN somewhere
@@ -23,14 +21,16 @@ Change Log
   `[BASELINENAME]` with ... the baseline name (*eg* `from l2rpn_baselines.DoNothing import DoNothing`)
 - [FIXED] clean the documentation
 - [FIXED] some bugs (especially in the type of actions) for some agents
-- [ADDED] a code example to use stable baselines 3 (see l2rpn_baselines.ppo_stable_baselines)
+- [ADDED] a code example to use stable baselines 3 (see `l2rpn_baselines.PPO_SB3`)
+- [ADDED] a code example to use RLLIB (see `l2rpn_baselines.PPO_RLLIB`)
+- [ADDED] some issue templates
 
 [0.5.1] - 2021-04-09
 ---------------------
 - [FIXED] issue with grid2op version >= 1.2.3 for some baselines
 - [FIXED] `Issue 26 <https://github.com/rte-france/l2rpn-baselines/issues/26>`_ : package can be installed even
   if the requirement for some baselines is not met.
-- [UPDATED] Kaist baselines
+- [UPDATED] `Kaist` baselines
 - [ADDED] The expert agent
 
 [0.5.0] - 2020-08-18
