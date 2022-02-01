@@ -53,6 +53,7 @@ def train(env,
           policy_kwargs=None,
           normalize_obs=False,
           normalize_act=False,
+          seed=None,  # TODO
           eval_env=None,  # TODO
           **kwargs):
     """

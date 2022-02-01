@@ -17,7 +17,7 @@ import numpy as np
 from grid2op.Reward import BaseReward
 
 env_name = "l2rpn_icaps_2021_small_train"
-
+save_path = "./saved_model"
 
 # customize the reward function (optional)
 class CustomReward(BaseReward):
@@ -37,7 +37,8 @@ class CustomReward(BaseReward):
         self._max_redisp += 1
         self._1_max_redisp = 1.0 / self._max_redisp / env.n_gen
         self._is_renew_ = env.gen_renewable
-        
+        self._1_max_redisp_act = np.maximum(np.maximum(env.gen_max_ramp_up, env.gen_max_ramp_down), 1.0)
+        self._1_max_redisp_act = 1.0 / self._1_max_redisp_act / np.sum(env.gen_redispatchable)
         
     def __call__(self, action, env, has_error, is_done, is_illegal, is_ambiguous):
         if is_done:
@@ -53,10 +54,16 @@ class CustomReward(BaseReward):
 
         # penalize the dispatch
         obs = env.get_obs()
-        score_redisp = np.sum(np.abs(obs.target_dispatch) * self._1_max_redisp)
+        score_redisp_state = 0.
+        # score_redisp_state = np.sum(np.abs(obs.target_dispatch) * self._1_max_redisp)
+        score_redisp_action = np.sum(np.abs(action.redispatch) * self._1_max_redisp_act) 
+        score_redisp = 0.5 *(score_redisp_state + score_redisp_action)
         
         # penalize the curtailment
-        score_curtail = np.sum(obs.curtailment_mw * self._1_max_redisp)
+        score_curtail = 0.
+        # score_curtail = np.sum(obs.curtailment_mw * self._1_max_redisp)
+        
+        # rate the actions
         score_action = 0.5 * (np.sqrt(score_redisp) + np.sqrt(score_curtail))
         
         # score the "state" of the grid
@@ -66,8 +73,10 @@ class CustomReward(BaseReward):
         score_state = np.sqrt(np.sqrt(np.sum(tmp_state)))
 
         # score close to goal
-        score_goal = env.nb_time_step / env.max_episode_duration()
+        score_goal = 0.
+        # score_goal = env.nb_time_step / env.max_episode_duration()
         
+        # score too much redisp
         res = score_goal * (1.0 - 0.5 * (score_action + score_state))
         return score_goal * res
     
@@ -78,27 +87,27 @@ if __name__ == "__main__":
     from l2rpn_baselines.PPO_SB3 import train
     from lightsim2grid import LightSimBackend  # highly recommended !
     from grid2op.Chronics import MultifolderWithCache  # highly recommended for training
-
+    
     obs_attr_to_keep = ["day_of_week", "hour_of_day", "minute_of_hour",
-                        "gen_p", "load_p",
+                        "gen_p", "load_p", "p_or",
                         "actual_dispatch", "target_dispatch",
                         "rho", "timestep_overflow", "line_status",
                         "curtailment", "gen_p_before_curtail"]
 
     act_attr_to_keep = ["redispatch", "curtail"]
-    nb_iter = 3_000_000
-    learning_rate = 1e-3
+    nb_iter = 300_000
+    learning_rate = 3e-3
     net_arch = [200, 200, 200]
-    name = "expe_7"
+    name = "expe_10"
     
     env = grid2op.make(env_name,
                        reward_class=CustomReward,
                        backend=LightSimBackend(),
-                       chronics_class=MultifolderWithCache,
-                       difficulty="0")
+                       chronics_class=MultifolderWithCache)
 
     obs = env.reset()
-    env.chronics_handler.real_data.set_filter(lambda x: re.match(".*0$", x) is not None)
+    # env.chronics_handler.real_data.set_filter(lambda x: re.match(r".*0$", x) is not None)
+    env.chronics_handler.real_data.set_filter(lambda x: True)
     env.chronics_handler.real_data.reset()
     # see https://grid2op.readthedocs.io/en/latest/environment.html#optimize-the-data-pipeline
     # for more information !
@@ -107,16 +116,17 @@ if __name__ == "__main__":
             env,
             iterations=nb_iter,
             logs_dir="./logs",
-            save_path="./saved_model", 
+            save_path=save_path, 
             obs_attr_to_keep=obs_attr_to_keep,
             act_attr_to_keep=act_attr_to_keep,
             normalize_act=True,
             normalize_obs=True,
-            name="expe_6",
+            name=name,
             learning_rate=learning_rate,
             net_arch=net_arch,
             save_every_xxx_steps=min(nb_iter // 10, 100_000),
             verbose=1
             )
     
+    print("After training, ")
     # TODO evaluate it !

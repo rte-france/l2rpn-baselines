@@ -5,6 +5,8 @@ Change Log
 --------
 - in the "examples" folder, make some examples for possible "submissions"
   usable in the competition for PPO_SB3 and PPO_RLLIB
+- add a vectorized environment for PPO in stable baselines for example
+  (ie map a MultiEnvironment into the proper stuff)
 - code a baseline example using mazerl
 - code a baseline using deepmind acme
 - code a baseline with a GNN somewhere

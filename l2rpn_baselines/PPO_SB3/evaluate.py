@@ -152,11 +152,11 @@ def evaluate(env,
     gym_observation_space =  BoxGymObsSpace(env.observation_space, attr_to_keep=obs_attr_to_keep)
     gym_action_space = BoxGymActSpace(env.action_space, attr_to_keep=act_attr_to_keep)
     
-    if os.path.exists(load_path, ".normalize_act"):
+    if os.path.exists(os.path.join(load_path, ".normalize_act")):
         for attr_nm in act_attr_to_keep:
             gym_action_space.normalize_attr(attr_nm)
 
-    if os.path.exists(load_path, ".normalize_obs"):
+    if os.path.exists(os.path.join(load_path, ".normalize_obs")):
         for attr_nm in obs_attr_to_keep:
             gym_observation_space.normalize_attr(attr_nm)
             
@@ -165,8 +165,12 @@ def evaluate(env,
     grid2op_agent = SB3Agent(env.action_space,
                              gym_action_space,
                              gym_observation_space,
-                             nn_path=os.path.join(full_path, name))
+                             nn_path=os.path.join(full_path, name)
+                             )
 
+    if nb_episode == 0:
+        return grid2op_agent, []
+    
     # Build runner
     runner_params = env.get_params_for_runner()
     runner_params["verbose"] = verbose
