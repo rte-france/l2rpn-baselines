@@ -12,6 +12,7 @@
 # Remember this is an example, that should perform relatively well (better than
 # do nothing)
 
+import os
 import re
 import numpy as np
 from grid2op.Reward import BaseReward
@@ -43,7 +44,7 @@ class CustomReward(BaseReward):
         
     def __call__(self, action, env, has_error, is_done, is_illegal, is_ambiguous):
         if is_done:
-            print(f"{env.nb_time_step = }")
+            print(f"{os.path.split(env.chronics_handler.get_id())[-1]}: {env.nb_time_step = }")
             # episode is over => 2 cases
             # if env.nb_time_step == env.max_episode_duration():
             #     return self.reward_max
@@ -52,7 +53,6 @@ class CustomReward(BaseReward):
             return env.nb_time_step / env.max_episode_duration()
         if is_illegal or is_ambiguous or has_error:
             return self.reward_min
-
         # penalize the dispatch
         obs = env.get_obs()
         score_redisp_state = 0.
@@ -113,12 +113,12 @@ if __name__ == "__main__":
                        chronics_class=MultifolderWithCache)
 
     obs = env.reset()
-    # env.chronics_handler.real_data.set_filter(lambda x: re.match(r".*0$", x) is not None)
+    # env.chronics_handler.real_data.set_filter(lambda x: re.match(r".*00$", x) is not None)
     env.chronics_handler.real_data.set_filter(lambda x: True)
     env.chronics_handler.real_data.reset()
     # see https://grid2op.readthedocs.io/en/latest/environment.html#optimize-the-data-pipeline
     # for more information !
-    
+    print("environment loaded !")
     trained_agent = train(
             env,
             iterations=nb_iter,
