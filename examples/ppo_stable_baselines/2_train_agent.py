@@ -39,6 +39,7 @@ class CustomReward(BaseReward):
         self._is_renew_ = env.gen_renewable
         self._1_max_redisp_act = np.maximum(np.maximum(env.gen_max_ramp_up, env.gen_max_ramp_down), 1.0)
         self._1_max_redisp_act = 1.0 / self._1_max_redisp_act / np.sum(env.gen_redispatchable)
+        self._nb_renew = np.sum(self._is_renew_)
         
     def __call__(self, action, env, has_error, is_done, is_illegal, is_ambiguous):
         if is_done:
@@ -60,21 +61,26 @@ class CustomReward(BaseReward):
         score_redisp = 0.5 *(score_redisp_state + score_redisp_action)
         
         # penalize the curtailment
-        score_curtail = 0.
-        # score_curtail = np.sum(obs.curtailment_mw * self._1_max_redisp)
+        score_curtail_state = 0.
+        # score_curtail_state = np.sum(obs.curtailment_mw * self._1_max_redisp)
+        curt_act = action.curtail
+        score_curtail_action = np.sum(curt_act[curt_act != -1.0]) / self._nb_renew 
+        score_curtail = 0.5 *(score_curtail_state + score_curtail_action)
         
         # rate the actions
         score_action = 0.5 * (np.sqrt(score_redisp) + np.sqrt(score_curtail))
         
         # score the "state" of the grid
-        tmp_state = np.minimum(np.maximum(obs.rho, self._min_rho), self._max_rho)
-        tmp_state -= self._min_rho
-        tmp_state /= (self._max_rho - self._min_rho) * env.n_line
-        score_state = np.sqrt(np.sqrt(np.sum(tmp_state)))
+        # tmp_state = np.minimum(np.maximum(obs.rho, self._min_rho), self._max_rho)
+        # tmp_state -= self._min_rho
+        # tmp_state /= (self._max_rho - self._min_rho) * env.n_line
+        # score_state = np.sqrt(np.sqrt(np.sum(tmp_state)))
+        score_state = 0.
 
         # score close to goal
-        score_goal = 0.
+        # score_goal = 0.
         # score_goal = env.nb_time_step / env.max_episode_duration()
+        score_goal = 1.0
         
         # score too much redisp
         res = score_goal * (1.0 - 0.5 * (score_action + score_state))
@@ -95,10 +101,11 @@ if __name__ == "__main__":
                         "curtailment", "gen_p_before_curtail"]
 
     act_attr_to_keep = ["redispatch", "curtail"]
-    nb_iter = 300_000
+    nb_iter = 6_000_000
     learning_rate = 3e-3
-    net_arch = [200, 200, 200]
-    name = "expe_10"
+    net_arch = [300, 300, 300, 300]
+    name = "expe_0"
+    gamma = 0.999
     
     env = grid2op.make(env_name,
                        reward_class=CustomReward,
@@ -125,7 +132,8 @@ if __name__ == "__main__":
             learning_rate=learning_rate,
             net_arch=net_arch,
             save_every_xxx_steps=min(nb_iter // 10, 100_000),
-            verbose=1
+            verbose=1,
+            gamma=0.999,
             )
     
     print("After training, ")
