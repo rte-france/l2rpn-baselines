@@ -15,6 +15,13 @@ from grid2op.Action import BaseAction
 from grid2op.gym_compat import GymEnv
 
 class GymEnvWithHeuristics(GymEnv):
+    """This abstract class is used to perform some actions, independantly of a RL
+    agent on a grid2op environment.
+    
+    It can be used, for example, to train an agent (for example a deep-rl agent)
+    if you want to use some heuristics at inference time (for example
+    you reconnect every powerline that you can.)
+    """
     @abstractmethod
     def heuristic_actions(self,
                           g2op_obs: BaseObservation,
@@ -31,7 +38,6 @@ class GymEnvWithHeuristics(GymEnv):
         g2op_actions = self.heuristic_actions(g2op_obs, reward, done, info)
         for g2op_act in g2op_actions:
             tmp_obs, tmp_reward, tmp_done, tmp_info = self.init_env.step(g2op_act)
-            print(f"I did an automatic action: {g2op_act}")
             g2op_obs = tmp_obs
             done = tmp_done
             if tmp_done:

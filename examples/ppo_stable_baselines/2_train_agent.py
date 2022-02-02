@@ -29,9 +29,15 @@ class CustomReward(BaseReward):
         """
         self.reward_min = 0.
         self.reward_max = 1.
-        self._max_redisp = None
         self._min_rho = 0.90
         self._max_rho = 2.0
+        
+        # parameters init with the environment
+        self._max_redisp = None
+        self._1_max_redisp = None
+        self._is_renew_ = None
+        self._1_max_redisp_act = None
+        self._nb_renew = None
     
     def initialize(self, env):
         self._max_redisp = np.maximum(env.gen_pmax - env.gen_pmin, 0.)
@@ -55,17 +61,17 @@ class CustomReward(BaseReward):
             return self.reward_min
         # penalize the dispatch
         obs = env.get_obs()
-        # score_redisp_state = 0.
-        score_redisp_state = np.sum(np.abs(obs.target_dispatch) * self._1_max_redisp)
+        score_redisp_state = 0.
+        # score_redisp_state = np.sum(np.abs(obs.target_dispatch) * self._1_max_redisp)
         score_redisp_action = np.sum(np.abs(action.redispatch) * self._1_max_redisp_act) 
         score_redisp = 0.5 *(score_redisp_state + score_redisp_action)
         
         # penalize the curtailment
-        # score_curtail_state = 0.
-        score_curtail_state = np.sum(obs.curtailment_mw * self._1_max_redisp)
+        score_curtail_state = 0.
+        # score_curtail_state = np.sum(obs.curtailment_mw * self._1_max_redisp)
         curt_act = action.curtail
         score_curtail_action = np.sum(curt_act[curt_act != -1.0]) / self._nb_renew 
-        score_curtail = 0.5 *(score_curtail_state + score_curtail_action)
+        score_curtail = 0.5 * (score_curtail_state + score_curtail_action)
         
         # rate the actions
         score_action = 0.5 * (np.sqrt(score_redisp) + np.sqrt(score_curtail))
@@ -79,8 +85,8 @@ class CustomReward(BaseReward):
 
         # score close to goal
         # score_goal = 0.
-        score_goal = env.nb_time_step / env.max_episode_duration()
-        # score_goal = 1.0
+        # score_goal = env.nb_time_step / env.max_episode_duration()
+        score_goal = 1.0
         
         # score too much redisp
         res = score_goal * (1.0 - 0.5 * (score_action + score_state))
@@ -105,7 +111,7 @@ if __name__ == "__main__":
     nb_iter = 6_000_000
     learning_rate = 3e-3
     net_arch = [300, 300, 300]
-    name = "expe_with_auto_reco"
+    name = "expe_with_auto_reco_simplereward"
     gamma = 0.999
     
     env = grid2op.make(env_name,
@@ -114,8 +120,8 @@ if __name__ == "__main__":
                        chronics_class=MultifolderWithCache)
 
     obs = env.reset()
-    env.chronics_handler.real_data.set_filter(lambda x: re.match(r".*00$", x) is not None)
-    # env.chronics_handler.real_data.set_filter(lambda x: True)
+    # env.chronics_handler.real_data.set_filter(lambda x: re.match(r".*00$", x) is not None)
+    env.chronics_handler.real_data.set_filter(lambda x: True)
     env.chronics_handler.real_data.reset()
     # see https://grid2op.readthedocs.io/en/latest/environment.html#optimize-the-data-pipeline
     # for more information !
