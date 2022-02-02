@@ -53,6 +53,8 @@ def train(env,
           policy_kwargs=None,
           normalize_obs=False,
           normalize_act=False,
+          gymenv_class=GymEnv,
+          gymenv_kwargs=None,
           seed=None,  # TODO
           eval_env=None,  # TODO
           **kwargs):
@@ -128,6 +130,12 @@ def train(env,
     normalize_act: ``bool``
         Attempt to normalize the action space (so that gym-based stuff will only
         manipulate numbers between 0 and 1)
+    
+    gymenv_class: 
+        The class to use as a gym environment.
+    
+    gymenv_kwargs: ``dict``
+        Extra key words arguments to build the gym environment.
         
     policy_kwargs: ``dict``
         extra parameters passed to the PPO "policy_kwargs" key word arguments
@@ -198,7 +206,9 @@ def train(env,
     save_used_attribute(save_path, name, obs_attr_to_keep, act_attr_to_keep)
 
     # define the gym environment from the grid2op env
-    env_gym = GymEnv(env)
+    if gymenv_kwargs is None:
+        gymenv_kwargs = {}
+    env_gym = gymenv_class(env, **gymenv_kwargs)
     env_gym.observation_space.close()
     env_gym.observation_space = BoxGymObsSpace(env.observation_space,
                                                attr_to_keep=obs_attr_to_keep)

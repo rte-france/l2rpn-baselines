@@ -55,14 +55,14 @@ class CustomReward(BaseReward):
             return self.reward_min
         # penalize the dispatch
         obs = env.get_obs()
-        score_redisp_state = 0.
-        # score_redisp_state = np.sum(np.abs(obs.target_dispatch) * self._1_max_redisp)
+        # score_redisp_state = 0.
+        score_redisp_state = np.sum(np.abs(obs.target_dispatch) * self._1_max_redisp)
         score_redisp_action = np.sum(np.abs(action.redispatch) * self._1_max_redisp_act) 
         score_redisp = 0.5 *(score_redisp_state + score_redisp_action)
         
         # penalize the curtailment
-        score_curtail_state = 0.
-        # score_curtail_state = np.sum(obs.curtailment_mw * self._1_max_redisp)
+        # score_curtail_state = 0.
+        score_curtail_state = np.sum(obs.curtailment_mw * self._1_max_redisp)
         curt_act = action.curtail
         score_curtail_action = np.sum(curt_act[curt_act != -1.0]) / self._nb_renew 
         score_curtail = 0.5 *(score_curtail_state + score_curtail_action)
@@ -79,8 +79,8 @@ class CustomReward(BaseReward):
 
         # score close to goal
         # score_goal = 0.
-        # score_goal = env.nb_time_step / env.max_episode_duration()
-        score_goal = 1.0
+        score_goal = env.nb_time_step / env.max_episode_duration()
+        # score_goal = 1.0
         
         # score too much redisp
         res = score_goal * (1.0 - 0.5 * (score_action + score_state))
@@ -93,6 +93,7 @@ if __name__ == "__main__":
     from l2rpn_baselines.PPO_SB3 import train
     from lightsim2grid import LightSimBackend  # highly recommended !
     from grid2op.Chronics import MultifolderWithCache  # highly recommended for training
+    from l2rpn_baselines.utils import GymEnvWithReco
     
     obs_attr_to_keep = ["day_of_week", "hour_of_day", "minute_of_hour",
                         "gen_p", "load_p", "p_or",
@@ -103,8 +104,8 @@ if __name__ == "__main__":
     act_attr_to_keep = ["redispatch", "curtail"]
     nb_iter = 6_000_000
     learning_rate = 3e-3
-    net_arch = [300, 300, 300, 300]
-    name = "expe_0"
+    net_arch = [300, 300, 300]
+    name = "expe_with_auto_reco"
     gamma = 0.999
     
     env = grid2op.make(env_name,
@@ -113,8 +114,8 @@ if __name__ == "__main__":
                        chronics_class=MultifolderWithCache)
 
     obs = env.reset()
-    # env.chronics_handler.real_data.set_filter(lambda x: re.match(r".*00$", x) is not None)
-    env.chronics_handler.real_data.set_filter(lambda x: True)
+    env.chronics_handler.real_data.set_filter(lambda x: re.match(r".*00$", x) is not None)
+    # env.chronics_handler.real_data.set_filter(lambda x: True)
     env.chronics_handler.real_data.reset()
     # see https://grid2op.readthedocs.io/en/latest/environment.html#optimize-the-data-pipeline
     # for more information !
@@ -134,6 +135,7 @@ if __name__ == "__main__":
             save_every_xxx_steps=min(nb_iter // 10, 100_000),
             verbose=1,
             gamma=0.999,
+            gymenv_class=GymEnvWithReco,
             )
     
     print("After training, ")

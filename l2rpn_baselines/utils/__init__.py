@@ -19,7 +19,9 @@ __all__ = [
     "ReplayBuffer",
     "BaseDeepQ",
     "DeepQAgent",
-    "GymAgent"
+    "GymAgent",
+    "GymEnvWithReco",
+    "GymEnvWithHeuristics"
 ]
 
 from l2rpn_baselines.utils.cli_eval import cli_eval
@@ -35,3 +37,4 @@ from l2rpn_baselines.utils.replayBuffer import ReplayBuffer
 from l2rpn_baselines.utils.baseDeepQ import BaseDeepQ
 from l2rpn_baselines.utils.deepQAgent import DeepQAgent
 from l2rpn_baselines.utils.gymAgent import GymAgent
+from l2rpn_baselines.utils.gymenv_custom import GymEnvWithHeuristics, GymEnvWithReco

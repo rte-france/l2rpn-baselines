@@ -73,7 +73,7 @@ def get_ts_survived_dn(env_name):
 
 
 if __name__ == "__main__":
-    name = "expe_8"
+    name = "expe_0"
     
     #
     env_val = grid2op.make(env_name, backend=LightSimBackend())
@@ -90,6 +90,6 @@ if __name__ == "__main__":
     dn_ts_survived = get_ts_survived_dn(env_name)
     best_than_dn = 0
     for my_ts, dn_ts in zip(ts_survived, dn_ts_survived):
-        print(f"I survived {my_ts} steps vs {dn_ts} for do nothing ({my_ts - dn_ts})")
+        print(f"\t{':-)' if my_ts >= dn_ts else ':-('} I survived {my_ts} steps vs {dn_ts} for do nothing ({my_ts - dn_ts})")
         best_than_dn += my_ts >= dn_ts
     print(f"The agent \"{name}\" beats do nothing in {best_than_dn} out of {len(dn_ts_survived)} episodes")
