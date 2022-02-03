@@ -84,9 +84,9 @@ class CustomReward(BaseReward):
         score_state = 0.
 
         # score close to goal
-        # score_goal = 0.
+        score_goal = 0.
         # score_goal = env.nb_time_step / env.max_episode_duration()
-        score_goal = 1.0
+        # score_goal = 1.0
         
         # score too much redisp
         res = score_goal * (1.0 - 0.5 * (score_action + score_state))
@@ -111,7 +111,7 @@ if __name__ == "__main__":
     nb_iter = 6_000_000
     learning_rate = 3e-3
     net_arch = [300, 300, 300]
-    name = "expe_with_auto_reco_simplereward"
+    name = "expe_with_auto_reco_onlyend_ep"
     gamma = 0.999
     
     env = grid2op.make(env_name,
