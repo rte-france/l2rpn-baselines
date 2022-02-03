@@ -16,11 +16,11 @@ import os
 import re
 import numpy as np
 from grid2op.Reward import BaseReward
-from l2rpn_baselines.utils import GymEnvWithReco
+from l2rpn_baselines.utils import GymEnvWithReco, GymEnvWithRecoWithDN
 
 env_name = "l2rpn_icaps_2021_small_train"
 save_path = "./saved_model"
-gymenv_class = GymEnvWithReco
+gymenv_class = GymEnvWithRecoWithDN
 
 # customize the reward function (optional)
 class CustomReward(BaseReward):
@@ -144,6 +144,3 @@ if __name__ == "__main__":
             gamma=0.999,
             gymenv_class=gymenv_class,
             )
-    
-    print("After training, ")
-    # TODO evaluate it !

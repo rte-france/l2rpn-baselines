@@ -45,8 +45,6 @@ def _aux_get_env(env_name, dn=True, name_stat=None):
         path_stat = os.path.join(path_env, EpisodeStatistics.get_name_dir(name_stat))
         if not os.path.exists(path_stat):
             raise RuntimeError(f"No folder associated with statistics {name_stat}")
-        import pdb
-        pdb.set_trace()
         path_metadata = os.path.join(path_stat, "metadata.json")
     
     if not os.path.exists(path_metadata):

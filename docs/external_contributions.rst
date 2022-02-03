@@ -8,10 +8,16 @@ Description
 In this section you can find some examples made by other persons that are 
 included into l2rpn-baselines if you download it with github.
 
-You can find more information in the associated github repositories.
+.. note::
+    If you want your code to be part of this list, please let us know with a github issue, 
+    for example by filling an issue template at the official l2rpn repository: https://github.com/rte-france/l2rpn-baselines/issues .
+    (this is also the link if you notice any error on this page)
+
+You can find more information in the associated github repositories (links available in the subsection dedicated to the 
+baseline).
 
 ========================  ==================================
-Baseline                  note
+Baseline                  Notes
 ========================  ==================================
 :ref:`asynch`             🥈 @ WCCI 2019
 :ref:`binbinchen`         🥈 @ Neurips 2020 (robustness)
@@ -33,8 +39,8 @@ Baseline                  note
 :ref:`unaigridoperator`   Neurips 2020 (robustness) 
 :ref:`unaigridoperator`   Neurips 2020 (adaptability) 
 :ref:`xdsilly`            🥇 @ ICAPS 2021 
-:ref:`yzmneurips`         Neurips 2020 (robustness)
-:ref:`yzmwcci`            🥉 @ WCCI 2020
+:ref:`yzm`                Neurips 2020 (robustness)
+:ref:`yzm`                🥉 @ WCCI 2020
 ========================  ==================================
 
 .. note::
@@ -211,22 +217,14 @@ github:  https://github.com/polixir/L2RPN_2021
 .. note::
     1st at the fourth L2RPN competion in 2021 for ICAPS conference (team "*Xd_Silly*")
 
-.. _yzmneurips:
+.. _yzmn:
 
-YZM_Test - Neurips 2020
-------------------------
-
-github: https://github.com/ZM-Learn/L2RPN_WCCI_a_Solution
-
-.. note::
-    9th at the third L2RPN competion in 2020 for Neurips conference, track robustness (team "*yzm_test*")
-
-.. _yzmwcci:
-
-YZM_Test - WCCI 2020
-----------------------
+YZM_Test (2 submissions)
+-------------------------
 
 github: https://github.com/ZM-Learn/L2RPN_WCCI_a_Solution
 
 .. note::
     3rd at the second L2RPN competion in 2020 for WCCI conference (team "*yzm_test*")
+
+    9th at the third L2RPN competion in 2020 for Neurips conference, track robustness (team "*yzm_test*")

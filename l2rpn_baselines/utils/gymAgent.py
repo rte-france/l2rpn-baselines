@@ -169,9 +169,8 @@ class GymAgent(BaseAgent):
         
         # the heursitic did not select any actions, then ask the NN to do one !
         if grid2op_act is None:
-            # gym_obs = self._gym_obs_space.to_gym(observation)
-            # gym_act = self.get_act(gym_obs, reward, done)
-            # grid2op_act = self._gym_act_space.from_gym(gym_act)
-            grid2op_act = self.action_space()
+            gym_obs = self._gym_obs_space.to_gym(observation)
+            gym_act = self.get_act(gym_obs, reward, done)
+            grid2op_act = self._gym_act_space.from_gym(gym_act)
             
         return grid2op_act
