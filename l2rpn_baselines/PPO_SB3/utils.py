@@ -132,6 +132,8 @@ class SB3Agent(GymAgent):
     
     Exactly one of `nn_path` and `nn_kwargs` should be provided. No more, no less.
     
+    TODO heuristic part !
+    
     Examples
     ---------
     
@@ -209,6 +211,7 @@ class SB3Agent(GymAgent):
                  nn_path=None,
                  nn_kwargs=None,
                  custom_load_dict=None,
+                 gymenv=None
                  ):
         self._nn_type = nn_type
         if custom_load_dict is not None:
@@ -216,7 +219,9 @@ class SB3Agent(GymAgent):
         else:
             self.custom_load_dict = {}
         super().__init__(g2op_action_space, gym_act_space, gym_obs_space,
-                         nn_path=nn_path, nn_kwargs=nn_kwargs)
+                         nn_path=nn_path, nn_kwargs=nn_kwargs,
+                         gymenv=gymenv
+                         )
         
     def get_act(self, gym_obs, reward, done):
         """Retrieve the gym action from the gym observation and the reward. 

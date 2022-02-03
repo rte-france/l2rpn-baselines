@@ -14,6 +14,7 @@ from grid2op.Observation import BaseObservation
 from grid2op.Action import BaseAction
 from grid2op.gym_compat import GymEnv
 
+
 class GymEnvWithHeuristics(GymEnv):
     """This abstract class is used to perform some actions, independantly of a RL
     agent on a grid2op environment.
@@ -28,7 +29,7 @@ class GymEnvWithHeuristics(GymEnv):
                           reward: float,
                           done: bool,
                           info: Dict) -> List[BaseAction]:
-        return g2op_obs, reward, done, info
+        return []
     
     def apply_heuristics_actions(self,
                                  g2op_obs: BaseObservation,

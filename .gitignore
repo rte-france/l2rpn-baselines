@@ -182,3 +182,7 @@ l2rpn_baselines/PPO_RLLIB/saved_model/**
 test_jsonpickle.json
 examples/ppo_stable_baselines/saved_model/**
 examples/ppo_stable_baselines/logs/**
+.vscode/
+logs/
+saved_agents/
+test_train_DuelQSimple.py

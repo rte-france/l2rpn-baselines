@@ -9,11 +9,10 @@
 import os
 import json
 from grid2op.Runner import Runner
+from grid2op.gym_compat import BoxGymActSpace, BoxGymObsSpace, GymEnv
+from l2rpn_baselines.utils.gymenv_custom import GymEnvWithHeuristics
 
 from l2rpn_baselines.utils.save_log_gif import save_log_gif
-
-from grid2op.gym_compat import BoxGymActSpace, BoxGymObsSpace
-
 from l2rpn_baselines.PPO_SB3.utils import SB3Agent
 
 
@@ -26,6 +25,8 @@ def evaluate(env,
              max_steps=-1,
              verbose=False,
              save_gif=False,
+             gymenv_class=GymEnv,
+             gymenv_kwargs=None,
              **kwargs):
     """
     This function will use stable baselines 3 to evaluate a previously trained
@@ -73,6 +74,12 @@ def evaluate(env,
         Whether or not you want to save, as a gif, the performance of your agent. It might cause memory issues (might
         take a lot of ram) and drastically increase computation time.
 
+    gymenv_class: 
+        The class to use as a gym environment. By default `GymEnv` (from module grid2op.gym_compat)
+    
+    gymenv_kwargs: ``dict``
+        Extra key words arguments to build the gym environment.
+        
     kwargs:
         extra parameters passed to the PPO from stable baselines 3
 
@@ -159,13 +166,26 @@ def evaluate(env,
     if os.path.exists(os.path.join(load_path, ".normalize_obs")):
         for attr_nm in obs_attr_to_keep:
             gym_observation_space.normalize_attr(attr_nm)
-            
+    
+    gymenv = None
+    if gymenv_class is not None and issubclass(gymenv_class, GymEnvWithHeuristics):
+        if gymenv_kwargs is None:
+            gymenv_kwargs = {}
+        gymenv = gymenv_class(env, **gymenv_kwargs)
+        
+        gymenv.action_space.close()
+        gymenv.action_space = gym_action_space
+        
+        gymenv.observation_space.close()
+        gymenv.observation_space = gym_observation_space
+        
     # create a grid2gop agent based on that (this will reload the save weights)
     full_path = os.path.join(load_path, name)
     grid2op_agent = SB3Agent(env.action_space,
                              gym_action_space,
                              gym_observation_space,
-                             nn_path=os.path.join(full_path, name)
+                             nn_path=os.path.join(full_path, name),
+                             gymenv=gymenv,
                              )
 
     if nb_episode == 0:

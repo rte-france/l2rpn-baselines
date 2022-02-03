@@ -16,9 +16,11 @@ import os
 import re
 import numpy as np
 from grid2op.Reward import BaseReward
+from l2rpn_baselines.utils import GymEnvWithReco
 
 env_name = "l2rpn_icaps_2021_small_train"
 save_path = "./saved_model"
+gymenv_class = GymEnvWithReco
 
 # customize the reward function (optional)
 class CustomReward(BaseReward):
@@ -99,7 +101,6 @@ if __name__ == "__main__":
     from l2rpn_baselines.PPO_SB3 import train
     from lightsim2grid import LightSimBackend  # highly recommended !
     from grid2op.Chronics import MultifolderWithCache  # highly recommended for training
-    from l2rpn_baselines.utils import GymEnvWithReco
     
     obs_attr_to_keep = ["day_of_week", "hour_of_day", "minute_of_hour",
                         "gen_p", "load_p", "p_or",
@@ -108,10 +109,10 @@ if __name__ == "__main__":
                         "curtailment", "gen_p_before_curtail"]
 
     act_attr_to_keep = ["redispatch", "curtail"]
-    nb_iter = 6_000_000
+    nb_iter = 6_000
     learning_rate = 3e-3
     net_arch = [300, 300, 300]
-    name = "expe_with_auto_reco_simplereward"
+    name = "expe_test"
     gamma = 0.999
     
     env = grid2op.make(env_name,
@@ -120,8 +121,8 @@ if __name__ == "__main__":
                        chronics_class=MultifolderWithCache)
 
     obs = env.reset()
-    # env.chronics_handler.real_data.set_filter(lambda x: re.match(r".*00$", x) is not None)
-    env.chronics_handler.real_data.set_filter(lambda x: True)
+    env.chronics_handler.real_data.set_filter(lambda x: re.match(r".*00$", x) is not None)
+    # env.chronics_handler.real_data.set_filter(lambda x: True)
     env.chronics_handler.real_data.reset()
     # see https://grid2op.readthedocs.io/en/latest/environment.html#optimize-the-data-pipeline
     # for more information !
@@ -141,7 +142,7 @@ if __name__ == "__main__":
             save_every_xxx_steps=min(nb_iter // 10, 100_000),
             verbose=1,
             gamma=0.999,
-            gymenv_class=GymEnvWithReco,
+            gymenv_class=gymenv_class,
             )
     
     print("After training, ")
