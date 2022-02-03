@@ -8,10 +8,13 @@
 
 from abc import abstractmethod
 import copy
+from typing import List, Optional
 
 from grid2op.Agent import BaseAgent
 from grid2op.Observation import BaseObservation
 from grid2op.Action import BaseAction
+
+from l2rpn_baselines.utils.gymenv_custom import GymEnvWithHeuristics
 
 
 class GymAgent(BaseAgent):
@@ -25,6 +28,8 @@ class GymAgent(BaseAgent):
     Use it only with a trained agent. It does not provide the "save" method and
     is not suitable for training.
     
+    TODO heuristic part !
+    
     ..info::
         To load a previously saved agent the function `GymAgent.load` will be called
         and you must provide the `nn_path` keyword argument.
@@ -33,6 +38,9 @@ class GymAgent(BaseAgent):
         you must provide the `nn_kwargs` keyword argument.
         
         You cannot set both, you have to set one.
+        
+    TODO example !!!
+    
     """
     def __init__(self,
                  g2op_action_space,
@@ -41,11 +49,21 @@ class GymAgent(BaseAgent):
                  *,  # to prevent positional argument
                  nn_path=None,
                  nn_kwargs=None,
+                 gymenv=None,
                  _check_both_set=True,
                  _check_none_set=True):
         super().__init__(g2op_action_space)
         self._gym_act_space = gym_act_space
         self._gym_obs_space = gym_obs_space
+        
+        self._has_heuristic : bool = False
+        self.gymenv : Optional[GymEnvWithHeuristics] = gymenv
+        self._action_list : Optional[List] = None
+        
+        if self.gymenv is not None and isinstance(self.gymenv, GymEnvWithHeuristics):
+            self._has_heuristic = True
+            self._action_list = []
+            
         if _check_none_set and (nn_path is None and nn_kwargs is None):
             raise RuntimeError("Impossible to build a GymAgent without providing at "
                                "least one of `nn_path` (to load the agent from disk) "
@@ -95,7 +113,21 @@ class GymAgent(BaseAgent):
         ..info:: Only called if the agent has been build with `nn_path=None` and `nn_kwargs` not None
         """
         pass
+    
+    def clean_heuristic_actions(self, observation: BaseObservation, reward: float, done: bool) -> None:
+        """This function allows to cure the heuristic actions. 
         
+        It is called at each step, just after the heuristic actions are computed (but before they are selected).
+        
+        It can be used, for example, to reorder the `self._action_list` for example.
+
+        Args:
+            observation (BaseObservation): The current observation
+            reward (float): the current reward
+            done (bool): the current flag "done"
+        """
+        pass
+    
     def act(self, observation: BaseObservation, reward: float, done: bool) -> BaseAction:
         """This function is called to "map" the grid2op world
         into a usable format by a neural networks (for example in a format
@@ -122,7 +154,23 @@ class GymAgent(BaseAgent):
         
         In this case the "gym agent" will only be used in particular settings.
         """
-        gym_obs = self._gym_obs_space.to_gym(observation)
-        gym_act = self.get_act(gym_obs, reward, done)
-        grid2op_act = self._gym_act_space.from_gym(gym_act)
+        grid2op_act = None
+        
+        # heuristic part
+        if self._has_heuristic:
+            if not self._action_list:
+                # the list of actions is empty, i querry the heuristic to see if there's something I can do
+                self._action_list = self.gymenv.heuristic_actions(observation, reward, done, {})
+                
+            self.clean_heuristic_actions(observation, reward, done)
+            if self._action_list:
+                # some heuristic actions have been selected, i select the first one
+                grid2op_act = self._action_list.pop(0)
+        
+        # the heursitic did not select any actions, then ask the NN to do one !
+        if grid2op_act is None:
+            gym_obs = self._gym_obs_space.to_gym(observation)
+            gym_act = self.get_act(gym_obs, reward, done)
+            grid2op_act = self._gym_act_space.from_gym(gym_act)
+            
         return grid2op_act

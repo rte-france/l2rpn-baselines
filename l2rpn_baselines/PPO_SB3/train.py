@@ -132,7 +132,7 @@ def train(env,
         manipulate numbers between 0 and 1)
     
     gymenv_class: 
-        The class to use as a gym environment.
+        The class to use as a gym environment. By default `GymEnv` (from module grid2op.gym_compat)
     
     gymenv_kwargs: ``dict``
         Extra key words arguments to build the gym environment.

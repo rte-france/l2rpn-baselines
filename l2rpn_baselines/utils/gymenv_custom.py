@@ -14,6 +14,7 @@ from grid2op.Observation import BaseObservation
 from grid2op.Action import BaseAction
 from grid2op.gym_compat import GymEnv
 
+
 class GymEnvWithHeuristics(GymEnv):
     """This abstract class is used to perform some actions, independantly of a RL
     agent on a grid2op environment.
@@ -28,19 +29,25 @@ class GymEnvWithHeuristics(GymEnv):
                           reward: float,
                           done: bool,
                           info: Dict) -> List[BaseAction]:
-        return g2op_obs, reward, done, info
+        return []
     
     def apply_heuristics_actions(self,
                                  g2op_obs: BaseObservation,
                                  reward: float,
                                  done: bool,
                                  info: Dict ) -> Tuple[BaseObservation, float, bool, Dict]:
-        g2op_actions = self.heuristic_actions(g2op_obs, reward, done, info)
-        for g2op_act in g2op_actions:
-            tmp_obs, tmp_reward, tmp_done, tmp_info = self.init_env.step(g2op_act)
-            g2op_obs = tmp_obs
-            done = tmp_done
-            if tmp_done:
+        need_action = True
+        while need_action:
+            need_action = False
+            g2op_actions = self.heuristic_actions(g2op_obs, reward, done, info)
+            for g2op_act in g2op_actions:
+                need_action = True
+                tmp_obs, tmp_reward, tmp_done, tmp_info = self.init_env.step(g2op_act)
+                g2op_obs = tmp_obs
+                done = tmp_done
+                if tmp_done:
+                    break
+            if done:
                 break
         return g2op_obs, reward, done, info
     
@@ -81,4 +88,28 @@ class GymEnvWithReco(GymEnvWithHeuristics):
             for line_id in reco_id:
                 g2op_act = self.init_env.action_space({"set_line_status": [(line_id, +1)]})
                 res.append(g2op_act)
+        return res
+        
+    
+class GymEnvWithRecoWithDN(GymEnvWithHeuristics):
+    """[summary]
+
+    Parameters
+    ----------
+    GymEnv : [type]
+        [description]
+    """
+    def heuristic_actions(self, g2op_obs, reward, done, info) -> List[BaseAction]:
+        to_reco = (g2op_obs.time_before_cooldown_line == 0) & (~g2op_obs.line_status)
+        res = []
+        if np.any(to_reco):
+            # reconnect something if it can be
+            reco_id = np.where(to_reco)[0]
+            for line_id in reco_id:
+                g2op_act = self.init_env.action_space({"set_line_status": [(line_id, +1)]})
+                res.append(g2op_act)
+        elif g2op_obs.rho.max() <= 0.9:
+            # play do nothing if there is no problem
+            res = [self.init_env.action_space()]
+            
         return res
