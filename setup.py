@@ -25,7 +25,7 @@ pkgs = {
             "sphinx>=2.4.4",
             "sphinx-rtd-theme>=0.4.3",
             "sphinxcontrib-trio>=1.1.0",
-            "autodocsumm>=0.1.13"
+            "autodocsumm>=0.2.7"
         ],
         "optional": ["grid2op[optional]>=1.6.5",
                      "tensorflow>=2.2.0",
