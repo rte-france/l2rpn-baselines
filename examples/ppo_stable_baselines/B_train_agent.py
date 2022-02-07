@@ -20,6 +20,7 @@ from l2rpn_baselines.utils import GymEnvWithReco, GymEnvWithRecoWithDN
 
 env_name = "l2rpn_icaps_2021_small_train"
 save_path = "./saved_model"
+name = "expe_test2"
 gymenv_class = GymEnvWithRecoWithDN
 
 # customize the reward function (optional)
@@ -109,10 +110,9 @@ if __name__ == "__main__":
                         "curtailment", "gen_p_before_curtail"]
 
     act_attr_to_keep = ["redispatch", "curtail"]
-    nb_iter = 6_000
+    nb_iter = 100
     learning_rate = 3e-3
     net_arch = [300, 300, 300]
-    name = "expe_test"
     gamma = 0.999
     
     env = grid2op.make(env_name,
@@ -126,6 +126,7 @@ if __name__ == "__main__":
     env.chronics_handler.real_data.reset()
     # see https://grid2op.readthedocs.io/en/latest/environment.html#optimize-the-data-pipeline
     # for more information !
+    
     print("environment loaded !")
     trained_agent = train(
             env,

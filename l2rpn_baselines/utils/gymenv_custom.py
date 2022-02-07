@@ -219,13 +219,17 @@ class GymEnvWithHeuristics(GymEnv):
         gym_obs:
             The first open ai gym observation received by the agent
         """
-        super().reset()
-        g2op_obs = self.init_env.get_obs()
-        reward = self.init_env.reward_range[0]
-        done = False
-        info = {}
-        g2op_obs, reward, done, info = self.apply_heuristics_actions(g2op_obs, reward, done, info)
-        gym_obs = self.observation_space.to_gym(g2op_obs)
+        done = True
+        while done:
+            super().reset()  # reset the scenario
+            g2op_obs = self.init_env.get_obs()  # retrieve the observation
+            reward = self.init_env.reward_range[0]  # the reward at first step is always minimal
+            info = {}  # no extra information provided !
+            
+            # perform the "heuristics" steps
+            g2op_obs, reward, done, info = self.apply_heuristics_actions(g2op_obs, reward, done, info)
+            # convert back the observation to gym
+            gym_obs = self.observation_space.to_gym(g2op_obs)
         return gym_obs
     
 class GymEnvWithReco(GymEnvWithHeuristics):
@@ -312,5 +316,4 @@ class GymEnvWithRecoWithDN(GymEnvWithHeuristics):
         elif g2op_obs.rho.max() <= self._safe_max_rho:
             # play do nothing if there is "no problem" according to the "rule of thumb"
             res = [self.init_env.action_space()]
-            
         return res

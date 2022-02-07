@@ -17,10 +17,10 @@ from grid2op.Agent import RecoPowerlineAgent
 from l2rpn_baselines.PPO_SB3 import evaluate
 
 from A_prep_env import _aux_get_env, get_env_seed, name_stats
-from B_train_agent import gymenv_class
+from B_train_agent import gymenv_class, name
 
 env_name = "l2rpn_icaps_2021_small_val"
-agent_name = "expe_test"
+agent_name = name
 nb_scenario = 25
 nb_process_stats = 1
 load_path = "./saved_model"
