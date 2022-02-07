@@ -28,18 +28,42 @@ class GymAgent(BaseAgent):
     Use it only with a trained agent. It does not provide the "save" method and
     is not suitable for training.
     
-    TODO heuristic part !
-    
-    ..info::
+    .. note::
         To load a previously saved agent the function `GymAgent.load` will be called
         and you must provide the `nn_path` keyword argument.
         
         To build a new agent, the function `GymAgent.build` is called and
         you must provide the `nn_kwargs` keyword argument.
-        
-        You cannot set both, you have to set one.
-        
-    TODO example !!!
+    
+    Examples
+    ---------
+    Some examples of such agents are provided in the classes:
+    
+    - :class:`l2rpn_baselines.PPO_SB3.PPO_SB3` that implements such an agent with the "stable baselines3" RL framework
+    - :class:`l2rpn_baselines.PPO_RLLIB.PPO_RLLIB` that implements such an agent with the "ray / rllib" RL framework
+    
+    Both can benefit from the feature of this class, most notably the possibility to include "heuristics" (such as: 
+    "if a powerline can be reconnected, do it" or "do not act if the grid is not in danger")
+    
+    Notes
+    -----
+    The main goal of this class is to be able to use "heuristics" (both for training and at inference time) quite simply
+    and with out of the box support of external libraries.
+    
+    All top performers in all l2rpn competitions (as of writing) used some kind of heuristics in their agent (such as: 
+    "if a powerline can be reconnected, do it" or "do not act if the grid is not in danger"). This is why we made some 
+    effort to develop a generic class that allows to train agents directly using these "heuristics".
+    
+    This features is split in two parts:
+    
+    - At training time, the "*heuristics*" are part of the environment. The agent will see only observations that are relevant
+      to it (and not the stat handled by the heuristic.)
+    - At inference time, the "*heuristics*" of the environment used to train the agent are included in the "agent.act" function.
+      If a heuristic has been used at training time, the agent will first "ask" the environment is a heuristic should be
+      performed on the grid (in this case it will do it) otherwise it will ask the underlying neural network what to do.
+    
+    Some examples are provided in the "examples" code (under the "examples/ppo_stable_baselines") repository that 
+    demonstrates the use of :class:`l2rpn_baselines.utils.GymEnvWithRecoWithDN` .
     
     """
     def __init__(self,

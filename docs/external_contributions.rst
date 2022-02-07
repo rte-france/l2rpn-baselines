@@ -217,7 +217,7 @@ github:  https://github.com/polixir/L2RPN_2021
 .. note::
     1st at the fourth L2RPN competion in 2021 for ICAPS conference (team "*Xd_Silly*")
 
-.. _yzmn:
+.. _yzm:
 
 YZM_Test (2 submissions)
 -------------------------
