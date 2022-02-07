@@ -9,6 +9,7 @@
 # this file needs to be run only once, it might take a while !
 import os
 import json
+import sys
 import numpy as np
 import grid2op
 from grid2op.dtypes import dt_int
@@ -17,11 +18,14 @@ from grid2op.utils import ScoreICAPS2021, EpisodeStatistics
 from lightsim2grid import LightSimBackend
 import numpy as np
 
+is_windows = sys.platform.startswith("win32")
 
 env_name = "l2rpn_icaps_2021_small"
 name_stats = "_reco_powerline"
-nb_process_stats = 8
+nb_process_stats = 8 if not is_windows else 1
 verbose = 1
+deep_copy = is_windows  # force the deep copy on windows (due to permission issue in symlink in windows)
+
 
 def _aux_get_env(env_name, dn=True, name_stat=None):
     path_ = grid2op.get_current_local_dir()
@@ -92,8 +96,9 @@ if __name__ == "__main__":
     env.seed(1)
     env.reset()
     nm_train, nm_val, nm_test = env.train_val_split_random(add_for_test="test",
-                                                        pct_val=4.2,
-                                                        pct_test=4.2)
+                                                           pct_val=4.2,
+                                                           pct_test=4.2,
+                                                           deep_copy=deep_copy)
 
     # computes some statistics for val / test to compare performance of 
     # some agents with the do nothing for example

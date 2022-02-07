@@ -229,17 +229,34 @@ class GymEnvWithHeuristics(GymEnv):
         return gym_obs
     
 class GymEnvWithReco(GymEnvWithHeuristics):
-    """[summary]
+    """This specific type of environment with "heuristics" / "expert rules" / "expert actions" is an
+    example to illustrate how to perfom an automatic powerline reconnection.
+    
+    For this type of environment the only heuristic implemented is the following: "each time i can
+    reconnect a powerline, i don't ask the agent, i reconnect it and send it the state after the powerline
+    has been reconnected".
 
-    Parameters
-    ----------
-    GymEnv : [type]
-        [description]
+    With the proposed class, implementing it is fairly easy as shown in function :func:`GymEnvWithReco.heuristic_actions`
+    
     """
     def heuristic_actions(self, g2op_obs, reward, done, info) -> List[BaseAction]:
+        """The heuristic is pretty simple: each there is a powerline with a cooldown at 0 and that is disconnected
+        the heuristic reconnects it.
+
+        Parameters
+        ----------
+        See parameters of :func:`GymEnvWithHeuristics.heuristic_actions`
+
+        Returns
+        -------
+        See return values of :func:`GymEnvWithHeuristics.heuristic_actions`
+        """
+        
+        # computes which powerline can be reconnected
         to_reco = (g2op_obs.time_before_cooldown_line == 0) & (~g2op_obs.line_status)
         res = []
         if np.any(to_reco):
+            # If I can reconnect any, I do it
             reco_id = np.where(to_reco)[0]
             for line_id in reco_id:
                 g2op_act = self.init_env.action_space({"set_line_status": [(line_id, +1)]})
@@ -248,14 +265,42 @@ class GymEnvWithReco(GymEnvWithHeuristics):
         
     
 class GymEnvWithRecoWithDN(GymEnvWithHeuristics):
-    """[summary]
-
-    Parameters
-    ----------
-    GymEnv : [type]
-        [description]
+    """This environment is slightly more complex that the other one.
+    
+    It consists in 2 things:
+    
+    #. reconnecting the powerlines if possible
+    #. doing nothing is the state of the grid is "safe" (for this class, the notion of "safety" is pretty simple: if all
+       flows are bellow 90% (by default) of the thermal limit, then it is safe)
+    
+    If for a given step, non of these things is applicable, the underlying trained agent is asked to perform an action
+    
+    .. warning::
+        When using this environment, we highly recommend to adapt the parameter `safe_max_rho` to suit your need.
+        
+        Sometimes, 90% of the thermal limit is too high, sometimes it is too low.
+        
     """
+    def __init__(self, env_init, safe_max_rho=0.9):
+        super().__init__(env_init)
+        self._safe_max_rho = safe_max_rho
+        
     def heuristic_actions(self, g2op_obs, reward, done, info) -> List[BaseAction]:
+        """To match the description of the environment, this heuristic will:
+        
+        - return the list of all the powerlines that can be reconnected if any
+        - return the list "[do nothing]" is the grid is safe
+        - return the empty list (signaling the agent should take control over the heuristics) otherwise
+
+        Parameters
+        ----------
+        See parameters of :func:`GymEnvWithHeuristics.heuristic_actions`
+
+        Returns
+        -------
+        See return values of :func:`GymEnvWithHeuristics.heuristic_actions`
+        """
+        
         to_reco = (g2op_obs.time_before_cooldown_line == 0) & (~g2op_obs.line_status)
         res = []
         if np.any(to_reco):
@@ -264,8 +309,8 @@ class GymEnvWithRecoWithDN(GymEnvWithHeuristics):
             for line_id in reco_id:
                 g2op_act = self.init_env.action_space({"set_line_status": [(line_id, +1)]})
                 res.append(g2op_act)
-        elif g2op_obs.rho.max() <= 0.9:
-            # play do nothing if there is no problem
+        elif g2op_obs.rho.max() <= self._safe_max_rho:
+            # play do nothing if there is "no problem" according to the "rule of thumb"
             res = [self.init_env.action_space()]
             
         return res
