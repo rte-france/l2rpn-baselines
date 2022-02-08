@@ -186,3 +186,6 @@ examples/ppo_stable_baselines/logs/**
 logs/
 saved_agents/
 test_train_DuelQSimple.py
+line_act.json
+tensorboard/
+test_sac/

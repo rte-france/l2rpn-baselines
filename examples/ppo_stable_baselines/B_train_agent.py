@@ -20,7 +20,11 @@ from l2rpn_baselines.utils import GymEnvWithReco, GymEnvWithRecoWithDN
 
 env_name = "l2rpn_icaps_2021_small_train"
 save_path = "./saved_model"
+name = "expe_GymEnvWithRecoWithDN_sqrt"
 gymenv_class = GymEnvWithRecoWithDN
+max_iter = 7 * 24 * 12  # None to deactivate it
+safe_max_rho = 0.75
+
 
 # customize the reward function (optional)
 class CustomReward(BaseReward):
@@ -52,13 +56,15 @@ class CustomReward(BaseReward):
         
     def __call__(self, action, env, has_error, is_done, is_illegal, is_ambiguous):
         if is_done:
-            print(f"{os.path.split(env.chronics_handler.get_id())[-1]}: {env.nb_time_step = }")
+            res = np.sqrt(env.nb_time_step / env.max_episode_duration())
+            print(f"{os.path.split(env.chronics_handler.get_id())[-1]}: {env.nb_time_step = }, reward : {res:.3f}")
             # episode is over => 2 cases
             # if env.nb_time_step == env.max_episode_duration():
             #     return self.reward_max
             # else:
             #     return self.reward_min
-            return env.nb_time_step / env.max_episode_duration()
+            return res
+        
         if is_illegal or is_ambiguous or has_error:
             return self.reward_min
         # penalize the dispatch
@@ -109,24 +115,25 @@ if __name__ == "__main__":
                         "curtailment", "gen_p_before_curtail"]
 
     act_attr_to_keep = ["redispatch", "curtail"]
-    nb_iter = 6_000
-    learning_rate = 3e-3
-    net_arch = [300, 300, 300]
-    name = "expe_with_dn_onlyend"
-    name = "expe_test"
+    nb_iter = 1_000_000
+    learning_rate = 3e-4
+    net_arch = [200, 200, 200, 200]
     gamma = 0.999
     
     env = grid2op.make(env_name,
                        reward_class=CustomReward,
                        backend=LightSimBackend(),
                        chronics_class=MultifolderWithCache)
-
+    if max_iter is not None:
+        env.set_max_iter(max_iter)  # one week
     obs = env.reset()
-    env.chronics_handler.real_data.set_filter(lambda x: re.match(r".*00$", x) is not None)
-    # env.chronics_handler.real_data.set_filter(lambda x: True)
+    # env.chronics_handler.real_data.set_filter(lambda x: re.match(r".*february_000$", x) is not None)
+    # env.chronics_handler.real_data.set_filter(lambda x: re.match(r".*00$", x) is not None)
+    env.chronics_handler.real_data.set_filter(lambda x: True)
     env.chronics_handler.real_data.reset()
     # see https://grid2op.readthedocs.io/en/latest/environment.html#optimize-the-data-pipeline
     # for more information !
+    
     print("environment loaded !")
     trained_agent = train(
             env,
@@ -144,4 +151,5 @@ if __name__ == "__main__":
             verbose=1,
             gamma=0.999,
             gymenv_class=gymenv_class,
+            gymenv_kwargs={"safe_max_rho": safe_max_rho}
             )

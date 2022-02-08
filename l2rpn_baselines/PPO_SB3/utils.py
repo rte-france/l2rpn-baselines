@@ -6,6 +6,7 @@
 # SPDX-License-Identifier: MPL-2.0
 # This file is part of L2RPN Baselines, L2RPN Baselines a repository to host baselines for l2rpn competitions.
 
+from lib2to3.pgen2.token import OP
 import warnings
 import os
 import json
@@ -211,13 +212,15 @@ class SB3Agent(GymAgent):
                  nn_path=None,
                  nn_kwargs=None,
                  custom_load_dict=None,
-                 gymenv=None
+                 gymenv=None,
+                 iter_num=None,
                  ):
         self._nn_type = nn_type
         if custom_load_dict is not None:
             self.custom_load_dict = custom_load_dict
         else:
             self.custom_load_dict = {}
+        self._iter_num : Optional[int] = iter_num 
         super().__init__(g2op_action_space, gym_act_space, gym_obs_space,
                          nn_path=nn_path, nn_kwargs=nn_kwargs,
                          gymenv=gymenv
@@ -259,7 +262,10 @@ class SB3Agent(GymAgent):
                           "observation_space": self._gym_obs_space}
         for key, val in self.custom_load_dict.items():
             custom_objects[key] = val
-        self.nn_model = self._nn_type.load(self._nn_path,
+        path_load = self._nn_path
+        if self._iter_num is not None:
+            path_load = path_load + f"_{self._iter_num}_steps"
+        self.nn_model = self._nn_type.load(path_load,
                                            custom_objects=custom_objects)
         
     def build(self):

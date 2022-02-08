@@ -27,6 +27,7 @@ def evaluate(env,
              save_gif=False,
              gymenv_class=GymEnv,
              gymenv_kwargs=None,
+             iter_num=None,
              **kwargs):
     """
     This function will use stable baselines 3 to evaluate a previously trained
@@ -79,6 +80,10 @@ def evaluate(env,
     
     gymenv_kwargs: ``dict``
         Extra key words arguments to build the gym environment.
+    
+    iter_num:
+        Which training iteration do you want to restore (by default: None means 
+        "the last one")
         
     kwargs:
         extra parameters passed to the PPO from stable baselines 3
@@ -186,6 +191,7 @@ def evaluate(env,
                              gym_observation_space,
                              nn_path=os.path.join(full_path, name),
                              gymenv=gymenv,
+                             iter_num=iter_num,
                              )
 
     if nb_episode == 0:

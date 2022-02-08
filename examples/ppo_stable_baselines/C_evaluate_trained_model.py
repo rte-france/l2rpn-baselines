@@ -6,24 +6,26 @@
 # SPDX-License-Identifier: MPL-2.0
 # This file is part of L2RPN Baselines, L2RPN Baselines a repository to host baselines for l2rpn competitions.
 
+from tabnanny import verbose
 import numpy as np
 
 import grid2op
 from grid2op.utils import ScoreICAPS2021
 from lightsim2grid import LightSimBackend
 from grid2op.gym_compat import GymEnv
-from grid2op.Agent import RecoPowerlineAgent
 
 from l2rpn_baselines.PPO_SB3 import evaluate
 
 from A_prep_env import _aux_get_env, get_env_seed, name_stats
-from B_train_agent import gymenv_class
+from B_train_agent import gymenv_class, name
 
 env_name = "l2rpn_icaps_2021_small_val"
-agent_name = "expe_test"
+agent_name = name
 nb_scenario = 25
 nb_process_stats = 1
 load_path = "./saved_model"
+iter_num = 100_000  # put None for the latest version
+verbose = True
 
 
 def load_agent(env, load_path, name, gymenv_class=GymEnv):
@@ -31,7 +33,8 @@ def load_agent(env, load_path, name, gymenv_class=GymEnv):
                                 nb_episode=0,
                                 load_path=load_path,
                                 name=name,
-                                gymenv_class=gymenv_class)
+                                gymenv_class=gymenv_class,
+                                iter_num=iter_num)
     return trained_agent
 
 
@@ -69,7 +72,7 @@ if __name__ == "__main__":
                               nb_scenario=nb_scenario,
                               env_seeds=get_env_seed(env_name)[:nb_scenario],
                               agent_seeds=[0 for _ in range(nb_scenario)],
-                              verbose=False,
+                              verbose=verbose,
                               nb_process_stats=nb_process_stats,
                               )
 
