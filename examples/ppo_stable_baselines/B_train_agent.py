@@ -19,11 +19,12 @@ from grid2op.Reward import BaseReward
 from l2rpn_baselines.utils import GymEnvWithReco, GymEnvWithRecoWithDN
 
 env_name = "l2rpn_icaps_2021_small_train"
+env_name = "l2rpn_wcci_2022_dev_train"
 save_path = "./saved_model"
-name = "expe_GymEnvWithRecoWithDN_sqrt"
-gymenv_class = GymEnvWithRecoWithDN
+name = "expe_GymEnvWithRecoWithDN_2022_test4"
+gymenv_class = GymEnvWithRecoWithDN  # uses the heuristic to do nothing is the grid is not at risk and to reconnect powerline automatically
 max_iter = 7 * 24 * 12  # None to deactivate it
-safe_max_rho = 0.75
+safe_max_rho = 0.9  # the grid is said "safe" if the rho is lower than this value, it is a really important parameter to tune !
 
 
 # customize the reward function (optional)
@@ -58,6 +59,8 @@ class CustomReward(BaseReward):
         if is_done:
             res = np.sqrt(env.nb_time_step / env.max_episode_duration())
             print(f"{os.path.split(env.chronics_handler.get_id())[-1]}: {env.nb_time_step = }, reward : {res:.3f}")
+            if env.nb_time_step <= 5:
+                print(f"reason game over: {env.infos['exception']}")
             # episode is over => 2 cases
             # if env.nb_time_step == env.max_episode_duration():
             #     return self.reward_max
@@ -108,14 +111,22 @@ if __name__ == "__main__":
     from lightsim2grid import LightSimBackend  # highly recommended !
     from grid2op.Chronics import MultifolderWithCache  # highly recommended for training
     
-    obs_attr_to_keep = ["day_of_week", "hour_of_day", "minute_of_hour",
-                        "gen_p", "load_p", "p_or",
+    # you can change below (full list at https://grid2op.readthedocs.io/en/latest/observation.html#main-observation-attributes)
+    obs_attr_to_keep = ["month", "day_of_week", "hour_of_day", "minute_of_hour",
+                        "gen_p", "load_p", 
+                        "p_or", "rho", "timestep_overflow", "line_status",
+                        # dispatch part of the observation
                         "actual_dispatch", "target_dispatch",
-                        "rho", "timestep_overflow", "line_status",
-                        "curtailment", "gen_p_before_curtail"]
-
-    act_attr_to_keep = ["redispatch", "curtail"]
-    nb_iter = 1_000_000
+                        # storage part of the observation
+                        "storage_charge", "storage_power",
+                        # curtailment part of the observation
+                        "curtailment", "curtailment_limit",  "gen_p_before_curtail",
+                        ]
+    # same here you can change it as you please
+    act_attr_to_keep = ["redispatch", "curtail", "set_storage"]
+    
+    # parameters for the learning
+    nb_iter = 300_000
     learning_rate = 3e-4
     net_arch = [200, 200, 200, 200]
     gamma = 0.999

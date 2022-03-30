@@ -29,8 +29,16 @@ In this phase, we do 3 things:
 
 ## 2 Training the agent
 
-In this phase TODO
+In this phase where the training takes place and is implemented in the script `B_train_agent.py`
 
+This script will show you how to modify the reward function (if needed), how to select some part of the observation and the action space to train a `PPO` using the "stable baselines 3" framework. This agent only uses **continuous** action types (`redispatching`, `curtailment` and action on `storage units`) and does not modify the topology at all.
+
+This script leverage the most common pattern used by best performing submissions at previous l2rpn competitions and allows you to train agents using some "heuristics" (*eg* "do not act when the grid is safe" or "reconnect a powerline as soon as you can"). This is made possible by the implementation of such "heursitics" directly in the environment: the neural network (agent) only gets observations when it should do something. Said differently, when a heuristic can operate the grid, the NN is "skipped" and does not even sees the observation. At inference time, the same mechanism is used. This makes the training and the evaluation consistent with one another.
+
+This also means that the number of steps performed by grid2op is higher than the number of observations seen by the agent. The training can take a long time.
+
+
+What is of particular importance in this script, beside the usual "learning rate" and "neural network architecture" is the "`safe_max_rho`" meta parameters. This parameters controls when the agent is asked to perform an action (when any `obs.rho >= safe_max_rho`). If it's too high, then the agent will almost never act and might not learn anything. If it's too low then the "heuristic" part ("do nothing when the grid is safe") will not be used and the agent might take a lot of time to learn this.
 
 ## 3 evaluate the agent
 

@@ -14,15 +14,18 @@ import numpy as np
 import grid2op
 from grid2op.dtypes import dt_int
 from grid2op.Agent import RecoPowerlineAgent
-from grid2op.utils import ScoreICAPS2021, EpisodeStatistics
+from grid2op.utils import ScoreL2RPN2020, ScoreICAPS2021, EpisodeStatistics
 from lightsim2grid import LightSimBackend
 import numpy as np
 
 is_windows = sys.platform.startswith("win32")
 
 env_name = "l2rpn_icaps_2021_small"
+env_name = "l2rpn_wcci_2022_dev"
+SCOREUSED = ScoreL2RPN2020  # ScoreICAPS2021
+
 name_stats = "_reco_powerline"
-nb_process_stats = 8 if not is_windows else 1
+nb_process_stats = 4 if not is_windows else 1
 verbose = 1
 deep_copy = is_windows  # force the deep copy on windows (due to permission issue in symlink in windows)
 
@@ -33,9 +36,13 @@ def _aux_get_env(env_name, dn=True, name_stat=None):
     if not os.path.exists(path_env):
         raise RuntimeError(f"The environment \"{env_name}\" does not exist.")
     
-    path_dn = os.path.join(path_env, "_statistics_icaps2021_dn")
+    if SCOREUSED == ScoreICAPS2021:
+        path_dn = os.path.join(path_env, "_statistics_icaps2021_dn")
+    else:
+        path_dn = os.path.join(path_env, "_statistics_l2rpn_dn")
+        
     if not os.path.exists(path_dn):
-        raise RuntimeError("The folder _statistics_icaps2021_dn used for computing the score do not exist")
+        raise RuntimeError("The folder _statistics_icaps2021_dn (or _statistics_l2rpn_dn) used for computing the score do not exist")
     path_reco = os.path.join(path_env, "_statistics_l2rpn_no_overflow_reco")
     if not os.path.exists(path_reco):
         raise RuntimeError("The folder _statistics_l2rpn_no_overflow_reco used for computing the score do not exist")
@@ -107,16 +114,16 @@ if __name__ == "__main__":
         env_tmp = grid2op.make(nm_, backend=LightSimBackend())
         nb_scenario = len(env_tmp.chronics_handler.subpaths)
         print(f"{nm_}: {nb_scenario}")
-        my_score = ScoreICAPS2021(env_tmp,
-                                  nb_scenario=nb_scenario,
-                                  env_seeds=np.random.randint(low=0,
-                                                              high=max_int,
-                                                              size=nb_scenario,
-                                                              dtype=dt_int),
-                                  agent_seeds=[0 for _ in range(nb_scenario)],
-                                  verbose=verbose,
-                                  nb_process_stats=nb_process_stats,
-                                  )
+        my_score = SCOREUSED(env_tmp,
+                             nb_scenario=nb_scenario,
+                             env_seeds=np.random.randint(low=0,
+                                                         high=max_int,
+                                                         size=nb_scenario,
+                                                         dtype=dt_int),
+                             agent_seeds=[0 for _ in range(nb_scenario)],
+                             verbose=verbose,
+                             nb_process_stats=nb_process_stats,
+                             )
 
         # compute statistics for reco powerline
         seeds = get_env_seed(nm_)

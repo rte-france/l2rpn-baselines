@@ -10,31 +10,37 @@ from tabnanny import verbose
 import numpy as np
 
 import grid2op
-from grid2op.utils import ScoreICAPS2021
+from grid2op.utils import ScoreICAPS2021, ScoreL2RPN2020
 from lightsim2grid import LightSimBackend
 from grid2op.gym_compat import GymEnv
 
 from l2rpn_baselines.PPO_SB3 import evaluate
 
 from A_prep_env import _aux_get_env, get_env_seed, name_stats
-from B_train_agent import gymenv_class, name
+from B_train_agent import gymenv_class, name, safe_max_rho
 
 env_name = "l2rpn_icaps_2021_small_val"
+env_name = "l2rpn_wcci_2022_dev_val"
+SCOREUSED = ScoreL2RPN2020  # ScoreICAPS2021
+
 agent_name = name
-nb_scenario = 25
+nb_scenario = 10
 nb_process_stats = 1
 load_path = "./saved_model"
-iter_num = 100_000  # put None for the latest version
+iter_num = None  # put None for the latest version
 verbose = True
 
 
-def load_agent(env, load_path, name, gymenv_class=GymEnv):
+def load_agent(env, load_path, name,
+               gymenv_class=gymenv_class,
+               gymenv_kwargs={"safe_max_rho": safe_max_rho}):
     trained_agent, _ = evaluate(env,
                                 nb_episode=0,
                                 load_path=load_path,
                                 name=name,
                                 gymenv_class=gymenv_class,
-                                iter_num=iter_num)
+                                iter_num=iter_num,
+                                gymenv_kwargs=gymenv_kwargs)
     return trained_agent
 
 
@@ -68,13 +74,13 @@ if __name__ == "__main__":
     dn_ts_survived = get_ts_survived_dn(env_name)
     reco_ts_survived = get_ts_survived_reco(env_name)
 
-    my_score = ScoreICAPS2021(env_val,
-                              nb_scenario=nb_scenario,
-                              env_seeds=get_env_seed(env_name)[:nb_scenario],
-                              agent_seeds=[0 for _ in range(nb_scenario)],
-                              verbose=verbose,
-                              nb_process_stats=nb_process_stats,
-                              )
+    my_score = SCOREUSED(env_val,
+                         nb_scenario=nb_scenario,
+                         env_seeds=get_env_seed(env_name)[:nb_scenario],
+                         agent_seeds=[0 for _ in range(nb_scenario)],
+                         verbose=verbose,
+                         nb_process_stats=nb_process_stats,
+                         )
 
     my_agent = load_agent(env_val, load_path=load_path, name=agent_name, gymenv_class=gymenv_class)
     _, ts_survived, _ = my_score.get(my_agent)
