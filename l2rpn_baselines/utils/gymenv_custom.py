@@ -223,7 +223,7 @@ class GymEnvWithHeuristics(GymEnv):
         gym_obs = self.observation_space.to_gym(g2op_obs)
         return gym_obs, float(reward), done, info
         
-    def reset(self):
+    def reset(self, seed=None, return_info=False, options=None):
         """This function implements the "reset" function. It is called at the end of every episode and
         marks the beginning of a new one.
         
@@ -239,17 +239,22 @@ class GymEnvWithHeuristics(GymEnv):
             The first open ai gym observation received by the agent
         """
         done = True
+        info = {}  # no extra information provided !
         while done:
-            super().reset()  # reset the scenario
+            super().reset(seed, return_info, options)  # reset the scenario
             g2op_obs = self.init_env.get_obs()  # retrieve the observation
             reward = self.init_env.reward_range[0]  # the reward at first step is always minimal
-            info = {}  # no extra information provided !
             
             # perform the "heuristics" steps
             g2op_obs, reward, done, info = self.apply_heuristics_actions(g2op_obs, reward, False, info)
+            
             # convert back the observation to gym
             gym_obs = self.observation_space.to_gym(g2op_obs)
-        return gym_obs
+            
+        if return_info:
+            return gym_obs, info
+        else:
+            return gym_obs
     
 class GymEnvWithReco(GymEnvWithHeuristics):
     """This specific type of environment with "heuristics" / "expert rules" / "expert actions" is an
