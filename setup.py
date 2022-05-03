@@ -25,7 +25,8 @@ pkgs = {
             "sphinx>=2.4.4",
             "sphinx-rtd-theme>=0.4.3",
             "sphinxcontrib-trio>=1.1.0",
-            "autodocsumm>=0.2.7"
+            "autodocsumm>=0.2.7",
+            "cvxpy"
         ],
         "optional": ["grid2op[optional]>=1.6.5",
                      "tensorflow>=2.2.0",
@@ -36,7 +37,7 @@ pkgs = {
         "PPO_RLLIB": ["ray[rllib]",
                       "jsonpickle",
                       "lightsim2grid"],
-        "PPO_SB3": ["stable_baselines3"]
+        "PPO_SB3": ["stable_baselines3", "lightsim2grid"]
     }
 }
 

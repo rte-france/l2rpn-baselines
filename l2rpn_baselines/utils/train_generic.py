@@ -17,6 +17,18 @@ def train_generic(agent,
     """
     This function is a helper to train more easily some agent using their default "train" method.
 
+    .. warning::
+        This baseline recodes entire the RL training procedure. You can use it if you
+        want to have a deeper look at Deep Q Learning algorithm and a possible (non 
+        optimized, slow, etc. implementation ).
+        
+        For a much better implementation, you can reuse the code of "PPO_RLLIB" 
+        or the "PPO_SB3" baseline.
+        
+        Prefer to use the :class:`GymAgent` class and the :class:`GymEnvWithHeuristics`
+        classes to train agent interacting with grid2op and fully compatible
+        with gym framework.	
+
     Parameters
     ----------
     agent: :class:`grid2op.Agent`

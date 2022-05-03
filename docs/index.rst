@@ -48,6 +48,7 @@ in some environment.
    :caption: Open source libraries
 
    expertagent
+   optimcvxpy
    external_contributions
 
 Custom implementation

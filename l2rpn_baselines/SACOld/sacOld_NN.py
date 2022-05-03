@@ -32,6 +32,14 @@ class SACOld_NN(BaseDeepQ):
     """
     Constructs the desired soft actor critic network.
 
+    .. warning::
+        This baseline recodes entire the RL training procedure. You can use it if you
+        want to have a deeper look at Deep Q Learning algorithm and a possible (non 
+        optimized, slow, etc. implementation ).
+        
+        For a much better implementation, you can reuse the code of "PPO_RLLIB" 
+        or the "PPO_SB3" baseline.
+        
     Compared to other baselines shown elsewhere (*eg* :class:`l2rpn_baselines.DeepQSimple` or
     :class:`l2rpn_baselines.DeepQSimple`) the implementation of the SAC is a bit more tricky
     (and was most likely NOT done properly in this class). For a more correct implementation

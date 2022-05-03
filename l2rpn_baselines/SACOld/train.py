@@ -34,6 +34,14 @@ def train(env,
     This function implements the "training" part of the baselines "SAC" (old buggy implementation).
     
     .. warning::
+        This baseline recodes entire the RL training procedure. You can use it if you
+        want to have a deeper look at Deep Q Learning algorithm and a possible (non 
+        optimized, slow, etc. implementation ).
+        
+        For a much better implementation, you can reuse the code of "PPO_RLLIB" 
+        or the "PPO_SB3" baseline.
+        
+    .. warning::
         We plan to add SAC based agents relying on external frameworks, such as stable baselines3 or ray / rllib.
         
         We will not code any SAC agent "from scratch".

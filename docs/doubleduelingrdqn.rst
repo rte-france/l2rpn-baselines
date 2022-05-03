@@ -10,7 +10,14 @@ This baseline is of type Recurrent Double Duelling Deep Q Network, as in Duellin
 
 It's main purpose is to provide an example of this network type running with Grid2Op. However, don't expect to obtain state of the art results.
 
-
+.. warning::
+        This baseline recodes entire the RL training procedure. You can use it if you
+        want to have a deeper look at Deep Q Learning algorithm and a possible (non 
+        optimized, slow, etc. implementation ).
+        
+        For a much better implementation, you can reuse the code of "PPO_RLLIB" 
+        or the "PPO_SB3" baseline.
+        
 Agent class
 ------------------------
 You can use this class with:

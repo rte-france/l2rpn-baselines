@@ -1,15 +1,20 @@
 # L2RPN Baselines
 
-This package holds reference baselines for the [L2RPN challenge](https://l2rpn.chalearn.org/)
+This package holds implementation baselines for the [L2RPN challenge](https://l2rpn.chalearn.org/)
 
 We thank kindly all baselines [contributors](../AUTHORS.txt).
 
-*Disclaimer* All baselines shown in this code are used to serve as example. They are in no way optimal and none of them
+*Disclaimer* All baselines shown in this code are used to serve as example, good practices or demonstrate some concepts. They are in no way optimal and none of them
 (to our knowledge) have been calibrated (learning rate is not tuned, neither is the number of layers, the size
 of each layers, the activation functions etc.)
 
 
 ## 1. Current available baselines
+
+A list of top performers to some of the past L2RPN competitions can
+be found in the documentation at https://l2rpn-baselines.readthedocs.io/en/latest/external_contributions.html
+
+In this package will find some other implementation (not tuned, to serve as examples):
 
  - [Template](/l2rpn_baselines/Template):
 
@@ -18,47 +23,29 @@ of each layers, the activation functions etc.)
  - [DoNothing](/l2rpn_baselines/DoNothing):
 
    The most simple baseline, that takes no actions until it fails.
-
- - [DoubleDuelingDQN](/l2rpn_baselines/DoubleDuelingDQN):
-
-   An example of a Double-DQN implementation.
-
- - [DoubleDuelingRDQN](/l2rpn_baselines/DoubleDuelingRDQN):
-
-   An example of a Recurrent Deep-Q Network implementation.
-
- - [SliceRDQN](/l2rpn_baselines/SliceRDQN):
-
-   A multi Recurrent Q-streams implementation.
-   Where each action class has it's own Q network embedded in the global net. 
-
- - [DeepQSimple](/l2rpn_baselines/DeepQSimple):
-
-   A simple implementation of the Deep Q Learning algorithm
-   
- - [DuelQSimple](/l2rpn_baselines/DuelQSimple):
-
-   An alternative implementation to the Double DQN implementation. 
-   
- - [DuelQLeapNet](/l2rpn_baselines/DuelQLeapNet):
-
-   Another alternative implementation to the Double DQN implementation that uses the LeapNet see 
-   [LeapNet](https://github.com/BDonnot/leap_net) as a way to model the Q-value.
- 
- - [PandapowerOPFAgent](/l2rpn_baselines/PandapowerOPFAgent) 
-   
-   A baseline thats uses an "Optimal Power Flow", a specific method develop by the power system community to 
-   control the flows.
-   
- - [Kaist](/l2rpn_baselines/Kaist)
- 
-   The winning agent of the WCCI 2020 competition based on graph neural networks and transformers.
    
  - [ExpertAgent](/l2rpn_baselines/ExpertAgent)
 
    An "expert" agent. It uses some expert knowledge about powergrid and graph theory to
    take action facing when there are some overloads.  
-   
+
+ - [PPO_RLLIB](/l2rpn_baselines/PPO_RLLIB)
+
+   Demonstrates how to use a PPO model (reinforcement learning model that achieved good
+   performances in some L2RPN competitions) with "ray / rllib" RL framework.
+
+ - [PPO_SB3](/l2rpn_baselines/PPO_SB3)
+
+   Demonstrates how to use a PPO model (reinforcement learning model that achieved good
+   performances in some L2RPN competitions) with "stable baselines 3" RL framework.
+
+ - [OptimCVXPY](/l2rpn_baselines/OptimCVXPY)
+
+   Shows how to use a optimization package (in this case cvxpy) to build an
+   agent proposing actions computed from this optimizer. Similar to the
+   "RL" baseline, for this one the "optimization modeling" is far from 
+   state of the art and can be greatly improved.
+
 ## 2. How to?
 
 ### 2.a Use a baseline
@@ -112,5 +99,3 @@ recommended that you post your baseline under one of the following license:
 - BSD clause 2
 - BSD clause 3 
 - MPL v2.0
-
-

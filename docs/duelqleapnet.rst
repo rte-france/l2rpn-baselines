@@ -17,6 +17,14 @@ In this baseline, we use this very same architecture to model the Q function. Th
 
 An example to train this model is available in the train function :ref:`Example-leapnet`.
 
+.. warning::
+        This baseline recodes entire the RL training procedure. You can use it if you
+        want to have a deeper look at Deep Q Learning algorithm and a possible (non 
+        optimized, slow, etc. implementation ).
+        
+        For a much better implementation, you can reuse the code of "PPO_RLLIB" 
+        or the "PPO_SB3" baseline.
+        
 Exported class
 --------------
 You can use this class with:

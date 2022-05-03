@@ -13,6 +13,15 @@ from l2rpn_baselines.DuelQSimple.duelQ_NN import DuelQ_NN
 
 
 class DuelQ_NNParam(NNParam):
+    """
+    .. warning::
+        This baseline recodes entire the RL training procedure. You can use it if you
+        want to have a deeper look at Deep Q Learning algorithm and a possible (non 
+        optimized, slow, etc. implementation ).
+        
+        For a much better implementation, you can reuse the code of "PPO_RLLIB" 
+        or the "PPO_SB3" baseline.
+    """
     _int_attr = copy.deepcopy(NNParam._int_attr)
     _float_attr = copy.deepcopy(NNParam._float_attr)
     _str_attr = copy.deepcopy(NNParam._str_attr)

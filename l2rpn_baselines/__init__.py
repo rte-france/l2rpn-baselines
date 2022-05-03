@@ -8,16 +8,19 @@
 
 all_baselines_li = [
     "Template",
-    "DoubleDuelingDQN",
-    "DoubleDuelingRDQN",
     "DoNothing",
     "ExpertAgent",
+    "PPO_RLLIB",
+    "PPO_SB3",
+    "OptimCVXPY",
+    # Backward compatibility
+    "SACOld",
+    "DoubleDuelingDQN",
+    "DoubleDuelingRDQN",
     "SliceRDQN",
     "DeepQSimple",
     "DuelQSimple",
     "LeapNetEncoded",
-    # Backward compatibility
-    "SACOld",
     # contribution
     "PandapowerOPFAgent",
     "Geirina",

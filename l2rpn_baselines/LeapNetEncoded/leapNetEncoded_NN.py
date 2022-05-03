@@ -32,6 +32,14 @@ from l2rpn_baselines.DuelQLeapNet.duelQLeapNet_NN import LtauBis
 
 class LeapNetEncoded_NN(BaseDeepQ):
     """
+    .. warning::
+        This baseline recodes entire the RL training procedure. You can use it if you
+        want to have a deeper look at Deep Q Learning algorithm and a possible (non 
+        optimized, slow, etc. implementation ).
+        
+        For a much better implementation, you can reuse the code of "PPO_RLLIB" 
+        or the "PPO_SB3" baseline.
+        
     Constructs the desired neural networks.
 
     More information on the leap net can be found at `Leap Net on Github <https://github.com/BDonnot/leap_net>`_

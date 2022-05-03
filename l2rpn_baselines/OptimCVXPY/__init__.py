@@ -7,13 +7,9 @@
 # This file is part of L2RPN Baselines, L2RPN Baselines a repository to host baselines for l2rpn competitions.
 
 __all__ = [
-    "DeepQSimple",
     "evaluate",
-    "train",
-    "DeepQ_NNParam"
+    "OptimCVXPY"
 ]
 
-from l2rpn_baselines.DeepQSimple.deepQSimple import DeepQSimple
-from l2rpn_baselines.DeepQSimple.evaluate import evaluate
-from l2rpn_baselines.DeepQSimple.train import train
-from l2rpn_baselines.DeepQSimple.deepQ_NNParam import DeepQ_NNParam
+from l2rpn_baselines.OptimCVXPY.optimCVXPY import OptimCVXPY
+from l2rpn_baselines.OptimCVXPY.evaluate import evaluate

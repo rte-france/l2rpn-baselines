@@ -189,3 +189,4 @@ test_train_DuelQSimple.py
 line_act.json
 tensorboard/
 test_sac/
+documentation/

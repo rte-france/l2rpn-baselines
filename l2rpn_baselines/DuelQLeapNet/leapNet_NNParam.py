@@ -18,6 +18,14 @@ class LeapNet_NNParam(NNParam):
 
     More information on the leap net can be found at `Leap Net on Github <https://github.com/BDonnot/leap_net>`_
 
+    .. warning::
+        This baseline recodes entire the RL training procedure. You can use it if you
+        want to have a deeper look at Deep Q Learning algorithm and a possible (non 
+        optimized, slow, etc. implementation ).
+        
+        For a much better implementation, you can reuse the code of "PPO_RLLIB" 
+        or the "PPO_SB3" baseline.
+        
     Attributes
     -----------
     x_dim: ``int``

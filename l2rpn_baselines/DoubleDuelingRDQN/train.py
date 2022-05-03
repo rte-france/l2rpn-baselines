@@ -74,6 +74,15 @@ def train(env,
           batch_size=DEFAULT_BATCH_SIZE,
           learning_rate=DEFAULT_LR,
           verbose=DEFAULT_VERBOSE):
+    """
+    .. warning::
+        This baseline recodes entire the RL training procedure. You can use it if you
+        want to have a deeper look at Deep Q Learning algorithm and a possible (non 
+        optimized, slow, etc. implementation ).
+        
+        For a much better implementation, you can reuse the code of "PPO_RLLIB" 
+        or the "PPO_SB3" baseline.
+    """
     import tensorflow as tf  # lazy import to save import time
     
     # Set config
