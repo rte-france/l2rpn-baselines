@@ -20,8 +20,9 @@ from l2rpn_baselines.utils import GymEnvWithReco, GymEnvWithRecoWithDN
 
 env_name = "l2rpn_icaps_2021_small_train"
 env_name = "l2rpn_wcci_2022_dev_train"
+env_name = "wcci_2022_dev_2"
 save_path = "./saved_model"
-name = "expe_GymEnvWithRecoWithDN_2022_test4"
+name = "expe_GymEnvWithRecoWithDN_2022_test5"
 gymenv_class = GymEnvWithRecoWithDN  # uses the heuristic to do nothing is the grid is not at risk and to reconnect powerline automatically
 max_iter = 7 * 24 * 12  # None to deactivate it
 safe_max_rho = 0.9  # the grid is said "safe" if the rho is lower than this value, it is a really important parameter to tune !
@@ -135,12 +136,18 @@ if __name__ == "__main__":
                        reward_class=CustomReward,
                        backend=LightSimBackend(),
                        chronics_class=MultifolderWithCache)
+    param = env.parameters
+    param.LIMIT_INFEASIBLE_CURTAILMENT_STORAGE_ACTION = True
+    env.change_parameters(param)
+    
     if max_iter is not None:
         env.set_max_iter(max_iter)  # one week
     obs = env.reset()
     # env.chronics_handler.real_data.set_filter(lambda x: re.match(r".*february_000$", x) is not None)
+    # env.chronics_handler.real_data.set_filter(lambda x: re.match(r".*february_000$", x) is not None)
     # env.chronics_handler.real_data.set_filter(lambda x: re.match(r".*00$", x) is not None)
-    env.chronics_handler.real_data.set_filter(lambda x: True)
+    # env.chronics_handler.real_data.set_filter(lambda x: True)
+    env.chronics_handler.real_data.set_filter(lambda x: re.match(r".*2050-08-01_.*$", x) is not None)
     env.chronics_handler.real_data.reset()
     # see https://grid2op.readthedocs.io/en/latest/environment.html#optimize-the-data-pipeline
     # for more information !

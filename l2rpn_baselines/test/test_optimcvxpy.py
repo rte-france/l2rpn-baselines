@@ -6,13 +6,18 @@
 # SPDX-License-Identifier: MPL-2.0
 # This file is part of L2RPN Baselines, L2RPN Baselines a repository to host baselines for l2rpn competitions.
 
+from pickle import FALSE
 import unittest
 import warnings
+import numpy as np
+
 import grid2op
-from lightsim2grid import LightSimBackend
 from grid2op.Action import PlayableAction
-from l2rpn_baselines.OptimCVXPY.optimCVXPY import OptimCVXPY
 from grid2op.Parameters import Parameters
+
+from lightsim2grid import LightSimBackend
+
+from l2rpn_baselines.OptimCVXPY.optimCVXPY import OptimCVXPY
 
 import pdb
 
@@ -148,7 +153,7 @@ class TestOptimCVXPY(unittest.TestCase):
                            env,
                            rho_safe=9.5,
                            rho_danger=10.,
-                           margin_th_limit=0.9)
+                           margin_th_limit=10.)
         
         l_id_disc = 4
         # a cooldown applies, agent does not reconnect it
@@ -180,6 +185,8 @@ class TestOptimCVXPY(unittest.TestCase):
         types = act.get_types()
         injection, voltage, topology, line, redispatching, storage, curtailment = types
         assert line
+        obs, reward, done, info = env.step(act)
+        assert obs.line_status[l_id_disc]
     
     def test_safe_setback_redisp(self):
         env = self._aux_create_env_setup()
@@ -187,13 +194,63 @@ class TestOptimCVXPY(unittest.TestCase):
                            env,
                            rho_safe=9.5,
                            rho_danger=10.,
-                           margin_th_limit=10.0)
+                           margin_th_limit=10.0,
+                           weight_storage_target=0.
+                           )
         act_prev = env.action_space()
         act_prev.redispatch = [3.0, 4.0, 0.0, 0.0, 0.0, -7.0]
         obs, reward, done, info = env.step(act_prev)
+        disp_ref = 1.0 * obs.actual_dispatch
         assert not done
         act = agent.act(obs, None, None)
-        pdb.set_trace()
-        print(act)
+        obs, reward, done, info = env.step(act)
+        assert not done
+        # now check that it has set back the redispatching to a closer value to the reference
+        assert np.sum(obs.actual_dispatch**2) < np.sum(disp_ref**2)  
+        
+    def test_safe_setback_storage(self):
+        param = Parameters()
+        param.NO_OVERFLOW_DISCONNECTION = True
+        param.ACTIVATE_STORAGE_LOSS = False  # otherwise it makes tests more complicated
+        env = self._aux_create_env_setup()
+        agent = OptimCVXPY(env.action_space,
+                           env,
+                           rho_safe=9.5,
+                           rho_danger=10.,
+                           margin_th_limit=10.0,
+                           weight_redisp_target=0.
+                           )
+        act_prev = env.action_space()
+        act_prev.storage_p = [4.9, -9.9]
+        obs, reward, done, info = env.step(act_prev)
+        obs, reward, done, info = env.step(act_prev)
+        obs, reward, done, info = env.step(act_prev)
+        obs, reward, done, info = env.step(act_prev)
+        for i in range(5): # more than 5 iterations and I got an error due to rounding
+            obs_before = obs.copy()
+            act = agent.act(obs_before, None, None)
+            obs, reward, done, info = env.step(act)
+            assert not info["exception"]
+            assert not done
+            assert (np.sum((obs.storage_charge - 0.5 * obs.storage_Emax)**2) <= 
+                    np.sum((obs_before.storage_charge - 0.5 * obs.storage_Emax)**2)), f"error at iteration {i}"
+        
+        env = self._aux_create_env_setup()
+        act_prev = env.action_space()
+        act_prev.storage_p = [4.9, 9.9]
+        obs, reward, done, info = env.step(act_prev)
+        obs, reward, done, info = env.step(act_prev)
+        obs, reward, done, info = env.step(act_prev)
+        obs, reward, done, info = env.step(act_prev)
+        for i in range(5): # more than 5 iterations and I got an error due to rounding
+            obs_before = obs.copy()
+            agent._DEBUG = True
+            act = agent.act(obs_before, None, None)
+            obs, reward, done, info = env.step(act)
+            assert not info["exception"]
+            assert not done
+            assert (np.sum((obs.storage_charge - 0.5 * obs.storage_Emax)**2) <= 
+                    np.sum((obs_before.storage_charge - 0.5 * obs.storage_Emax)**2)), f"error at iteration {i}"
+            
 if __name__ == '__main__':
     unittest.main()

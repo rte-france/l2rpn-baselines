@@ -13,12 +13,12 @@ baseline. Don't expect to obtain state of the art method with this simple method
 An example to train this model is available in the train function :ref:`Example-duelqsimple`.
 
 .. warning::
-        This baseline recodes entire the RL training procedure. You can use it if you
-        want to have a deeper look at Deep Q Learning algorithm and a possible (non 
-        optimized, slow, etc. implementation ).
-        
-        For a much better implementation, you can reuse the code of "PPO_RLLIB" 
-        or the "PPO_SB3" baseline.
+    This baseline recodes entire the RL training procedure. You can use it if you
+    want to have a deeper look at Deep Q Learning algorithm and a possible (non 
+    optimized, slow, etc. implementation ).
+    
+    For a much better implementation, you can reuse the code of :class:`l2rpn_baselines.PPO_RLLIB` 
+    or the :class:`l2rpn_baselines.PPO_SB3` baseline.
         
 Exported class
 --------------

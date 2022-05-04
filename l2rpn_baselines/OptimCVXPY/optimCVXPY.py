@@ -9,6 +9,7 @@
 from typing import Optional
 import logging
 import warnings
+from attr import has
 import cvxpy as cp
 import numpy as np
 
@@ -81,11 +82,17 @@ class OptimCVXPY(BaseAgent):
     nb_max_bus: `int`	
         Maximum number of buses allowed in the powergrid.
     
-    _penalty_curtailment: ` cp.Parameter`
+    _penalty_curtailment_unsafe: ` cp.Parameter`
 
-    _penalty_redispatching: `cp.Parameter`
+    _penalty_redispatching_unsafe: `cp.Parameter`
 
-    _penalty_storag: `cp.Parameter`
+    _penalty_storage_unsafe: `cp.Parameter`
+        
+    _penalty_curtailment_safe: ` cp.Parameter`
+
+    _penalty_redispatching_safe: `cp.Parameter`
+
+    _penalty_storage_safe: `cp.Parameter`
         
     bus_or: `cp.Parameter`
     
@@ -125,7 +132,9 @@ class OptimCVXPY(BaseAgent):
         A logger to log information about the optimization process.
     
     """
-    SOLVER_TYPES = [cp.SCS, cp.OSQP, cp.SCIPY]
+    SOLVER_TYPES = [cp.OSQP, cp.SCS, cp.SCIPY]
+    # NB: SCIPY rarely converge
+    # SCS converged almost all the time, but is inaccurate
     
     def __init__(self,
                  action_space : ActionSpace,
@@ -134,9 +143,14 @@ class OptimCVXPY(BaseAgent):
                  margin_th_limit: float=0.9,
                  rho_danger: float=0.95,
                  rho_safe: float=0.85,
-                 penalty_curtailment: float=0.1,
-                 penalty_redispatching: float=0.03,
-                 penalty_storage: float=0.3,
+                 penalty_curtailment_unsafe: float=0.1,
+                 penalty_redispatching_unsafe: float=0.03,
+                 penalty_storage_unsafe: float=0.3,
+                 penalty_curtailment_safe: float=0.0,
+                 penalty_redispatching_safe: float=0.00,
+                 weight_redisp_target: float=1.0,
+                 weight_storage_target: float=1.0,
+                 penalty_storage_safe: float=0.0,
                  margin_rounding: float=0.01,
                  margin_sparse: float=1e-4,
                  logger : Optional[logging.Logger]=None) -> None:
@@ -177,21 +191,40 @@ class OptimCVXPY(BaseAgent):
             "safe grid" optimization routine and try to set back the grid into
             a reference state.
         
-        penalty_curtailment: `float`
-            The cost of applying a curtailment in the objective function.
+        penalty_curtailment_unsafe: `float`
+            The cost of applying a curtailment in the objective function. Applies only in "unsafe" mode.
         
-            Default value is 0.1.
+            Default value is 0.1, should be >= 0.
             
-        penalty_redispatching: `float`
-            The cost of applying a redispatching in the objective function.
+        penalty_redispatching_unsafe: `float`
+            The cost of applying a redispatching in the objective function. Applies only in "unsafe" mode.
             
-            Default value is 0.03.
+            Default value is 0.03, should be >= 0.
         
-        penalty_storage: `float`
-            The cost of applying a storage in the objective function.
+        penalty_storage_unsafe: `float`
+            The cost of applying a storage in the objective function. Applies only in "unsafe" mode.
               
-            Default value is 0.3.
+            Default value is 0.3, should be >= 0.
+            
+        penalty_curtailment_safe: `float`
+            The cost of applying a curtailment in the objective function. Applies only in "safe" mode.
+        
+            Default value is 0.0, should be >= 0.
+            
+        penalty_redispatching_unsafe: `float`
+            The cost of applying a redispatching in the objective function. Applies only in "safe" mode.
+            
+            Default value is 0.0, should be >= 0.
+        
+        penalty_storage_unsafe: `float`
+            The cost of applying a storage in the objective function. Applies only in "safe" mode.
+              
+            Default value is 0.0, should be >= 0.
                    
+        weight_storage_target: `float`
+        
+        weight_redisp_target: `float`
+        
         margin_rounding: `float`
             A margin taken to avoid rounding issues that could lead to infeasible
             actions due to "redispatching above max_ramp_up" for example.
@@ -217,12 +250,35 @@ class OptimCVXPY(BaseAgent):
         BaseAgent.__init__(self, action_space)
         self._margin_th_limit: cp.Parameter = cp.Parameter(value=margin_th_limit,
                                                            nonneg=True)
-        self._penalty_curtailment: cp.Parameter = cp.Parameter(value=penalty_curtailment,
-                                                               nonneg=True)
-        self._penalty_redispatching: cp.Parameter = cp.Parameter(value=penalty_redispatching,
-                                                                 nonneg=True)
-        self._penalty_storage: cp.Parameter = cp.Parameter(value=penalty_storage,
-                                                           nonneg=True)
+        self._penalty_curtailment_unsafe: cp.Parameter = cp.Parameter(value=penalty_curtailment_unsafe,
+                                                                      nonneg=True)
+        self._penalty_redispatching_unsafe: cp.Parameter = cp.Parameter(value=penalty_redispatching_unsafe,
+                                                                        nonneg=True)
+        self._penalty_storage_unsafe: cp.Parameter = cp.Parameter(value=penalty_storage_unsafe,
+                                                                  nonneg=True)
+        
+        self._penalty_curtailment_safe: cp.Parameter = cp.Parameter(value=penalty_curtailment_safe,
+                                                                    nonneg=True)
+        self._penalty_redispatching_safe: cp.Parameter = cp.Parameter(value=penalty_redispatching_safe,
+                                                                      nonneg=True)
+        self._penalty_storage_safe: cp.Parameter = cp.Parameter(value=penalty_storage_safe,
+                                                                nonneg=True)
+
+        self._weight_redisp_target: cp.Parameter = cp.Parameter(value=weight_redisp_target,
+                                                                nonneg=True)
+        self._weight_storage_target: cp.Parameter = cp.Parameter(value=weight_storage_target,
+                                                                nonneg=True)
+        
+        
+        self.nb_max_bus: int = 2 * env.n_sub
+        
+        SoC = np.zeros(shape=self.nb_max_bus)
+        self._storage_setpoint: np.ndarray = 0.5 * env.storage_Emax
+        for bus_id in range(self.nb_max_bus):
+            SoC[bus_id] = 0.5 * self._storage_setpoint[env.storage_to_subid == bus_id].sum()
+        self._storage_target_bus = cp.Parameter(shape=self.nb_max_bus,
+                                                value=1.0 * SoC,
+                                                nonneg=True)
         
         self.margin_rounding: float = float(margin_rounding)
         self.margin_sparse: float = float(margin_sparse)
@@ -262,7 +318,6 @@ class OptimCVXPY(BaseAgent):
         
         # TODO replace all below with sparse matrices
         # to be able to change the topology more easily
-        self.nb_max_bus: int = 2 * env.n_sub
         self.bus_or: cp.Parameter = cp.Parameter(shape=env.n_line,
                                                  value=env.line_or_to_subid,
                                                  integer=True)
@@ -312,6 +367,16 @@ class OptimCVXPY(BaseAgent):
                                                      value=env.get_thermal_limit(),
                                                      nonneg=True)
         
+        self._past_dispatch = cp.Parameter(shape=self.nb_max_bus,
+                                           value=np.zeros(self.nb_max_bus)
+                                           ) 
+        self._past_state_of_charge = cp.Parameter(shape=self.nb_max_bus,
+                                                  value=np.zeros(self.nb_max_bus),
+                                                  nonneg=True
+                                                  )
+        
+        self._v_ref: np.ndarray = 1.0 * env.get_obs().v_or
+        
         if logger is None:
             self.logger: logging.Logger = logging.getLogger(__name__)
             self.logger.disabled = False
@@ -331,27 +396,36 @@ class OptimCVXPY(BaseAgent):
         
     @property
     def penalty_curtailment(self) -> cp.Parameter:
-        return self._penalty_curtailment
+        return self._penalty_curtailment_unsafe
     
     @penalty_curtailment.setter
     def penalty_curtailment(self, val: float):
-        self._penalty_curtailment = float(val)
+        self._penalty_curtailment_unsafe = float(val)
         
     @property
     def penalty_redispatching(self) -> cp.Parameter:
-        return self._penalty_redispatching
+        return self._penalty_redispatching_unsafe
     
     @penalty_redispatching.setter
     def penalty_redispatching(self, val: float):
-        self._penalty_redispatching = float(val)
+        self._penalty_redispatching_unsafe = float(val)
         
     @property
     def penalty_storage(self) -> cp.Parameter:
-        return self._penalty_storage
+        return self._penalty_storage_unsafe
     
     @penalty_storage.setter
     def penalty_storage(self, val: float):
-        self._penalty_storage = float(val)
+        self._penalty_storage_unsafe = float(val)
+        
+    @property
+    def storage_setpoint(self) -> cp.Parameter:
+        return self._storage_setpoint
+    
+    @storage_setpoint.setter
+    def storage_setpoint(self, val: np.ndarray):
+        self._storage_setpoint.value[:] = np.array(val).astype(float)
+        
         
     def _update_topo_param(self, obs: BaseObservation):
         tmp_ = 1 * obs.line_or_to_subid
@@ -379,9 +453,15 @@ class OptimCVXPY(BaseAgent):
         self.bus_storage.value[:] = tmp_
         
     def _update_th_lim_param(self, obs: BaseObservation):
+        # take into account reactive value (and current voltage) in thermal limit
         self._th_lim_mw.value[:] =  (0.001 * obs.thermal_limit)**2 * obs.v_or **2 * 3. - obs.q_or**2
         self._th_lim_mw.value[:] = np.sqrt(self._th_lim_mw.value)
-        # TODO what if it's negative !
+        
+        # do whatever you can for disconnected lines
+        index_disc = obs.v_or == 0.
+        self._th_lim_mw.value[index_disc] = 0.001 * (obs.thermal_limit * self._v_ref )[index_disc] * np.sqrt(3.)
+        
+        # TODO what if (0.001 * obs.thermal_limit)**2 * obs.v_or **2 * 3. - obs.q_or**2 is negative !
         
     def _update_inj_param(self, obs: BaseObservation):
         self.load_per_bus.value[:] = 0.
@@ -432,7 +512,7 @@ class OptimCVXPY(BaseAgent):
             
         self._remove_margin_rounding()
         
-    def _remove_margin_rounding(self):
+    def _remove_margin_rounding(self):            
         self.storage_down.value[self.storage_down.value > self.margin_rounding] -= self.margin_rounding
         self.storage_up.value[self.storage_up.value > self.margin_rounding] -= self.margin_rounding
         self.curtail_down.value[self.curtail_down.value > self.margin_rounding] -= self.margin_rounding
@@ -448,6 +528,9 @@ class OptimCVXPY(BaseAgent):
         self.redisp_up._validate_value(self.redisp_up.value)
         self.redisp_down._validate_value(self.redisp_down.value)
         self._th_lim_mw._validate_value(self._th_lim_mw.value)
+        self._storage_target_bus._validate_value(self._storage_target_bus.value)
+        self._past_dispatch._validate_value(self._past_dispatch.value)
+        self._past_state_of_charge._validate_value(self._past_state_of_charge.value)
          
     def update_parameters(self, obs: BaseObservation, unsafe: bool = True):
         ## update the topology information
@@ -525,9 +608,9 @@ class OptimCVXPY(BaseAgent):
         
         # objective
         # cost = cp.norm1(gp_var) + cp.norm1(lp_var)
-        cost = ( self._penalty_curtailment * cp.sum_squares(curtailment_mw) + 
-                 self._penalty_storage * cp.sum_squares(storage) +
-                 self._penalty_redispatching * cp.sum_squares(redispatching) +
+        cost = ( self._penalty_curtailment_unsafe * cp.sum_squares(curtailment_mw) + 
+                 self._penalty_storage_unsafe * cp.sum_squares(storage) +
+                 self._penalty_redispatching_unsafe * cp.sum_squares(redispatching) +
                  cp.sum_squares(cp.pos(cp.abs(f_or) - self._margin_th_limit * self._th_lim_mw))
         )
         
@@ -562,12 +645,12 @@ class OptimCVXPY(BaseAgent):
         try:
             with warnings.catch_warnings():
                 warnings.filterwarnings("ignore")
-                tmp_ = prob.solve(solver=solver_type)
+                tmp_ = prob.solve(solver=solver_type, warm_start=False)  # prevent warm start (for now)
                 
             if np.isfinite(tmp_):
                 return True
             else:
-                self.logger.warning(f"Problem with the optimization for {solver_type}, infinite value")
+                self.logger.warning(f"Problem with the optimization for {solver_type}, infinite value returned")
                 raise cp.error.SolverError("Infinite value")
 
         except cp.error.SolverError as exc_:
@@ -584,10 +667,12 @@ class OptimCVXPY(BaseAgent):
                    obs,
                    curtailment: np.ndarray,
                    storage: np.ndarray,
-                   redispatching: np.ndarray) -> BaseAction:
+                   redispatching: np.ndarray,
+                   act=None) -> BaseAction:
         self._clean_vect(curtailment, storage, redispatching)
         
-        act = self.action_space()
+        if act is None:
+            act = self.action_space()
         
         # storage
         storage_ = np.zeros(shape=act.n_storage)
@@ -629,7 +714,6 @@ class OptimCVXPY(BaseAgent):
     def _update_constraints_param_safe(self, obs):
         tmp_ = 1.0 * obs.gen_p
         tmp_[~obs.gen_renewable] = 0.
-        
         for bus_id in range(self.nb_max_bus):
             # redispatching
             self._add_redisp_const(obs, bus_id) 
@@ -640,7 +724,17 @@ class OptimCVXPY(BaseAgent):
             # curtailment
             # self.curtail_down.value[bus_id] = 0.
             # self.curtail_up.value[bus_id] = tmp_[(self.bus_gen.value == bus_id) & obs.gen_renewable].sum()
+
+            # storage target
+            self._storage_target_bus.value[bus_id] = self._storage_setpoint[self.bus_storage.value == bus_id].sum()
             
+            # past information
+            self._past_state_of_charge.value[bus_id] = obs.storage_charge[self.bus_storage.value == bus_id].sum()
+            self._past_dispatch.value[bus_id] = obs.target_dispatch[self.bus_gen.value == bus_id].sum()
+            
+        self.curtail_down.value[:] = 0.  # TODO
+        self.curtail_up.value[:] = 0.  # TODO
+        
         self._remove_margin_rounding()
     
     def compute_optimum_safe(self, obs: BaseObservation, l_id=None):
@@ -655,27 +749,6 @@ class OptimCVXPY(BaseAgent):
         storage = cp.Variable(shape=self.nb_max_bus)  # at each bus
         redispatching = cp.Variable(shape=self.nb_max_bus)  # at each bus
         
-        #  stuff to put elsewhere (TODO)
-        past_dispatch = cp.Parameter(shape=self.nb_max_bus,
-                                     value=np.zeros(self.nb_max_bus)
-                                     )  # at each bus
-        for bus_id in range(self.nb_max_bus):
-            past_dispatch.value[bus_id] = obs.target_dispatch[self.bus_gen.value == bus_id].sum()
-        past_state_of_charge = cp.Parameter(shape=self.nb_max_bus,
-                                            value=np.zeros(self.nb_max_bus),
-                                            nonneg=True
-                                            )  # at each bus
-        for bus_id in range(self.nb_max_bus):
-            past_state_of_charge.value[bus_id] = obs.storage_charge[self.bus_storage.value == bus_id].sum()
-        
-        # TODO put that in constructor with possibility to modify it !
-        SoC = np.zeros(shape=self.nb_max_bus)
-        for bus_id in range(self.nb_max_bus):
-            SoC[bus_id] = 0.5 * obs.storage_Emax[self.bus_storage.value == bus_id].sum()
-        storage_target = cp.Parameter(shape=self.nb_max_bus,
-                                      value=1.0 * SoC,
-                                      nonneg=True)
-        
         # usefull quantities
         f_or = cp.multiply(1. / self._powerlines_x , (theta[self.bus_or.value] - theta[self.bus_ex.value]))
         inj_bus = (self.load_per_bus + storage) - (self.gen_per_bus + redispatching - curtailment_mw)
@@ -684,8 +757,8 @@ class OptimCVXPY(BaseAgent):
         KCL_eq = self._aux_compute_kcl(inj_bus, f_or)
         theta_is_zero = self._mask_theta_zero()
         
-        dispatch_after_this = past_dispatch + redispatching
-        state_of_charge_after = past_state_of_charge + storage / (60. / obs.delta_time)
+        dispatch_after_this = self._past_dispatch + redispatching
+        state_of_charge_after = self._past_state_of_charge + storage / (60. / obs.delta_time)
         
         # constraints
         constraints = ( # slack bus
@@ -711,20 +784,19 @@ class OptimCVXPY(BaseAgent):
         
         # TODO (in ctor) redisp_target
         # TODO (in ctor) curtail_target
-        
+    
         # objective
         # cost = cp.norm1(gp_var) + cp.norm1(lp_var)
-        cost = ( self._penalty_curtailment * cp.sum_squares(curtailment_mw) + 
-                 self._penalty_storage * cp.sum_squares(storage) +
-                 self._penalty_redispatching * cp.sum_squares(redispatching) +
-                 cp.sum_squares(dispatch_after_this)  +
-                 cp.sum_squares(state_of_charge_after - storage_target)
+        cost = ( self._penalty_curtailment_safe * cp.sum_squares(curtailment_mw) + 
+                 self._penalty_storage_safe * cp.sum_squares(storage) +
+                 self._penalty_redispatching_safe * cp.sum_squares(redispatching) +
+                 self._weight_redisp_target * cp.sum_squares(dispatch_after_this)  +
+                 self._weight_storage_target * cp.sum_squares(state_of_charge_after - self._storage_target_bus)
         )
-        
+            
         # solve
         prob = cp.Problem(cp.Minimize(cost), constraints)
         has_converged = self._solve_problem(prob)
-        
         if has_converged:
             self.flow_computed[:] = f_or.value
             res = (curtailment_mw.value, storage.value, redispatching.value)
@@ -770,7 +842,7 @@ class OptimCVXPY(BaseAgent):
             self.update_parameters(obs, unsafe=False)
             curtailment, storage, redispatching = self.compute_optimum_safe(obs, l_id)
             # get back the grid2op representation
-            act = self.to_grid2op(obs, curtailment, storage, redispatching)
+            act = self.to_grid2op(obs, curtailment, storage, redispatching, act)
         else:
             # I do nothing between rho_danger and rho_safe
             act = self.action_space()

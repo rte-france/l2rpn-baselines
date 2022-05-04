@@ -1,4 +1,4 @@
-.. currentmodule:: l2rpn_baselines.ppo_stablebaselines
+.. currentmodule:: l2rpn_baselines.PPO_SB3
 
 PPO: with stable-baselines3
 ===========================================================

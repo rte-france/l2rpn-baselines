@@ -17,8 +17,8 @@ are already implemented in this package.
    template
    donothing
 
-Open source libraries
-----------------------
+Some RL implementation examples
+---------------------------------
 
 Lots of reinforcement learning algorithms are already implemented by state of
 the art libraries heavily maintained and updated. 
@@ -32,9 +32,11 @@ learning to the power grid control problem.
 
    ppo_rllib
    ppo_stable_baselines
+   external_contributions
 
-Other contributions
----------------------
+
+Expert systems and optimizers
+------------------------------
 
 In this section, we grouped up some noticeable contributions for the powergrid control 
 problem. 
@@ -49,13 +51,19 @@ in some environment.
 
    expertagent
    optimcvxpy
-   external_contributions
 
-Custom implementation
+
+Possible implementation
 ---------------------------
 
 .. note::
-   WORK IN PROGRESS
+   Most of the codes below are legacy code that will not be updated and contains
+   (most likely) lots of bugs, inefficiencies and "not so great" code.
+
+   It's totally fine to use them if you want to dive deep into implementation.
+   For most usage however, we strongly encourage you to check out the
+   :class:`l2rpn_baselines.PPO_SB3.PPO_SB3` or the 
+   :class:`l2rpn_baselines.PPO_RLLIB.PPO_RLLIB`.
 
 For more "in depth" look at what is possible to do, we also wrote some 
 custom implementation of some reinforcement learning algorithms.
@@ -75,20 +83,6 @@ using grid2op more closely that through the gym interface.
    duelqleapnet
    doubleduelingrdqn
    leapnetencoded
-
-
-Deprecated baselines
----------------------------
-
-.. warning::
-   These are "deprecated", won't be fixed / maintained and are not likely to work.
-
-This section is mainly here for "history".
-
-.. toctree::
-   :maxdepth: 1
-   :caption: Deprecated baselines
-
    sacold
 
 Indices and tables

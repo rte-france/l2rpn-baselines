@@ -1,4 +1,4 @@
-.. currentmodule:: l2rpn_baselines.ppo_stablebaselines
+.. currentmodule:: l2rpn_baselines.PPO_RLLIB
 
 PPO: with ray/rllib
 ===========================================================
@@ -15,7 +15,7 @@ by applying `redispatching` kind of action for controlable generators or
 by with `curtailment` on generator using new renewable energy sources - solar and wind
 or even to control the state of the storage units.)
 
-It is pretty much the same as the :class:`l2rpn_baselines.PPO_SB3` but uses
+It is pretty much the same as the :class:`l2rpn_baselines.PPO_RLLIB` but uses
 rllib instead of stable Baselines3.
 
 Exported class
@@ -194,6 +194,6 @@ For example, to create an agent **from scratch**, with some parameters:
 Detailed documentation
 ++++++++++++++++++++++++
 
-.. automodule:: l2rpn_baselines.PPO_SB3
+.. automodule:: l2rpn_baselines.PPO_RLLIB
     :members:
     :autosummary:
