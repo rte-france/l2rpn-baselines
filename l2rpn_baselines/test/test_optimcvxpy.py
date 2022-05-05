@@ -59,7 +59,8 @@ class TestOptimCVXPY(unittest.TestCase):
         
     def test_unsafe(self):
         env = self._aux_create_env_setup()
-        agent = OptimCVXPY(env.action_space, env, rho_danger=0., margin_th_limit=0.85)
+        agent = OptimCVXPY(env.action_space, env, rho_danger=0., margin_th_limit=0.85,
+                           alpha_por_error=0.)
         
         obs, reward, done, info = env.step(env.action_space())
         # max rhos of the 3 following step if I do nothing
@@ -91,7 +92,7 @@ class TestOptimCVXPY(unittest.TestCase):
         
     def test_unsafe_linedisc(self):
         env = self._aux_create_env_setup()
-        agent = OptimCVXPY(env.action_space, env, rho_danger=0., margin_th_limit=0.85)
+        agent = OptimCVXPY(env.action_space, env, rho_danger=0., margin_th_limit=0.85, alpha_por_error=0.)
         
         l_id_disc = 4
         obs, reward, done, info = env.step(env.action_space({"set_line_status": [(l_id_disc, -1)]}))
@@ -134,7 +135,8 @@ class TestOptimCVXPY(unittest.TestCase):
                            env,
                            rho_safe=9.5,
                            rho_danger=10.,
-                           margin_th_limit=0.9)
+                           margin_th_limit=0.9,
+                           alpha_por_error=0.)
         
         l_id_disc = 4
         obs, reward, done, info = env.step(env.action_space({"set_line_status": [(l_id_disc, -1)]}))
@@ -153,7 +155,8 @@ class TestOptimCVXPY(unittest.TestCase):
                            env,
                            rho_safe=9.5,
                            rho_danger=10.,
-                           margin_th_limit=10.)
+                           margin_th_limit=10.,
+                           alpha_por_error=0.)
         
         l_id_disc = 4
         # a cooldown applies, agent does not reconnect it
@@ -195,7 +198,8 @@ class TestOptimCVXPY(unittest.TestCase):
                            rho_safe=9.5,
                            rho_danger=10.,
                            margin_th_limit=10.0,
-                           weight_storage_target=0.
+                           weight_storage_target=0.,
+                           alpha_por_error=0.
                            )
         act_prev = env.action_space()
         act_prev.redispatch = [3.0, 4.0, 0.0, 0.0, 0.0, -7.0]
@@ -218,7 +222,8 @@ class TestOptimCVXPY(unittest.TestCase):
                            rho_safe=9.5,
                            rho_danger=10.,
                            margin_th_limit=10.0,
-                           weight_redisp_target=0.
+                           weight_redisp_target=0.,
+                           alpha_por_error=0.
                            )
         act_prev = env.action_space()
         act_prev.storage_p = [4.9, -9.9]
@@ -247,10 +252,42 @@ class TestOptimCVXPY(unittest.TestCase):
             agent._DEBUG = True
             act = agent.act(obs_before, None, None)
             obs, reward, done, info = env.step(act)
-            assert not info["exception"]
-            assert not done
+            assert not info["exception"], f"error at iteration {i}"
+            assert not done, f"error at iteration {i}"
             assert (np.sum((obs.storage_charge - 0.5 * obs.storage_Emax)**2) <= 
                     np.sum((obs_before.storage_charge - 0.5 * obs.storage_Emax)**2)), f"error at iteration {i}"
-            
+    def test_run_dc(self):
+        env = self._aux_create_env_setup()
+        agent = OptimCVXPY(env.action_space,
+                           env,
+                           alpha_por_error=0.,
+                           )
+        obs = env.get_obs()
+        agent.flow_computed[:] = np.NaN
+        agent.run_dc(obs)
+        assert np.all(np.isfinite(agent.flow_computed))
+        init_flow = 1.0 * agent.flow_computed
+        
+        obs, reward, done, info = env.step(env.action_space())
+        agent.flow_computed[:] = np.NaN
+        agent.run_dc(obs)
+        assert np.all(np.isfinite(agent.flow_computed))
+        after_flow = 1.0 * agent.flow_computed
+        assert np.all(init_flow != after_flow)
+    
+    def test_without_storage(self):
+        env_name = "l2rpn_case14_sandbox"
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore")
+            env = grid2op.make(env_name, test=True)
+        obs = env.reset()
+        agent = OptimCVXPY(env.action_space, env, alpha_por_error=0.)
+        conv = agent.run_dc(obs)
+        assert conv
+        act = agent.act(obs, 1.0, False)
+        obs, reward, done, info = env.step(act)
+        act = agent.act(obs, 1.0, False)
+        
+        
 if __name__ == '__main__':
     unittest.main()

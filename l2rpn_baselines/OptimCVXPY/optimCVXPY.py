@@ -6,17 +6,17 @@
 # SPDX-License-Identifier: MPL-2.0
 # This file is part of L2RPN Baselines, L2RPN Baselines a repository to host baselines for l2rpn competitions.
 
+import sys
 from typing import Optional
 import logging
 import warnings
-from attr import has
 import cvxpy as cp
 import numpy as np
 
 import grid2op
 from grid2op.Agent import BaseAgent
 from grid2op.Environment import Environment
-from grid2op.Action import PlayableAction, ActionSpace, BaseAction
+from grid2op.Action import ActionSpace, BaseAction
 from grid2op.Backend import PandaPowerBackend
 from grid2op.Observation import BaseObservation
 from lightsim2grid import LightSimBackend
@@ -27,6 +27,10 @@ import pdb
 # TODO: "predictive control"
 # TODO: no flow in constraints but in objective function
 # TODO: reuse previous computations
+# TODO: do not act on storage units / curtailment if not possible by the action space
+# TODO have the agent "play" with the protection: if a powerline is not in danger,
+# the margin_th_limit associated should be larger than if a powerline is close to be disconnected
+
 class OptimCVXPY(BaseAgent):
     """
     This agent choses its action by resolving, at each `agent.act(...)` call an optimization routine
@@ -93,6 +97,10 @@ class OptimCVXPY(BaseAgent):
     _penalty_redispatching_safe: `cp.Parameter`
 
     _penalty_storage_safe: `cp.Parameter`
+    
+    _weight_redisp_target: `cp.Parameter`
+    
+    _weight_storage_target: `cp.Parameter`
         
     bus_or: `cp.Parameter`
     
@@ -141,6 +149,7 @@ class OptimCVXPY(BaseAgent):
                  env : Environment,
                  lines_x_pu: Optional[np.array]=None,
                  margin_th_limit: float=0.9,
+                 alpha_por_error: float=0.5,
                  rho_danger: float=0.95,
                  rho_safe: float=0.85,
                  penalty_curtailment_unsafe: float=0.1,
@@ -152,8 +161,9 @@ class OptimCVXPY(BaseAgent):
                  weight_storage_target: float=1.0,
                  penalty_storage_safe: float=0.0,
                  margin_rounding: float=0.01,
-                 margin_sparse: float=1e-4,
-                 logger : Optional[logging.Logger]=None) -> None:
+                 margin_sparse: float=5e-3,
+                 logger : Optional[logging.Logger]=None
+                 ) -> None:
         """Initialize this class
 
         Parameters
@@ -180,6 +190,9 @@ class OptimCVXPY(BaseAgent):
             `margin_th_limit * thermal_limit_mw`.
             
             The model is particularly sensitive to this parameter.
+        
+        alpha_por_error: `float`
+            TODO
             
         rho_danger: `float`
             If any `obs.rho` is above `rho_danger`, then the agent will use the
@@ -234,6 +247,9 @@ class OptimCVXPY(BaseAgent):
             to grid2op actions: if some values are below this value, then they are
             set to zero.
             
+            Defaults to 5e-3 (grid2op precision is 0.01 MW, anything below this will have no 
+            real impact anyway)
+            
         logger: `logging.Logger`
             A logger to log information about the optimization process.
     
@@ -247,6 +263,24 @@ class OptimCVXPY(BaseAgent):
             be inferred from the environment.
             
         """
+        if env.n_storage > 0 and not env.action_space.supports_type("set_storage"):
+            # TODO
+            raise RuntimeError("Impossible to create this class with an environment that does not allow "
+                               "modification of storage units when there are storage units on the grid. "
+                               "Allowing it would require only little changes, if you want it let us know "
+                               "with a github issue at https://github.com/rte-france/l2rpn-baselines/issues/new.")
+            
+        if np.any(env.gen_renewable) and not env.action_space.supports_type("curtail"):
+            # TODO
+            raise RuntimeError("Impossible to create this class with an environment that does not allow "
+                               "curtailment when there are renewable generators on the grid. "
+                               "Allowing it would require only little changes, if you want it let us know "
+                               "with a github issue at https://github.com/rte-france/l2rpn-baselines/issues/new.")
+            
+        if not env.action_space.supports_type("redispatch"):
+            raise RuntimeError("This type of agent can only perform actions using storage units, curtailment or"
+                               "redispatching. It requires at least to be able to do redispatching.")
+            
         BaseAgent.__init__(self, action_space)
         self._margin_th_limit: cp.Parameter = cp.Parameter(value=margin_th_limit,
                                                            nonneg=True)
@@ -268,8 +302,11 @@ class OptimCVXPY(BaseAgent):
                                                                 nonneg=True)
         self._weight_storage_target: cp.Parameter = cp.Parameter(value=weight_storage_target,
                                                                 nonneg=True)
-        
-        
+        # takes into account the previous errors on the flows (in an additive fashion)
+        # new flows are 1/x(theta_or - theta_ex) * alpha_por_error . (prev_flows - obs.p_or)
+        self._alpha_por_error: cp.Parameter = cp.Parameter(value=alpha_por_error,
+                                                           nonneg=True,
+                                                           )
         self.nb_max_bus: int = 2 * env.n_sub
         
         SoC = np.zeros(shape=self.nb_max_bus)
@@ -315,6 +352,9 @@ class OptimCVXPY(BaseAgent):
         self._powerlines_x: cp.Parameter = cp.Parameter(shape=powerlines_x.shape,
                                                         value=1.0 * powerlines_x,
                                                         pos=True)
+        self._prev_por_error: cp.Parameter = cp.Parameter(shape=powerlines_x.shape,
+                                                          value=np.zeros(env.n_line)
+                                                          )
         
         # TODO replace all below with sparse matrices
         # to be able to change the topology more easily
@@ -330,9 +370,12 @@ class OptimCVXPY(BaseAgent):
         self.bus_gen: cp.Parameter = cp.Parameter(shape=env.n_gen,
                                                   value=env.gen_to_subid,
                                                   integer=True)
-        self.bus_storage: cp.Parameter = cp.Parameter(shape=env.n_storage,
-                                                      value=env.storage_to_subid,
-                                                      integer=True)
+        if env.n_storage:
+            self.bus_storage: cp.Parameter = cp.Parameter(shape=env.n_storage,
+                                                          value=env.storage_to_subid,
+                                                          integer=True)
+        else:
+            self.bus_storage = None
         
         this_zeros_ = np.zeros(self.nb_max_bus)
         self.load_per_bus: cp.Parameter = cp.Parameter(shape=self.nb_max_bus,
@@ -374,12 +417,15 @@ class OptimCVXPY(BaseAgent):
                                                   value=np.zeros(self.nb_max_bus),
                                                   nonneg=True
                                                   )
-        
+
         self._v_ref: np.ndarray = 1.0 * env.get_obs().v_or
         
         if logger is None:
             self.logger: logging.Logger = logging.getLogger(__name__)
-            self.logger.disabled = False
+            self.logger.disabled = True
+            # self.logger.disabled = False
+            # self.logger.addHandler(logging.StreamHandler(sys.stdout))
+            # self.logger.setLevel(level=logging.DEBUG)
         else:
             self.logger: logging.Logger = logger.getChild("OptimCVXPY")
 
@@ -419,14 +465,31 @@ class OptimCVXPY(BaseAgent):
         self._penalty_storage_unsafe = float(val)
         
     @property
-    def storage_setpoint(self) -> cp.Parameter:
+    def storage_setpoint(self) -> np.ndarray:
         return self._storage_setpoint
     
     @storage_setpoint.setter
     def storage_setpoint(self, val: np.ndarray):
-        self._storage_setpoint.value[:] = np.array(val).astype(float)
+        self._storage_setpoint[:] = np.array(val).astype(float)
         
-        
+    def reset(self, obs: BaseObservation):
+        """
+        This method is called at the beginning of a new episode.
+        It is implemented by agents to reset their internal state if needed.
+
+        Attributes
+        -----------
+        obs: :class:`grid2op.Observation.BaseObservation`
+            The first observation corresponding to the initial state of the environment.
+        """
+        self._prev_por_error.value[:] = 0.
+        conv_ = self.run_dc(obs)
+        if conv_:
+            self._prev_por_error.value[:] = self.flow_computed - obs.p_or
+        else:
+            self.logger.warning("Impossible to intialize the OptimCVXPY "
+                                "agent because the DC powerflow did not converge.")
+            
     def _update_topo_param(self, obs: BaseObservation):
         tmp_ = 1 * obs.line_or_to_subid
         tmp_ [obs.line_or_bus == 2] += obs.n_sub
@@ -448,9 +511,10 @@ class OptimCVXPY(BaseAgent):
         tmp_[obs.gen_bus == 2] += obs.n_sub
         self.bus_gen.value[:] = tmp_
         
-        tmp_ = obs.storage_to_subid
-        tmp_[obs.storage_bus == 2] += obs.n_sub
-        self.bus_storage.value[:] = tmp_
+        if self.bus_storage is not None:
+            tmp_ = obs.storage_to_subid
+            tmp_[obs.storage_bus == 2] += obs.n_sub
+            self.bus_storage.value[:] = tmp_
         
     def _update_th_lim_param(self, obs: BaseObservation):
         # take into account reactive value (and current voltage) in thermal limit
@@ -470,7 +534,8 @@ class OptimCVXPY(BaseAgent):
         load_p *= (obs.gen_p.sum() - obs.storage_power.sum()) / load_p.sum() 
         for bus_id in range(self.nb_max_bus):
             self.load_per_bus.value[bus_id] += load_p[self.bus_load.value == bus_id].sum()
-            self.load_per_bus.value[bus_id] += obs.storage_power[self.bus_storage.value == bus_id].sum()
+            if self.bus_storage is not None:
+                self.load_per_bus.value[bus_id] += obs.storage_power[self.bus_storage.value == bus_id].sum()
             self.gen_per_bus.value[bus_id] += obs.gen_p[self.bus_gen.value == bus_id].sum()
 
     def _add_redisp_const(self, obs: BaseObservation, bus_id: int):
@@ -479,20 +544,23 @@ class OptimCVXPY(BaseAgent):
         self.redisp_down.value[bus_id] = obs.gen_margin_down[self.bus_gen.value == bus_id].sum()
     
     def _add_storage_const(self, obs: BaseObservation, bus_id: int):
+        if self.bus_storage is None:
+            return
+            
         # limit in MW
         stor_down = obs.storage_max_p_prod[self.bus_storage.value == bus_id].sum()
         # limit due to energy (if almost empty)
-        stor_down = np.minimum(stor_down,
-                                obs.storage_charge[self.bus_storage.value == bus_id].sum() * (60. / obs.delta_time) 
-                                )
+        stor_down = min(stor_down,
+                        obs.storage_charge[self.bus_storage.value == bus_id].sum() * (60. / obs.delta_time) 
+                        )
         self.storage_down.value[bus_id] = stor_down
         
         # limit in MW
         stor_up = obs.storage_max_p_absorb[self.bus_storage.value == bus_id].sum()
         # limit due to energy (if almost full)
-        stor_up = np.minimum(stor_up,
-                                (obs.storage_Emax - obs.storage_charge)[self.bus_storage.value == bus_id].sum() * (60. / obs.delta_time) 
-                                )
+        stor_up = min(stor_up,
+                      (obs.storage_Emax - obs.storage_charge)[self.bus_storage.value == bus_id].sum() * (60. / obs.delta_time)
+                      )
         self.storage_up.value[bus_id] = stor_up
             
     def _update_constraints_param_unsafe(self, obs: BaseObservation):
@@ -504,8 +572,9 @@ class OptimCVXPY(BaseAgent):
             self._add_redisp_const(obs, bus_id) 
             
             # curtailment
-            self.curtail_down.value[bus_id] = 0.
-            self.curtail_up.value[bus_id] = tmp_[(self.bus_gen.value == bus_id) & obs.gen_renewable].sum()
+            mask_ = (self.bus_gen.value == bus_id) & obs.gen_renewable
+            self.curtail_down.value[bus_id] = 0.  # TODO obs.gen_p_before_curtail[mask_].sum() - tmp_[mask_].sum() ?
+            self.curtail_up.value[bus_id] = tmp_[mask_].sum()
             
             # storage
             self._add_storage_const(obs, bus_id)
@@ -540,7 +609,10 @@ class OptimCVXPY(BaseAgent):
         self._update_th_lim_param(obs)
         
         ## update the load / gen bus injected values
-        self._update_inj_param(obs)
+        self._update_inj_param(obs)  
+        # TODO have some kind of "state estimator"
+        # TODO to get the "best" p's at each nodes to match AC flows in observation
+        # TODO with a DC model
 
         ## update the constraints parameters
         if unsafe:
@@ -569,9 +641,79 @@ class OptimCVXPY(BaseAgent):
         theta_is_zero[self.bus_ex.value] = False
         theta_is_zero[self.bus_load.value] = False
         theta_is_zero[self.bus_gen.value] = False
-        theta_is_zero[self.bus_storage.value] = False
+        if self.bus_storage is not None:
+            theta_is_zero[self.bus_storage.value] = False
         theta_is_zero[0] = True  # slack bus
         return theta_is_zero
+    
+    def run_dc(self, obs: BaseObservation):
+        """This method allows to perform a dc approximation from
+        the state given by the observation.
+        
+        To make sure that `sum P = sum C` in this system, the **loads**
+        are scaled up.
+        
+        This function can primarily be used to retrieve the active power
+        in each branch of the grid.
+
+        Parameters
+        ----------
+        obs : BaseObservation
+            The observation (used to get the topology and the injections)
+        
+        Examples
+        ---------
+        You can use it with:
+        
+        .. code-block:: python
+        
+            import grid2op
+            from l2rpn_baselines.OptimCVXPY import OptimCVXPY
+
+            env_name = "l2rpn_case14_sandbox"
+            env = grid2op.make(env_name)
+
+            agent = OptimCVXPY(env.action_space, env)
+
+            obs = env.reset()
+            conv = agent.run_dc(obs)
+            if conv:
+                print(f"flows are: {agent.flow_computed}")
+            else:
+                print("DC powerflow has diverged")
+    
+        """
+        # update the parameters for the injection and topology
+        self._update_topo_param(obs)
+        self._update_inj_param(obs)
+        
+        # define the variables
+        theta = cp.Variable(shape=self.nb_max_bus)
+        
+        # temporary variables
+        f_or = cp.multiply(1. / self._powerlines_x , (theta[self.bus_or.value] - theta[self.bus_ex.value]))
+        inj_bus = self.load_per_bus - self.gen_per_bus
+        KCL_eq = self._aux_compute_kcl(inj_bus, f_or)
+        theta_is_zero = self._mask_theta_zero()    
+        # constraints
+        constraints = ([theta[theta_is_zero] == 0] + 
+                       [el == 0 for el in KCL_eq])
+        # no real cost here
+        cost = 1.
+        
+        # solve
+        prob = cp.Problem(cp.Minimize(cost), constraints)
+        has_converged = self._solve_problem(prob)
+        
+        # format the results
+        if has_converged:
+            self.flow_computed[:] = f_or.value
+        else:
+            self.logger.error(f"Problem with dc approximation for all solver ({type(self).SOLVER_TYPES}). "
+                              "Is your grid connected (one single connex component) ?")
+            self.flow_computed[:] = np.NaN
+            
+        return has_converged
         
     def compute_optimum_unsafe(self):
         # variables
@@ -582,6 +724,7 @@ class OptimCVXPY(BaseAgent):
         
         # usefull quantities
         f_or = cp.multiply(1. / self._powerlines_x , (theta[self.bus_or.value] - theta[self.bus_ex.value]))
+        f_or_corr = f_or - self._alpha_por_error * self._prev_por_error
         inj_bus = (self.load_per_bus + storage) - (self.gen_per_bus + redispatching - curtailment_mw)
         energy_added = cp.sum(curtailment_mw) + cp.sum(storage) - cp.sum(redispatching)
         
@@ -611,7 +754,7 @@ class OptimCVXPY(BaseAgent):
         cost = ( self._penalty_curtailment_unsafe * cp.sum_squares(curtailment_mw) + 
                  self._penalty_storage_unsafe * cp.sum_squares(storage) +
                  self._penalty_redispatching_unsafe * cp.sum_squares(redispatching) +
-                 cp.sum_squares(cp.pos(cp.abs(f_or) - self._margin_th_limit * self._th_lim_mw))
+                 cp.sum_squares(cp.pos(cp.abs(f_or_corr) - self._margin_th_limit * self._th_lim_mw))
         )
         
         # solve
@@ -659,56 +802,132 @@ class OptimCVXPY(BaseAgent):
             
     def _clean_vect(self, curtailment, storage, redispatching):
         """remove the value too small and set them at 0."""
-        curtailment[np.abs(curtailment) <= self.margin_sparse] = 0.
-        storage[np.abs(storage) <= self.margin_sparse] = 0.
-        redispatching[np.abs(redispatching) <= self.margin_sparse] = 0.
+        curtailment[np.abs(curtailment) < self.margin_sparse] = 0.
+        storage[np.abs(storage) < self.margin_sparse] = 0.
+        redispatching[np.abs(redispatching) < self.margin_sparse] = 0.
         
     def to_grid2op(self,
-                   obs,
+                   obs: BaseObservation,
                    curtailment: np.ndarray,
                    storage: np.ndarray,
                    redispatching: np.ndarray,
-                   act=None) -> BaseAction:
+                   act: BaseAction =None) -> BaseAction:
+        """Convert the action (given as vectors of real number output of the optimizer)
+        to a valid grid2op action.
+
+        Parameters
+        ----------
+        obs : BaseObservation
+            The current observation, used to get some information about the grid
+            
+        curtailment : np.ndarray
+            Representation of the curtailment
+            
+        storage : np.ndarray
+            Action on storage units
+            
+        redispatching : np.ndarray
+            Action on redispatching
+            
+        act : BaseAction, optional
+            The previous action to modify (if any), by default None
+
+        Returns
+        -------
+        BaseAction
+            The action taken represented as a grid2op action
+        """
         self._clean_vect(curtailment, storage, redispatching)
         
         if act is None:
             act = self.action_space()
         
         # storage
-        storage_ = np.zeros(shape=act.n_storage)
-        storage_[:] = storage[self.bus_storage.value]
-        # TODO what is multiple storage on a single bus ?
-        act.storage_p = storage_
+        if act.n_storage and np.any(np.abs(storage) > 0.):
+            storage_ = np.zeros(shape=act.n_storage)
+            storage_[:] = storage[self.bus_storage.value]
+            # TODO what is multiple storage on a single bus ?
+            act.storage_p = storage_
         
         # curtailment
         # becarefull here, the curtailment is given by the optimizer
         # in the amount of MW you remove, grid2op
         # expects a maximum value
-        curtailment_ = np.zeros(shape=act.n_gen) -1.
-        gen_curt = obs.gen_renewable & (obs.gen_p > 0.1)
-        idx_gen = self.bus_gen.value[gen_curt]
-        tmp_ = curtailment[idx_gen]
-        modif_gen_optim = tmp_ != 0.
-        gen_p = 1.0 * obs.gen_p
-        aux_ = curtailment_[gen_curt]
-        aux_[modif_gen_optim] = (gen_p[gen_curt][modif_gen_optim] - 
-                                 tmp_[modif_gen_optim] * 
-                                 gen_p[gen_curt][modif_gen_optim] / 
-                                 self.gen_per_bus.value[idx_gen][modif_gen_optim]
-        )
-        aux_[~modif_gen_optim] = -1.
-        curtailment_[gen_curt] = aux_
-        curtailment_[~gen_curt] = -1.
-        act.curtail_mw = curtailment_
+        if np.any(np.abs(curtailment) > 0.):
+            curtailment_ = np.zeros(shape=act.n_gen) -1.
+            gen_curt = obs.gen_renewable & (obs.gen_p > 0.1)
+            idx_gen = self.bus_gen.value[gen_curt]
+            tmp_ = curtailment[idx_gen]
+            modif_gen_optim = tmp_ != 0.
+            gen_p = 1.0 * obs.gen_p
+            aux_ = curtailment_[gen_curt]
+            aux_[modif_gen_optim] = (gen_p[gen_curt][modif_gen_optim] - 
+                                     tmp_[modif_gen_optim] * 
+                                     gen_p[gen_curt][modif_gen_optim] / 
+                                     self.gen_per_bus.value[idx_gen][modif_gen_optim]
+            )
+            aux_[~modif_gen_optim] = -1.
+            curtailment_[gen_curt] = aux_
+            curtailment_[~gen_curt] = -1.
+            act.curtail_mw = curtailment_
         
         # redispatching
-        redisp_ = np.zeros(obs.n_gen)
-        gen_redi = obs.gen_redispatchable & (obs.gen_p > 0.1)
-        idx_gen = self.bus_gen.value[gen_redi]
-        tmp_ = redispatching[idx_gen]
-        redisp_[gen_redi] = tmp_ *  gen_p[gen_redi] / self.gen_per_bus.value[idx_gen]
-        redisp_[~gen_redi] = 0.
-        act.redispatch = redisp_
+        if np.any(np.abs(redispatching) > 0.):
+            redisp_ = np.zeros(obs.n_gen)
+            gen_redi = obs.gen_redispatchable  #  & (obs.gen_p > self.margin_sparse)
+            idx_gen = self.bus_gen.value[gen_redi]
+            tmp_ = redispatching[idx_gen]
+            gen_p = 1.0 * obs.gen_p
+            # TODO below, 1 issue: 
+            # it will necessarily turn on generators if one is connected to a bus and another not
+            redisp_avail = np.zeros(self.nb_max_bus)
+            for bus_id in range(self.nb_max_bus):
+                if redispatching[bus_id] > 0.:
+                    redisp_avail[bus_id] = obs.gen_margin_up[self.bus_gen.value == bus_id].sum()
+                elif redispatching[bus_id] < 0.:
+                    redisp_avail[bus_id] = obs.gen_margin_down[self.bus_gen.value == bus_id].sum()
+            # NB: I cannot reuse self.redisp_up above because i took some "margin" in the optimization
+            # this leads obs.gen_max_ramp_up / self.redisp_up to be > 1.0 and...
+            # violates the constraints of the environment...
+            
+            # below I compute the numerator: by what the total redispatching at each
+            # node should be split between the different generators connected to it
+            prop_to_gen = np.zeros(obs.n_gen)
+            redisp_up = np.zeros(obs.n_gen, dtype=bool)
+            redisp_up[gen_redi] = tmp_ > 0.
+            prop_to_gen[redisp_up] = obs.gen_max_ramp_up[redisp_up]
+            redisp_down = np.zeros(obs.n_gen, dtype=bool)
+            redisp_down[gen_redi] = tmp_ < 0.
+            prop_to_gen[redisp_down] = obs.gen_max_ramp_down[redisp_down]
+            
+            # avoid numeric issues
+            nothing_happens = (redisp_avail[idx_gen] == 0.) & (prop_to_gen[gen_redi] == 0.)
+            set_to_one_nothing = 1.0 * redisp_avail[idx_gen]
+            set_to_one_nothing[nothing_happens] = 1.0
+            redisp_avail[idx_gen] = set_to_one_nothing  # avoid 0. / 0. and python sends a warning
+            
+            if np.any(np.abs(redisp_avail[idx_gen]) <= self.margin_sparse):
+                self.logger.warning("Some generator have a dispatch assign to them by "
+                                    "the optimizer, but they don't have any margin. "
+                                    "The dispatch has been canceled (this was probably caused "
+                                    "by the optimizer not meeting certain constraints).")
+                this_fix_ = 1.0 * redisp_avail[idx_gen]
+                too_small_here = np.abs(this_fix_) <= self.margin_sparse
+                tmp_[too_small_here] = 0.
+                this_fix_[too_small_here] = 1.
+                redisp_avail[idx_gen] = this_fix_
+                
+            # Now I split the output of the optimization between the generators
+            try:
+                with warnings.catch_warnings():
+                    warnings.filterwarnings("error")
+                    redisp_[gen_redi] = tmp_ * prop_to_gen[gen_redi] / redisp_avail[idx_gen]
+            except Exception as exc_:
+                print("a warning occured")
+                pdb.set_trace()
+                print("toto")
+            redisp_[~gen_redi] = 0.
+            act.redispatch = redisp_
         return act
     
     def _update_constraints_param_safe(self, obs):
@@ -721,19 +940,23 @@ class OptimCVXPY(BaseAgent):
             # storage
             self._add_storage_const(obs, bus_id)
             
-            # curtailment
-            # self.curtail_down.value[bus_id] = 0.
-            # self.curtail_up.value[bus_id] = tmp_[(self.bus_gen.value == bus_id) & obs.gen_renewable].sum()
+            # curtailment #TODO
+            # mask_ = (self.bus_gen.value == bus_id) & obs.gen_renewable
+            # self.curtail_down.value[bus_id] = obs.gen_pmax[mask_].sum() - tmp_[mask_].sum()
+            # self.curtail_up.value[bus_id] = tmp_[mask_].sum()
 
             # storage target
-            self._storage_target_bus.value[bus_id] = self._storage_setpoint[self.bus_storage.value == bus_id].sum()
+            if self.bus_storage is not None:
+                self._storage_target_bus.value[bus_id] = self._storage_setpoint[self.bus_storage.value == bus_id].sum()
             
             # past information
-            self._past_state_of_charge.value[bus_id] = obs.storage_charge[self.bus_storage.value == bus_id].sum()
+            if self.bus_storage is not None:
+                self._past_state_of_charge.value[bus_id] = obs.storage_charge[self.bus_storage.value == bus_id].sum()
             self._past_dispatch.value[bus_id] = obs.target_dispatch[self.bus_gen.value == bus_id].sum()
-            
-        self.curtail_down.value[:] = 0.  # TODO
-        self.curtail_up.value[:] = 0.  # TODO
+        
+        #TODO
+        self.curtail_down.value[:] = 0.
+        self.curtail_up.value[:] = 0.
         
         self._remove_margin_rounding()
     
@@ -747,10 +970,11 @@ class OptimCVXPY(BaseAgent):
         theta = cp.Variable(shape=self.nb_max_bus)  # at each bus
         curtailment_mw = cp.Variable(shape=self.nb_max_bus)  # at each bus
         storage = cp.Variable(shape=self.nb_max_bus)  # at each bus
-        redispatching = cp.Variable(shape=self.nb_max_bus)  # at each bus
-        
+        redispatching = cp.Variable(shape=self.nb_max_bus)  # at each bus            
+            
         # usefull quantities
         f_or = cp.multiply(1. / self._powerlines_x , (theta[self.bus_or.value] - theta[self.bus_ex.value]))
+        f_or_corr = f_or - self._alpha_por_error * self._prev_por_error
         inj_bus = (self.load_per_bus + storage) - (self.gen_per_bus + redispatching - curtailment_mw)
         energy_added = cp.sum(curtailment_mw) + cp.sum(storage) - cp.sum(redispatching)
         
@@ -768,8 +992,8 @@ class OptimCVXPY(BaseAgent):
                         [el == 0 for el in KCL_eq] +
                         
                         # I impose here that the flows are bellow the limits
-                        [f_or <= self._margin_th_limit * self._th_lim_mw] +
-                        [f_or >= -self._margin_th_limit * self._th_lim_mw] +
+                        [f_or_corr <= self._margin_th_limit * self._th_lim_mw] +
+                        [f_or_corr >= -self._margin_th_limit * self._th_lim_mw] +
                         
                         # limit redispatching to possible values
                         [redispatching <= self.redisp_up, redispatching >= -self.redisp_down] +
@@ -810,13 +1034,47 @@ class OptimCVXPY(BaseAgent):
     
     def act(self,
             obs: BaseObservation,
-            reward: float,
-            done: bool) -> BaseAction:
+            reward: float=1.,
+            done: bool=False) -> BaseAction:
+        """This function is the main method of this class.
+        
+        It is through this function that the agent will take some actions (remember actions
+        concerns only redispatching, curtailment and action on storage units - and powerline reconnection
+        on some cases)
+        
+        It has basically 3 modes:
+        
+        - if the grid is in danger (`obs.rho.max() > self.rho_danger`) it will try to get the grid back to safety
+          (if possible)
+        - if the grid is safe (`obs.rho.max() < self.rho_safe`) it will try to get the grid back to a "reference"
+          state (redispatching at 0., storage units close to `self.storage_setpoint`)
+        - otherwise do nothing (this is mainly to avoid oscillating between the two previous state)
+
+        Parameters
+        ----------
+        obs : BaseObservation
+            The current observation
+        reward : float, optional
+            unused, for compatibility with gym / grid2op agent interface, by default 1.
+        done : bool, optional
+            unused, for compatibility with gym / grid2op agent interface, by default False
+
+        Returns
+        -------
+        BaseAction
+            The action the agent would do
+            
+        """
+        prev_ok = np.isfinite(self.flow_computed)
+        self._prev_por_error.value[prev_ok] = self.flow_computed[prev_ok] - obs.p_or[prev_ok]
+        self._prev_por_error.value[~prev_ok] = 0.
+        # print(f"{np.abs(self._prev_por_error.value).mean()}")
+        # print(f"{np.abs(self._prev_por_error.value).max()}")
         
         self.flow_computed[:] = np.NaN
         if obs.rho.max() > self.rho_danger:
             # I attempt to make the grid more secure
-            
+            self.logger.info(f"step {obs.current_step}, danger mode")
             # update the observation
             self.update_parameters(obs)
             # solve the problem
@@ -827,6 +1085,8 @@ class OptimCVXPY(BaseAgent):
             # I attempt to get back to a more robust state (reconnect powerlines,
             # storage state of charge close to the target state of charge,
             # redispatching close to 0.0 etc.)
+            self.logger.info(f"step {obs.current_step}, safe / recovery mode")
+            
             act = self.action_space()
             
             can_be_reco = (obs.time_before_cooldown_line == 0) & (~obs.line_status)
@@ -845,7 +1105,11 @@ class OptimCVXPY(BaseAgent):
             act = self.to_grid2op(obs, curtailment, storage, redispatching, act)
         else:
             # I do nothing between rho_danger and rho_safe
+            self.logger.info(f"step {obs.current_step}, do nothing mode")
             act = self.action_space()
+            
+            self.flow_computed[:] = obs.p_or
+            
         return act
         
 if __name__ == "__main__":

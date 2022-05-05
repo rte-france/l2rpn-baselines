@@ -6,6 +6,7 @@
 # SPDX-License-Identifier: MPL-2.0
 # This file is part of L2RPN Baselines, L2RPN Baselines a repository to host baselines for l2rpn competitions.
 
+
 def evaluate():
     # TODO !
-    pass
+    raise NotImplementedError("Currently not implemented")

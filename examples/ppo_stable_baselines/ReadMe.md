@@ -1,6 +1,6 @@
 # Objective
 
-This repository demonstrates how to use grid2op, lightsim2grid and l2rpn-baselines to make a RL agent that is able to perform some actions on a grid2op environment using the PPO algorithm and the `stable-baselines3` rl library.
+This directory shows how to use grid2op, lightsim2grid and l2rpn-baselines to make a RL agent that is able to perform some actions on a grid2op environment using the PPO algorithm and the `stable-baselines3` rl library.
 
 It focuses on the `PPO_SB3` baseline with a strong focus on **continuous** variables (curtailment and redispatching)
 
