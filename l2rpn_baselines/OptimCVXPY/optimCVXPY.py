@@ -714,7 +714,12 @@ class OptimCVXPY(BaseAgent):
             self.flow_computed[:] = np.NaN
             
         return has_converged
-        
+    
+    def max_curtailment(self, obs):
+        # TODO find the maximum curtailment i can do without damaging the grid
+        # merge it with compute_optimum_safe(self, ...)
+        pass
+         
     def compute_optimum_unsafe(self):
         # variables
         theta = cp.Variable(shape=self.nb_max_bus)  # at each bus
@@ -918,14 +923,7 @@ class OptimCVXPY(BaseAgent):
                 redisp_avail[idx_gen] = this_fix_
                 
             # Now I split the output of the optimization between the generators
-            try:
-                with warnings.catch_warnings():
-                    warnings.filterwarnings("error")
-                    redisp_[gen_redi] = tmp_ * prop_to_gen[gen_redi] / redisp_avail[idx_gen]
-            except Exception as exc_:
-                print("a warning occured")
-                pdb.set_trace()
-                print("toto")
+            redisp_[gen_redi] = tmp_ * prop_to_gen[gen_redi] / redisp_avail[idx_gen]
             redisp_[~gen_redi] = 0.
             act.redispatch = redisp_
         return act

@@ -41,7 +41,7 @@ scen_test = ["2050-01-03_31",
              "2050-11-14_31",
              "2050-12-19_31",
              ]
-scen_test = ["2050-02-21_31"]
+# scen_test = ["2050-02-21_31"]
 print("For do nothing: ")
 dn_act = env.action_space()
 for scen_id in scen_test:
