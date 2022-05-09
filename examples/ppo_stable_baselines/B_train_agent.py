@@ -16,11 +16,13 @@ import os
 import re
 import numpy as np
 from grid2op.Reward import BaseReward
+from grid2op.Action import PlayableAction
 from l2rpn_baselines.utils import GymEnvWithReco, GymEnvWithRecoWithDN
 
 env_name = "l2rpn_icaps_2021_small_train"
 env_name = "l2rpn_wcci_2022_dev_train"
 env_name = "wcci_2022_dev_2"
+env_name = "l2rpn_case14_sandbox"
 save_path = "./saved_model"
 name = "expe_GymEnvWithRecoWithDN_2022_test5"
 gymenv_class = GymEnvWithRecoWithDN  # uses the heuristic to do nothing is the grid is not at risk and to reconnect powerline automatically
@@ -133,6 +135,7 @@ if __name__ == "__main__":
     gamma = 0.999
     
     env = grid2op.make(env_name,
+                       action_class=PlayableAction,
                        reward_class=CustomReward,
                        backend=LightSimBackend(),
                        chronics_class=MultifolderWithCache)
@@ -147,7 +150,8 @@ if __name__ == "__main__":
     # env.chronics_handler.real_data.set_filter(lambda x: re.match(r".*february_000$", x) is not None)
     # env.chronics_handler.real_data.set_filter(lambda x: re.match(r".*00$", x) is not None)
     # env.chronics_handler.real_data.set_filter(lambda x: True)
-    env.chronics_handler.real_data.set_filter(lambda x: re.match(r".*2050-08-01_.*$", x) is not None)
+    env.chronics_handler.real_data.set_filter(lambda x: re.match(r".*500$", x) is not None)
+    # env.chronics_handler.real_data.set_filter(lambda x: re.match(r".*2050-08-01_.*$", x) is not None)
     env.chronics_handler.real_data.reset()
     # see https://grid2op.readthedocs.io/en/latest/environment.html#optimize-the-data-pipeline
     # for more information !
