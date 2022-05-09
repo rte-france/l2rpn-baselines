@@ -22,6 +22,7 @@ is_windows = sys.platform.startswith("win32")
 
 env_name = "l2rpn_icaps_2021_small"
 env_name = "l2rpn_wcci_2022_dev"
+env_name = "wcci_2022_dev"
 SCOREUSED = ScoreL2RPN2020  # ScoreICAPS2021
 
 name_stats = "_reco_powerline"
@@ -132,3 +133,23 @@ if __name__ == "__main__":
         stats_reco.compute(nb_scenario=nb_scenario,
                            agent=reco_powerline_agent,
                            env_seeds=seeds)
+        
+        if nm_ == nm_val:
+            # save the normalization parameters from the validation set
+            dict_ = {"subtract": {}, 'divide': {}}
+            for attr_nm in ["gen_p", "load_p", "p_or", "rho"]:
+                avg_ = stats_reco.get(attr_nm)[0].mean(axis=0)
+                std_ = stats_reco.get(attr_nm)[0].std(axis=0)
+                dict_["subtract"][attr_nm] = [float(el) for el in avg_]
+                dict_["divide"][attr_nm] = [max(float(el), 1.0) for el in std_]
+            
+            with open("preprocess_obs.json", "w", encoding="utf-8") as f:
+                json.dump(obj=dict_, fp=f)
+                
+            act_space_kwargs = {"add": {"redispatch": [TODO],
+                                             "set_storage": [TODO]},
+                                'multiply': {"redispatch": [TODO],
+                                           "set_storage": [TODO]}
+                               }
+            with open("preprocess_act.json", "w", encoding="utf-8") as f:
+                json.dump(obj=dict_, fp=f)

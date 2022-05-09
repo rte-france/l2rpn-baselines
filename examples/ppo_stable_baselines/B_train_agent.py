@@ -14,6 +14,7 @@
 
 import os
 import re
+import json
 import numpy as np
 from grid2op.Reward import BaseReward
 from grid2op.Action import PlayableAction
@@ -22,6 +23,7 @@ from l2rpn_baselines.utils import GymEnvWithReco, GymEnvWithRecoWithDN
 env_name = "l2rpn_icaps_2021_small_train"
 env_name = "l2rpn_wcci_2022_dev_train"
 env_name = "wcci_2022_dev_2"
+env_name = "wcci_2022_dev"
 env_name = "l2rpn_case14_sandbox"
 save_path = "./saved_model"
 name = "expe_GymEnvWithRecoWithDN_2022_test5"
@@ -125,9 +127,9 @@ if __name__ == "__main__":
                         # curtailment part of the observation
                         "curtailment", "curtailment_limit",  "gen_p_before_curtail",
                         ]
+    TODO = ...
     # same here you can change it as you please
     act_attr_to_keep = ["redispatch", "curtail", "set_storage"]
-    
     # parameters for the learning
     nb_iter = 300_000
     learning_rate = 3e-4
@@ -139,6 +141,14 @@ if __name__ == "__main__":
                        reward_class=CustomReward,
                        backend=LightSimBackend(),
                        chronics_class=MultifolderWithCache)
+    
+    # with open("preprocess_obs.json", "r", encoding="utf-8") as f:
+    #     obs_space_kwargs = json.load(f)
+    # with open("preprocess_act.json", "r", encoding="utf-8") as f:
+    #     act_space_kwargs = json.load(f)
+    
+    obs_space_kwargs = None
+    act_space_kwargs = None
     param = env.parameters
     param.LIMIT_INFEASIBLE_CURTAILMENT_STORAGE_ACTION = True
     env.change_parameters(param)
@@ -163,7 +173,9 @@ if __name__ == "__main__":
             logs_dir="./logs",
             save_path=save_path, 
             obs_attr_to_keep=obs_attr_to_keep,
+            obs_space_kwargs=obs_space_kwargs,
             act_attr_to_keep=act_attr_to_keep,
+            act_space_kwargs=act_space_kwargs,
             normalize_act=True,
             normalize_obs=True,
             name=name,
