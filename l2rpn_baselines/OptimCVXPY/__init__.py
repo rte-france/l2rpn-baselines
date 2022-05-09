@@ -8,8 +8,10 @@
 
 __all__ = [
     "evaluate",
-    "OptimCVXPY"
+    "OptimCVXPY",
+    "make_agent",
 ]
 
 from l2rpn_baselines.OptimCVXPY.optimCVXPY import OptimCVXPY
 from l2rpn_baselines.OptimCVXPY.evaluate import evaluate
+from l2rpn_baselines.OptimCVXPY.make_agent import make_agent

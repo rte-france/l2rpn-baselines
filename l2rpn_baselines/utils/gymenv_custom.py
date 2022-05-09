@@ -221,6 +221,7 @@ class GymEnvWithHeuristics(GymEnv):
         if not done:
             g2op_obs, reward, done, info = self.apply_heuristics_actions(g2op_obs, reward, done, info)
         gym_obs = self.observation_space.to_gym(g2op_obs)
+        print(gym_obs.min(), gym_obs.max())
         return gym_obs, float(reward), done, info
         
     def reset(self, seed=None, return_info=False, options=None):

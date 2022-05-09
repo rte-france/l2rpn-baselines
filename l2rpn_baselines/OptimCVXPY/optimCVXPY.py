@@ -31,6 +31,9 @@ import pdb
 # TODO have the agent "play" with the protection: if a powerline is not in danger,
 # the margin_th_limit associated should be larger than if a powerline is close to be disconnected
 
+# TODO add margin in the generator not to put them at pmin / pmax !
+# TODO "remove" past actions for the storage, curtailment: 
+# redispatching continues in time, storage is a "one time thing"
 class OptimCVXPY(BaseAgent):
     """
     This agent choses its action by resolving, at each `agent.act(...)` call an optimization routine
@@ -308,6 +311,7 @@ class OptimCVXPY(BaseAgent):
                                                            nonneg=True,
                                                            )
         self.nb_max_bus: int = 2 * env.n_sub
+        self._storage_power_obs: cp.Parameter = cp.Parameter(value=0.)
         
         SoC = np.zeros(shape=self.nb_max_bus)
         self._storage_setpoint: np.ndarray = 0.5 * env.storage_Emax
@@ -527,15 +531,20 @@ class OptimCVXPY(BaseAgent):
         
         # TODO what if (0.001 * obs.thermal_limit)**2 * obs.v_or **2 * 3. - obs.q_or**2 is negative !
         
+    def _update_storage_power_obs(self, obs: BaseObservation):
+        self._storage_power_obs.value += obs.storage_power.sum()
+        
     def _update_inj_param(self, obs: BaseObservation):
+        self._update_storage_power_obs(obs)
+        
         self.load_per_bus.value[:] = 0.
         self.gen_per_bus.value[:] = 0.
         load_p = 1.0 * obs.load_p
-        load_p *= (obs.gen_p.sum() - obs.storage_power.sum()) / load_p.sum() 
+        load_p *=(obs.gen_p.sum() - self._storage_power_obs.value) / load_p.sum() 
         for bus_id in range(self.nb_max_bus):
             self.load_per_bus.value[bus_id] += load_p[self.bus_load.value == bus_id].sum()
-            if self.bus_storage is not None:
-                self.load_per_bus.value[bus_id] += obs.storage_power[self.bus_storage.value == bus_id].sum()
+            # if self.bus_storage is not None:
+                # self.load_per_bus.value[bus_id] += obs.storage_power[self.bus_storage.value == bus_id].sum()
             self.gen_per_bus.value[bus_id] += obs.gen_p[self.bus_gen.value == bus_id].sum()
 
     def _add_redisp_const(self, obs: BaseObservation, bus_id: int):
@@ -726,7 +735,7 @@ class OptimCVXPY(BaseAgent):
         f_or = cp.multiply(1. / self._powerlines_x , (theta[self.bus_or.value] - theta[self.bus_ex.value]))
         f_or_corr = f_or - self._alpha_por_error * self._prev_por_error
         inj_bus = (self.load_per_bus + storage) - (self.gen_per_bus + redispatching - curtailment_mw)
-        energy_added = cp.sum(curtailment_mw) + cp.sum(storage) - cp.sum(redispatching)
+        energy_added = cp.sum(curtailment_mw) + cp.sum(storage) - cp.sum(redispatching) - self._storage_power_obs
         
         KCL_eq = self._aux_compute_kcl(inj_bus, f_or)
         theta_is_zero = self._mask_theta_zero()
@@ -764,6 +773,7 @@ class OptimCVXPY(BaseAgent):
         if has_converged:
             self.flow_computed[:] = f_or.value
             res = (curtailment_mw.value, storage.value, redispatching.value)
+            self._storage_power_obs.value = 0.
         else:
             self.logger.error(f"Problem with the optimization for all tested solvers ({type(self).SOLVER_TYPES})")
             self.flow_computed[:] = np.NaN
@@ -870,7 +880,7 @@ class OptimCVXPY(BaseAgent):
             curtailment_[gen_curt] = aux_
             curtailment_[~gen_curt] = -1.
             act.curtail_mw = curtailment_
-        
+            
         # redispatching
         if np.any(np.abs(redispatching) > 0.):
             redisp_ = np.zeros(obs.n_gen)
@@ -895,10 +905,10 @@ class OptimCVXPY(BaseAgent):
             prop_to_gen = np.zeros(obs.n_gen)
             redisp_up = np.zeros(obs.n_gen, dtype=bool)
             redisp_up[gen_redi] = tmp_ > 0.
-            prop_to_gen[redisp_up] = obs.gen_max_ramp_up[redisp_up]
+            prop_to_gen[redisp_up] = obs.gen_margin_up[redisp_up]
             redisp_down = np.zeros(obs.n_gen, dtype=bool)
             redisp_down[gen_redi] = tmp_ < 0.
-            prop_to_gen[redisp_down] = obs.gen_max_ramp_down[redisp_down]
+            prop_to_gen[redisp_down] = obs.gen_margin_down[redisp_down]
             
             # avoid numeric issues
             nothing_happens = (redisp_avail[idx_gen] == 0.) & (prop_to_gen[gen_redi] == 0.)
@@ -918,14 +928,7 @@ class OptimCVXPY(BaseAgent):
                 redisp_avail[idx_gen] = this_fix_
                 
             # Now I split the output of the optimization between the generators
-            try:
-                with warnings.catch_warnings():
-                    warnings.filterwarnings("error")
-                    redisp_[gen_redi] = tmp_ * prop_to_gen[gen_redi] / redisp_avail[idx_gen]
-            except Exception as exc_:
-                print("a warning occured")
-                pdb.set_trace()
-                print("toto")
+            redisp_[gen_redi] = tmp_ * prop_to_gen[gen_redi] / redisp_avail[idx_gen]
             redisp_[~gen_redi] = 0.
             act.redispatch = redisp_
         return act
@@ -976,7 +979,7 @@ class OptimCVXPY(BaseAgent):
         f_or = cp.multiply(1. / self._powerlines_x , (theta[self.bus_or.value] - theta[self.bus_ex.value]))
         f_or_corr = f_or - self._alpha_por_error * self._prev_por_error
         inj_bus = (self.load_per_bus + storage) - (self.gen_per_bus + redispatching - curtailment_mw)
-        energy_added = cp.sum(curtailment_mw) + cp.sum(storage) - cp.sum(redispatching)
+        energy_added = cp.sum(curtailment_mw) + cp.sum(storage) - cp.sum(redispatching) - self._storage_power_obs
         
         KCL_eq = self._aux_compute_kcl(inj_bus, f_or)
         theta_is_zero = self._mask_theta_zero()
@@ -1021,9 +1024,11 @@ class OptimCVXPY(BaseAgent):
         # solve
         prob = cp.Problem(cp.Minimize(cost), constraints)
         has_converged = self._solve_problem(prob)
+            
         if has_converged:
             self.flow_computed[:] = f_or.value
             res = (curtailment_mw.value, storage.value, redispatching.value)
+            self._storage_power_obs.value = 0.
         else:
             self.logger.error(f"Problem with the optimization for all tested solvers ({type(self).SOLVER_TYPES})")
             self.flow_computed[:] = np.NaN
@@ -1070,6 +1075,7 @@ class OptimCVXPY(BaseAgent):
         self._prev_por_error.value[~prev_ok] = 0.
         # print(f"{np.abs(self._prev_por_error.value).mean()}")
         # print(f"{np.abs(self._prev_por_error.value).max()}")
+        # print(f"step {obs.current_step} target dispatch: {obs.target_dispatch.sum():.2f} / {obs.storage_power.sum():.2f}")
         
         self.flow_computed[:] = np.NaN
         if obs.rho.max() > self.rho_danger:
@@ -1106,10 +1112,10 @@ class OptimCVXPY(BaseAgent):
         else:
             # I do nothing between rho_danger and rho_safe
             self.logger.info(f"step {obs.current_step}, do nothing mode")
+            self._update_storage_power_obs(obs)
             act = self.action_space()
             
             self.flow_computed[:] = obs.p_or
-            
         return act
         
 if __name__ == "__main__":
