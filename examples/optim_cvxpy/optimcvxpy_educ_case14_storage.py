@@ -14,6 +14,8 @@ from lightsim2grid import LightSimBackend
 from tqdm import tqdm
 import pdb
 
+max_step = 288
+
 if __name__ == "__main__":
     env = grid2op.make("educ_case14_storage",
                        test=True,
@@ -23,11 +25,11 @@ if __name__ == "__main__":
     agent = OptimCVXPY(env.action_space,
                        env,
                        penalty_redispatching_unsafe=0.,
-                       penalty_storage_unsafe=0.1,
+                       penalty_storage_unsafe=0.04,  ###
                        penalty_curtailment_unsafe=0.01,
-                       rho_safe=0.95,
-                       rho_danger=0.97,
-                       margin_th_limit=0.95,
+                       rho_safe=0.95,  ###
+                       rho_danger=0.97,  ###
+                       margin_th_limit=0.93,  ###
                        alpha_por_error=0.5,
                        weight_redisp_target=0.3,
                        )
@@ -41,31 +43,23 @@ if __name__ == "__main__":
     #     env.set_id(scen_id)
     #     obs = env.reset()
     #     done = False
-    #     for nb_step in tqdm(range(288)):
+    #     for nb_step in tqdm(range(max_step)):
     #         obs, reward, done, info = env.step(dn_act)
-    #         if done:
+            # if done and nb_step != (max_step-1):
     #             break
-    #     print(f"\t scenario: {os.path.split(env.chronics_handler.get_id())[-1]}: {nb_step + 1} / 288")
+    #     print(f"\t scenario: {os.path.split(env.chronics_handler.get_id())[-1]}: {nb_step + 1} / {max_step}")
 
     print("For the optimizer: ")
-    for scen_id in range(7):
-        # if scen_id != 2:
-            # continue
-        
+    for scen_id in range(7):        
         env.set_id(scen_id)
         obs = env.reset()
         agent.reset(obs)
         done = False
-        for nb_step in tqdm(range(288)):
+        for nb_step in tqdm(range(max_step)):
             prev_obs = obs
-            # agent._DEBUG = nb_step >= 22
-            # agent._DEBUG = nb_step >= 10
-            # agent._DEBUG = nb_step >= 190
             act = agent.act(obs)
             obs, reward, done, info = env.step(act)
-            if done:
-                # print(info)
-                # print(prev_obs.storage_charge)
-                # print(prev_obs.target_dispatch)
+            if done and nb_step != (max_step-1):
+                # there is a game over before the end
                 break
-        print(f"\t scenario: {os.path.split(env.chronics_handler.get_id())[-1]}: {nb_step + 1} / 288")
+        print(f"\t scenario: {os.path.split(env.chronics_handler.get_id())[-1]}: {nb_step + 1} / {max_step}")

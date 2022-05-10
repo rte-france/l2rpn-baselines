@@ -8,7 +8,7 @@ It will be usable on the `l2rpn_icaps_2021` grid2op environment
 
 It is organized as follow:
 
-1) you split the environment into training and validation
+1) you split the environment into training, validation and test
 2) you train the agent (do not hesitate to change the parameters there) on the
    training set
 3) you evaluate it on a dataset not used for training !
@@ -24,6 +24,7 @@ In this phase, we do 3 things:
 - we split the data set into a training, validation and test set. This is quite standard in ML (less in RL) and its main goal is to prevent overfitting. (we remind the scenarios on codalab will be different from the training set provided, though drawn from the same distribution)
 - we initialize the computation of the scores. In the case of l2rpn competitions, the score is cannot be easily made into a reward function, it can only be computed when knowing the entire episode, at the end of the episode\*. 
 - we compute the score of a few "standard" baselines to compared the trained agent with
+- we use the previous runs to compute some "statistics" (average and standard deviation) used to normalize the actions / observations in the later scripts.
 
 \* of course you can make a sparse reward from it. Your agent receive always 0.0 unless when "done = True" (so last step of the episode) where this score can be computed. This is not the approach we took here.
 
