@@ -25,11 +25,11 @@ if __name__ == "__main__":
     agent = OptimCVXPY(env.action_space,
                        env,
                        penalty_redispatching_unsafe=0.,
-                       penalty_storage_unsafe=0.04,  ###
+                       penalty_storage_unsafe=0.04,
                        penalty_curtailment_unsafe=0.01,
-                       rho_safe=0.95,  ###
-                       rho_danger=0.97,  ###
-                       margin_th_limit=0.93,  ###
+                       rho_safe=0.95,
+                       rho_danger=0.97,
+                       margin_th_limit=0.93,
                        alpha_por_error=0.5,
                        weight_redisp_target=0.3,
                        )
@@ -37,17 +37,17 @@ if __name__ == "__main__":
     # in safe / recovery mode agent tries to fill the storage units as much as possible
     agent.storage_setpoint = env.storage_Emax  
 
-    # print("For do nothing: ")
-    # dn_act = env.action_space()
-    # for scen_id in range(7):
-    #     env.set_id(scen_id)
-    #     obs = env.reset()
-    #     done = False
-    #     for nb_step in tqdm(range(max_step)):
-    #         obs, reward, done, info = env.step(dn_act)
-            # if done and nb_step != (max_step-1):
-    #             break
-    #     print(f"\t scenario: {os.path.split(env.chronics_handler.get_id())[-1]}: {nb_step + 1} / {max_step}")
+    print("For do nothing: ")
+    dn_act = env.action_space()
+    for scen_id in range(7):
+        env.set_id(scen_id)
+        obs = env.reset()
+        done = False
+        for nb_step in tqdm(range(max_step)):
+            obs, reward, done, info = env.step(dn_act)
+            if done and nb_step != (max_step-1):
+                break
+        print(f"\t scenario: {os.path.split(env.chronics_handler.get_id())[-1]}: {nb_step + 1} / {max_step}")
 
     print("For the optimizer: ")
     for scen_id in range(7):        
