@@ -163,15 +163,27 @@ def evaluate(env,
         act_attr_to_keep = json.load(fp=f)
 
     # create the action and observation space
-    gym_observation_space =  BoxGymObsSpace(env.observation_space, attr_to_keep=obs_attr_to_keep)
-    gym_action_space = BoxGymActSpace(env.action_space, attr_to_keep=act_attr_to_keep)
+    gym_observation_space =  BoxGymObsSpace(env.observation_space,
+                                            attr_to_keep=obs_attr_to_keep,
+                                            **obs_space_kwargs)
+    gym_action_space = BoxGymActSpace(env.action_space,
+                                      attr_to_keep=act_attr_to_keep,
+                                      **act_space_kwargs)
     
     if os.path.exists(os.path.join(load_path, ".normalize_act")):
         for attr_nm in act_attr_to_keep:
+            if (("multiply" in act_space_kwargs and attr_nm in act_space_kwargs["multiply"]) or 
+                ("add" in act_space_kwargs and attr_nm in act_space_kwargs["add"]) 
+               ):
+                continue
             gym_action_space.normalize_attr(attr_nm)
 
     if os.path.exists(os.path.join(load_path, ".normalize_obs")):
         for attr_nm in obs_attr_to_keep:
+            if (("divide" in obs_space_kwargs and attr_nm in obs_space_kwargs["divide"]) or 
+                ("subtract" in obs_space_kwargs and attr_nm in obs_space_kwargs["subtract"]) 
+               ):
+                continue
             gym_observation_space.normalize_attr(attr_nm)
     
     gymenv = None

@@ -21,6 +21,7 @@ from B_train_agent import gymenv_class, name, safe_max_rho
 
 env_name = "l2rpn_icaps_2021_small_val"
 env_name = "l2rpn_wcci_2022_dev_val"
+env_name = "wcci_2022_dev_val"
 SCOREUSED = ScoreL2RPN2020  # ScoreICAPS2021
 
 agent_name = name

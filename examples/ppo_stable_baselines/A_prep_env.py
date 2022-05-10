@@ -146,10 +146,10 @@ if __name__ == "__main__":
             with open("preprocess_obs.json", "w", encoding="utf-8") as f:
                 json.dump(obj=dict_, fp=f)
                 
-            act_space_kwargs = {"add": {"redispatch": [TODO],
-                                             "set_storage": [TODO]},
-                                'multiply': {"redispatch": [TODO],
-                                           "set_storage": [TODO]}
+            act_space_kwargs = {"add": {"redispatch": [0. for gen_id in range(env.n_gen) if env.gen_redispatchable[gen_id]],
+                                        "set_storage": [0. for _ in range(env.n_storage)]},
+                                'multiply': {"redispatch": [1. / (max(float(el), 1.0)) for gen_id, el in enumerate(env.gen_max_ramp_up) if env.gen_redispatchable[gen_id]],
+                                             "set_storage": [1. / (max(float(el), 1.0)) for el in env.storage_max_p_prod]}
                                }
             with open("preprocess_act.json", "w", encoding="utf-8") as f:
-                json.dump(obj=dict_, fp=f)
+                json.dump(obj=act_space_kwargs, fp=f)

@@ -23,10 +23,11 @@ from l2rpn_baselines.utils import GymEnvWithReco, GymEnvWithRecoWithDN
 env_name = "l2rpn_icaps_2021_small_train"
 env_name = "l2rpn_wcci_2022_dev_train"
 env_name = "wcci_2022_dev_2"
-env_name = "wcci_2022_dev"
-env_name = "l2rpn_case14_sandbox"
+env_name = "wcci_2022_dev_train"
+# env_name = "l2rpn_case14_sandbox"
 save_path = "./saved_model"
-name = "expe_GymEnvWithRecoWithDN_2022_test5"
+name = "test_normalize_features"
+name = "test_1"
 gymenv_class = GymEnvWithRecoWithDN  # uses the heuristic to do nothing is the grid is not at risk and to reconnect powerline automatically
 max_iter = 7 * 24 * 12  # None to deactivate it
 safe_max_rho = 0.9  # the grid is said "safe" if the rho is lower than this value, it is a really important parameter to tune !
@@ -34,11 +35,12 @@ safe_max_rho = 0.9  # the grid is said "safe" if the rho is lower than this valu
 
 # customize the reward function (optional)
 class CustomReward(BaseReward):
-    def __init__(self):
+    def __init__(self, logger=None):
         """
         Initializes :attr:`BaseReward.reward_min` and :attr:`BaseReward.reward_max`
 
         """
+        BaseReward.__init__(self, logger=logger)
         self.reward_min = 0.
         self.reward_max = 1.
         self._min_rho = 0.90
@@ -142,13 +144,11 @@ if __name__ == "__main__":
                        backend=LightSimBackend(),
                        chronics_class=MultifolderWithCache)
     
-    # with open("preprocess_obs.json", "r", encoding="utf-8") as f:
-    #     obs_space_kwargs = json.load(f)
-    # with open("preprocess_act.json", "r", encoding="utf-8") as f:
-    #     act_space_kwargs = json.load(f)
+    with open("preprocess_obs.json", "r", encoding="utf-8") as f:
+        obs_space_kwargs = json.load(f)
+    with open("preprocess_act.json", "r", encoding="utf-8") as f:
+        act_space_kwargs = json.load(f)
     
-    obs_space_kwargs = None
-    act_space_kwargs = None
     param = env.parameters
     param.LIMIT_INFEASIBLE_CURTAILMENT_STORAGE_ACTION = True
     env.change_parameters(param)
@@ -160,8 +160,9 @@ if __name__ == "__main__":
     # env.chronics_handler.real_data.set_filter(lambda x: re.match(r".*february_000$", x) is not None)
     # env.chronics_handler.real_data.set_filter(lambda x: re.match(r".*00$", x) is not None)
     # env.chronics_handler.real_data.set_filter(lambda x: True)
-    env.chronics_handler.real_data.set_filter(lambda x: re.match(r".*500$", x) is not None)
+    # env.chronics_handler.real_data.set_filter(lambda x: re.match(r".*500$", x) is not None)
     # env.chronics_handler.real_data.set_filter(lambda x: re.match(r".*2050-08-01_.*$", x) is not None)
+    env.chronics_handler.real_data.set_filter(lambda x: re.match(r".*2050-02-.*$", x) is not None)
     env.chronics_handler.real_data.reset()
     # see https://grid2op.readthedocs.io/en/latest/environment.html#optimize-the-data-pipeline
     # for more information !

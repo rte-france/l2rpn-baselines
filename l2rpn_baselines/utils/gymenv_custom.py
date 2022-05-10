@@ -221,14 +221,6 @@ class GymEnvWithHeuristics(GymEnv):
         if not done:
             g2op_obs, reward, done, info = self.apply_heuristics_actions(g2op_obs, reward, done, info)
         gym_obs = self.observation_space.to_gym(g2op_obs)
-        # print(gym_obs.min(), gym_obs.max())
-        # print(gym_obs)
-        import pdb
-        pdb.set_trace()
-        for attr_nm in self.observation_space._attr_to_keep:
-            print(f"{attr_nm} {self.observation_space._handle_attribute(g2op_obs, attr_nm)}")
-            
-        raise RuntimeError("stop")
         return gym_obs, float(reward), done, info
         
     def reset(self, seed=None, return_info=False, options=None):

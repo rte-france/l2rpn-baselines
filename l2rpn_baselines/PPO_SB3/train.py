@@ -6,8 +6,6 @@
 # SPDX-License-Identifier: MPL-2.0
 # This file is part of L2RPN Baselines, L2RPN Baselines a repository to host baselines for l2rpn competitions.
 
-import pdb
-from tabnanny import verbose
 import warnings
 import copy
 import os
@@ -57,6 +55,7 @@ def train(env,
           normalize_act=False,
           gymenv_class=GymEnv,
           gymenv_kwargs=None,
+          verbose=True,
           seed=None,  # TODO
           eval_env=None,  # TODO
           **kwargs):
@@ -236,8 +235,8 @@ def train(env,
                       mode="w") as f:
                 f.write("I have encoded the action space !\n DO NOT MODIFY !")
         for attr_nm in act_attr_to_keep:
-            if (("multiply" in act_attr_to_keep and attr_nm in act_attr_to_keep["divide"]) or 
-                ("subtract" in act_attr_to_keep and attr_nm in act_attr_to_keep["subtract"]) 
+            if (("multiply" in act_space_kwargs and attr_nm in act_space_kwargs["multiply"]) or 
+                ("add" in act_space_kwargs and attr_nm in act_space_kwargs["add"]) 
                ):
                 # attribute is scaled elsewhere
                 continue
@@ -249,8 +248,8 @@ def train(env,
                       mode="w") as f:
                 f.write("I have encoded the observation space !\n DO NOT MODIFY !")
         for attr_nm in obs_attr_to_keep:
-            if (("divide" in obs_attr_to_keep and attr_nm in obs_space_kwargs["divide"]) or 
-                ("subtract" in obs_attr_to_keep and attr_nm in obs_space_kwargs["subtract"]) 
+            if (("divide" in obs_space_kwargs and attr_nm in obs_space_kwargs["divide"]) or 
+                ("subtract" in obs_space_kwargs and attr_nm in obs_space_kwargs["subtract"]) 
                ):
                 # attribute is scaled elsewhere
                 continue
