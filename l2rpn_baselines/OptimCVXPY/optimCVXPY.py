@@ -59,7 +59,6 @@ class OptimCVXPY(BaseAgent):
     Have a look at the documentation for more details about the optimization problems
     solved in each case.
     
-    
     Parameters
     ----------
     action_space : `grid2op.Action.ActionSpace`
@@ -159,9 +158,10 @@ class OptimCVXPY(BaseAgent):
                  penalty_redispatching_unsafe: float=0.03,
                  penalty_storage_unsafe: float=0.3,
                  penalty_curtailment_safe: float=0.0,
-                 penalty_redispatching_safe: float=0.00,
+                 penalty_redispatching_safe: float=0.0,
                  weight_redisp_target: float=1.0,
                  weight_storage_target: float=1.0,
+                 weight_curtail_target: float=1.0,
                  penalty_storage_safe: float=0.0,
                  margin_rounding: float=0.01,
                  margin_sparse: float=5e-3,
@@ -241,6 +241,8 @@ class OptimCVXPY(BaseAgent):
         
         weight_redisp_target: `float`
         
+        weight_curtail_target: `float`
+        
         margin_rounding: `float`
             A margin taken to avoid rounding issues that could lead to infeasible
             actions due to "redispatching above max_ramp_up" for example.
@@ -305,6 +307,8 @@ class OptimCVXPY(BaseAgent):
                                                                 nonneg=True)
         self._weight_storage_target: cp.Parameter = cp.Parameter(value=weight_storage_target,
                                                                 nonneg=True)
+        self._weight_curtail_target = cp.Parameter(value=weight_curtail_target,
+                                                   nonneg=True)
         # takes into account the previous errors on the flows (in an additive fashion)
         # new flows are 1/x(theta_or - theta_ex) * alpha_por_error . (prev_flows - obs.p_or)
         self._alpha_por_error: cp.Parameter = cp.Parameter(value=alpha_por_error,
@@ -590,7 +594,7 @@ class OptimCVXPY(BaseAgent):
             
         self._remove_margin_rounding()
         
-    def _remove_margin_rounding(self):            
+    def _remove_margin_rounding(self):    
         self.storage_down.value[self.storage_down.value > self.margin_rounding] -= self.margin_rounding
         self.storage_up.value[self.storage_up.value > self.margin_rounding] -= self.margin_rounding
         self.curtail_down.value[self.curtail_down.value > self.margin_rounding] -= self.margin_rounding
@@ -796,7 +800,7 @@ class OptimCVXPY(BaseAgent):
             for solver_type in type(self).SOLVER_TYPES:
                 res = self._solve_problem(prob, solver_type=solver_type)
                 if res:
-                    self.logger.info(f"Solver {solver_type} has converged. Stopping there.")
+                    self.logger.info(f"Solver {solver_type} has converged. Stopping solver search now.")
                     return True
             return False
         
@@ -826,7 +830,8 @@ class OptimCVXPY(BaseAgent):
                    curtailment: np.ndarray,
                    storage: np.ndarray,
                    redispatching: np.ndarray,
-                   act: BaseAction =None) -> BaseAction:
+                   act: BaseAction =None,
+                   safe=False) -> BaseAction:
         """Convert the action (given as vectors of real number output of the optimizer)
         to a valid grid2op action.
 
@@ -847,6 +852,10 @@ class OptimCVXPY(BaseAgent):
         act : BaseAction, optional
             The previous action to modify (if any), by default None
 
+        safe: bool, optional
+            Whether this function is called from the "safe state" (in this case it allows to reset 
+            all curtailment for example) or not.
+            
         Returns
         -------
         BaseAction
@@ -869,22 +878,36 @@ class OptimCVXPY(BaseAgent):
         # in the amount of MW you remove, grid2op
         # expects a maximum value
         if np.any(np.abs(curtailment) > 0.):
-            curtailment_ = np.zeros(shape=act.n_gen) -1.
+            curtailment_mw = np.zeros(shape=act.n_gen) -1.
             gen_curt = obs.gen_renewable & (obs.gen_p > 0.1)
             idx_gen = self.bus_gen.value[gen_curt]
             tmp_ = curtailment[idx_gen]
             modif_gen_optim = tmp_ != 0.
             gen_p = 1.0 * obs.gen_p
-            aux_ = curtailment_[gen_curt]
+            aux_ = curtailment_mw[gen_curt]
             aux_[modif_gen_optim] = (gen_p[gen_curt][modif_gen_optim] - 
                                      tmp_[modif_gen_optim] * 
                                      gen_p[gen_curt][modif_gen_optim] / 
                                      self.gen_per_bus.value[idx_gen][modif_gen_optim]
             )
             aux_[~modif_gen_optim] = -1.
-            curtailment_[gen_curt] = aux_
-            curtailment_[~gen_curt] = -1.
-            act.curtail_mw = curtailment_
+            curtailment_mw[gen_curt] = aux_
+            curtailment_mw[~gen_curt] = -1.    
+                       
+            if safe:
+                 # id of the generators that are "curtailed" at their max value
+                 # in safe mode i remove all curtailment
+                gen_id_max = (curtailment_mw >= obs.gen_p_before_curtail ) & obs.gen_renewable
+                if np.any(gen_id_max):
+                    curtailment_mw[gen_id_max] = act.gen_pmax[gen_id_max]
+            act.curtail_mw = curtailment_mw
+        elif safe and np.abs(self.curtail_down.value).max() == 0.:
+            # if curtail_down is all 0. then it means all generators are at their max
+            # output in the observation, curtailment is de facto to 1, I "just"
+            # need to tell it.
+            vect = 1.0 * act.gen_pmax
+            vect[~obs.gen_renewable] = -1.
+            act.curtail_mw = vect
             
         # redispatching
         if np.any(np.abs(redispatching) > 0.):
@@ -948,9 +971,9 @@ class OptimCVXPY(BaseAgent):
             # storage
             self._add_storage_const(obs, bus_id)
             
-            # curtailment #TODO
-            # mask_ = (self.bus_gen.value == bus_id) & obs.gen_renewable
-            # self.curtail_down.value[bus_id] = obs.gen_pmax[mask_].sum() - tmp_[mask_].sum()
+            # curtailment
+            mask_ = (self.bus_gen.value == bus_id) & obs.gen_renewable
+            self.curtail_down.value[bus_id] = obs.gen_p_before_curtail[mask_].sum() - tmp_[mask_].sum()
             # self.curtail_up.value[bus_id] = tmp_[mask_].sum()
 
             # storage target
@@ -962,10 +985,7 @@ class OptimCVXPY(BaseAgent):
                 self._past_state_of_charge.value[bus_id] = obs.storage_charge[self.bus_storage.value == bus_id].sum()
             self._past_dispatch.value[bus_id] = obs.target_dispatch[self.bus_gen.value == bus_id].sum()
         
-        #TODO
-        self.curtail_down.value[:] = 0.
-        self.curtail_up.value[:] = 0.
-        
+        self.curtail_up.value[:] = 0.  # never do more curtailment in "safe" mode
         self._remove_margin_rounding()
     
     def compute_optimum_safe(self, obs: BaseObservation, l_id=None):
@@ -978,8 +998,8 @@ class OptimCVXPY(BaseAgent):
         theta = cp.Variable(shape=self.nb_max_bus)  # at each bus
         curtailment_mw = cp.Variable(shape=self.nb_max_bus)  # at each bus
         storage = cp.Variable(shape=self.nb_max_bus)  # at each bus
-        redispatching = cp.Variable(shape=self.nb_max_bus)  # at each bus            
-            
+        redispatching = cp.Variable(shape=self.nb_max_bus)  # at each bus
+        
         # usefull quantities
         f_or = cp.multiply(1. / self._powerlines_x , (theta[self.bus_or.value] - theta[self.bus_ex.value]))
         f_or_corr = f_or - self._alpha_por_error * self._prev_por_error
@@ -1013,20 +1033,17 @@ class OptimCVXPY(BaseAgent):
                         # bus and generator variation should sum to 0. (not sure it's mandatory)
                         [energy_added == 0]
                       )
-        
-        # TODO (in ctor) redisp_target
-        # TODO (in ctor) curtail_target
     
         # objective
-        # cost = cp.norm1(gp_var) + cp.norm1(lp_var)
-        cost = ( self._penalty_curtailment_safe * cp.sum_squares(curtailment_mw) + 
+        cost = ( self._penalty_curtailment_safe * cp.sum_squares(curtailment_mw) +  
                  self._penalty_storage_safe * cp.sum_squares(storage) +
                  self._penalty_redispatching_safe * cp.sum_squares(redispatching) +
                  self._weight_redisp_target * cp.sum_squares(dispatch_after_this)  +
-                 self._weight_storage_target * cp.sum_squares(state_of_charge_after - self._storage_target_bus)
+                 self._weight_storage_target * cp.sum_squares(state_of_charge_after - self._storage_target_bus) +
+                 self._weight_curtail_target * cp.sum_squares(curtailment_mw + self.curtail_down)   # I want curtailment to be negative
         )
-            
-        # solve
+        
+        # solve the problem
         prob = cp.Problem(cp.Minimize(cost), constraints)
         has_converged = self._solve_problem(prob)
             
@@ -1034,6 +1051,7 @@ class OptimCVXPY(BaseAgent):
             self.flow_computed[:] = f_or.value
             res = (curtailment_mw.value, storage.value, redispatching.value)
             self._storage_power_obs.value = 0.
+            # TODO : assign a value to curtailment_mw that makes it "+1" (cancel curtailment) in the next stuff
         else:
             self.logger.error(f"Problem with the optimization for all tested solvers ({type(self).SOLVER_TYPES})")
             self.flow_computed[:] = np.NaN
@@ -1074,13 +1092,11 @@ class OptimCVXPY(BaseAgent):
         BaseAction
             The action the agent would do
             
-        """
+        """            
         prev_ok = np.isfinite(self.flow_computed)
-        self._prev_por_error.value[prev_ok] = self.flow_computed[prev_ok] - obs.p_or[prev_ok]
+        # only keep the negative error (meaning I underestimated the flow)
+        self._prev_por_error.value[prev_ok] = np.minimum(self.flow_computed[prev_ok] - obs.p_or[prev_ok], 0.)
         self._prev_por_error.value[~prev_ok] = 0.
-        # print(f"{np.abs(self._prev_por_error.value).mean()}")
-        # print(f"{np.abs(self._prev_por_error.value).max()}")
-        # print(f"step {obs.current_step} target dispatch: {obs.target_dispatch.sum():.2f} / {obs.storage_power.sum():.2f}")
         
         self.flow_computed[:] = np.NaN
         if obs.rho.max() > self.rho_danger:
@@ -1091,7 +1107,7 @@ class OptimCVXPY(BaseAgent):
             # solve the problem
             curtailment, storage, redispatching = self.compute_optimum_unsafe()
             # get back the grid2op representation
-            act = self.to_grid2op(obs, curtailment, storage, redispatching)
+            act = self.to_grid2op(obs, curtailment, storage, redispatching, safe=False)
         elif obs.rho.max() < self.rho_safe:
             # I attempt to get back to a more robust state (reconnect powerlines,
             # storage state of charge close to the target state of charge,
@@ -1109,11 +1125,10 @@ class OptimCVXPY(BaseAgent):
                 # TODO optimization to chose the "best" line to reconnect
                 act.line_set_status = [(l_id, +1)]
             
-            # TODO
             self.update_parameters(obs, unsafe=False)
             curtailment, storage, redispatching = self.compute_optimum_safe(obs, l_id)
             # get back the grid2op representation
-            act = self.to_grid2op(obs, curtailment, storage, redispatching, act)
+            act = self.to_grid2op(obs, curtailment, storage, redispatching, act, safe=True)
         else:
             # I do nothing between rho_danger and rho_safe
             self.logger.info(f"step {obs.current_step}, do nothing mode")
