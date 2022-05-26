@@ -27,8 +27,8 @@ def evaluate(env,
              save_gif=False,
              gymenv_class=GymEnv,
              gymenv_kwargs=None,
-             obs_space_kwargs=None,  # TODO
-             act_space_kwargs=None,  # TODO
+             obs_space_kwargs={},
+             act_space_kwargs={},
              iter_num=None,
              **kwargs):
     """
