@@ -27,8 +27,8 @@ def evaluate(env,
              save_gif=False,
              gymenv_class=GymEnv,
              gymenv_kwargs=None,
-             obs_space_kwargs={},
-             act_space_kwargs={},
+             obs_space_kwargs=None,
+             act_space_kwargs=None,
              iter_num=None,
              **kwargs):
     """
@@ -149,6 +149,11 @@ def evaluate(env,
             env.close()
 
     """
+    
+    if obs_space_kwargs is None:
+        obs_space_kwargs = {}
+    if act_space_kwargs is None:
+        act_space_kwargs = {}
 
     # load the attributes kept
     my_path = os.path.join(load_path, name)
