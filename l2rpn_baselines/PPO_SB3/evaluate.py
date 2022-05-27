@@ -18,7 +18,7 @@ from l2rpn_baselines.PPO_SB3.utils import SB3Agent
 
 def evaluate(env,
              load_path=".",
-             name="ppo_stable_baselines",
+             name="PPO_SB3",
              logs_path=None,
              nb_episode=1,
              nb_process=1,
