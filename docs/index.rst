@@ -28,7 +28,7 @@ learning to the power grid control problem.
 
 .. toctree::
    :maxdepth: 1
-   :caption: Open source libraries
+   :caption: Some RL implementation examples
 
    ppo_rllib
    ppo_stable_baselines
@@ -47,13 +47,13 @@ in some environment.
 
 .. toctree::
    :maxdepth: 1
-   :caption: Open source libraries
+   :caption: Expert systems and optimizers
 
    expertagent
    optimcvxpy
 
 
-Possible implementation
+Legacy implementations
 ---------------------------
 
 .. note::
@@ -74,7 +74,7 @@ using grid2op more closely that through the gym interface.
 
 .. toctree::
    :maxdepth: 1
-   :caption: Reference baselines
+   :caption: Legacy implementations
 
    utils
    deepqsimple
