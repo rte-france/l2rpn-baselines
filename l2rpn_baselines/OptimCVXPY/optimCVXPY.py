@@ -537,8 +537,6 @@ class OptimCVXPY(BaseAgent):
         index_disc = obs.v_or == 0.
         self._th_lim_mw.value[index_disc] = 0.001 * (obs.thermal_limit * self._v_ref )[index_disc] * np.sqrt(3.)
         
-        # TODO what if (0.001 * obs.thermal_limit)**2 * obs.v_or **2 * 3. - obs.q_or**2 is negative !
-        
     def _update_storage_power_obs(self, obs: BaseObservation):
         self._storage_power_obs.value += obs.storage_power.sum()
         
