@@ -525,9 +525,13 @@ class OptimCVXPY(BaseAgent):
             self.bus_storage.value[:] = tmp_
         
     def _update_th_lim_param(self, obs: BaseObservation):
+        threshold_ = 1.
         # take into account reactive value (and current voltage) in thermal limit
         self._th_lim_mw.value[:] =  (0.001 * obs.thermal_limit)**2 * obs.v_or **2 * 3. - obs.q_or**2
-        self._th_lim_mw.value[:] = np.sqrt(self._th_lim_mw.value)
+        # if (0.001 * obs.thermal_limit)**2 * obs.v_or **2 * 3. - obs.q_or**2 is too small, I put 1
+        mask_ok = self._th_lim_mw.value >= threshold_
+        self._th_lim_mw.value[mask_ok] = np.sqrt(self._th_lim_mw.value[mask_ok])
+        self._th_lim_mw.value[~mask_ok] = threshold_ 
         
         # do whatever you can for disconnected lines
         index_disc = obs.v_or == 0.
