@@ -20,14 +20,9 @@ from grid2op.Reward import BaseReward
 from grid2op.Action import PlayableAction
 from l2rpn_baselines.utils import GymEnvWithReco, GymEnvWithRecoWithDN
 
-env_name = "l2rpn_icaps_2021_small_train"
-env_name = "l2rpn_wcci_2022_dev_train"
-env_name = "wcci_2022_dev_2"
-env_name = "wcci_2022_dev_train"
-# env_name = "l2rpn_case14_sandbox"
+env_name = "l2rpn_wcci_2022_train"
 save_path = "./saved_model"
-name = "test_normalize_features"
-name = "test_1"
+name = "FirstAgent"
 gymenv_class = GymEnvWithRecoWithDN  # uses the heuristic to do nothing is the grid is not at risk and to reconnect powerline automatically
 max_iter = 7 * 24 * 12  # None to deactivate it
 safe_max_rho = 0.9  # the grid is said "safe" if the rho is lower than this value, it is a really important parameter to tune !
@@ -133,7 +128,7 @@ if __name__ == "__main__":
     # same here you can change it as you please
     act_attr_to_keep = ["redispatch", "curtail", "set_storage"]
     # parameters for the learning
-    nb_iter = 300_000
+    nb_iter = 30_000
     learning_rate = 3e-4
     net_arch = [200, 200, 200, 200]
     gamma = 0.999
@@ -149,6 +144,14 @@ if __name__ == "__main__":
     with open("preprocess_act.json", "r", encoding="utf-8") as f:
         act_space_kwargs = json.load(f)
     
+    # for this, you might want to have a look at: 
+    #  - https://grid2op.readthedocs.io/en/latest/parameters.html#grid2op.Parameters.Parameters.LIMIT_INFEASIBLE_CURTAILMENT_STORAGE_ACTION
+    #  - https://grid2op.readthedocs.io/en/latest/action.html#grid2op.Action.BaseAction.limit_curtail_storage
+    # This really helps the training, but you cannot change
+    # this parameter when you evaluate your agent, so you need to rely
+    # on act.limit_curtail_storage(...) before you give your action to the
+    # environment
+    
     param = env.parameters
     param.LIMIT_INFEASIBLE_CURTAILMENT_STORAGE_ACTION = True
     env.change_parameters(param)
@@ -156,12 +159,7 @@ if __name__ == "__main__":
     if max_iter is not None:
         env.set_max_iter(max_iter)  # one week
     obs = env.reset()
-    # env.chronics_handler.real_data.set_filter(lambda x: re.match(r".*february_000$", x) is not None)
-    # env.chronics_handler.real_data.set_filter(lambda x: re.match(r".*february_000$", x) is not None)
-    # env.chronics_handler.real_data.set_filter(lambda x: re.match(r".*00$", x) is not None)
-    # env.chronics_handler.real_data.set_filter(lambda x: True)
-    # env.chronics_handler.real_data.set_filter(lambda x: re.match(r".*500$", x) is not None)
-    # env.chronics_handler.real_data.set_filter(lambda x: re.match(r".*2050-08-01_.*$", x) is not None)
+    # train on all february month, why not ?
     env.chronics_handler.real_data.set_filter(lambda x: re.match(r".*2050-02-.*$", x) is not None)
     env.chronics_handler.real_data.reset()
     # see https://grid2op.readthedocs.io/en/latest/environment.html#optimize-the-data-pipeline

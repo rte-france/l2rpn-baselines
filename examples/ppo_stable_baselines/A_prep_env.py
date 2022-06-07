@@ -14,19 +14,19 @@ import numpy as np
 import grid2op
 from grid2op.dtypes import dt_int
 from grid2op.Agent import RecoPowerlineAgent
-from grid2op.utils import ScoreL2RPN2020, ScoreICAPS2021, EpisodeStatistics
+from grid2op.utils import EpisodeStatistics, ScoreL2RPN2022, ScoreICAPS2021
 from lightsim2grid import LightSimBackend
 import numpy as np
 
 is_windows = sys.platform.startswith("win32")
 
-env_name = "l2rpn_icaps_2021_small"
-env_name = "l2rpn_wcci_2022_dev"
-env_name = "wcci_2022_dev"
-SCOREUSED = ScoreL2RPN2020  # ScoreICAPS2021
+env_name = "l2rpn_wcci_2022"
+SCOREUSED = ScoreL2RPN2022  # ScoreICAPS2021
 
 name_stats = "_reco_powerline"
 nb_process_stats = 4 if not is_windows else 1
+# if you still want to use multi processing on windows
+# have a look at the `env.generate_classe()` function
 verbose = 1
 deep_copy = is_windows  # force the deep copy on windows (due to permission issue in symlink in windows)
 

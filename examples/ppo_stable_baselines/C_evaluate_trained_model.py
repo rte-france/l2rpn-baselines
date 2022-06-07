@@ -10,19 +10,21 @@ import json
 import numpy as np
 
 import grid2op
-from grid2op.utils import ScoreICAPS2021, ScoreL2RPN2020
+from grid2op.utils import ScoreL2RPN2022
+from grid2op.Agent import RecoPowerlineAgent
+
 from lightsim2grid import LightSimBackend
-from grid2op.gym_compat import GymEnv
 
 from l2rpn_baselines.PPO_SB3 import evaluate
 
 from A_prep_env import _aux_get_env, get_env_seed, name_stats
 from B_train_agent import gymenv_class, name, safe_max_rho
+# NB you can also chose to change the "safe_max_rho" parameter 
+# and use a different parameter for evaluation than the one used for 
+# training.
 
-env_name = "l2rpn_icaps_2021_small_val"
-env_name = "l2rpn_wcci_2022_dev_val"
-env_name = "wcci_2022_dev_val"
-SCOREUSED = ScoreL2RPN2020  # ScoreICAPS2021
+env_name = "l2rpn_wcci_2022_val"
+SCOREUSED = ScoreL2RPN2022
 
 agent_name = name
 nb_scenario = 10
@@ -98,18 +100,27 @@ if __name__ == "__main__":
                           gymenv_class=gymenv_class,
                           obs_space_kwargs=obs_space_kwargs,
                           act_space_kwargs=act_space_kwargs)
-    _, ts_survived, _ = my_score.get(my_agent)
+    scores_r, n_played_r, total_ts_r = my_score.get(RecoPowerlineAgent(env_val.action_space))
+    scores, n_played, total_ts = my_score.get(my_agent)
+    
+    res_scores = {"scores": [float(score) for score in scores],
+                  "n_played": [int(el) for el in n_played],
+                  "total_ts": [int(el) for el in total_ts]}
     
     # compare with do nothing
     best_than_dn = 0
-    for my_ts, dn_ts in zip(ts_survived, dn_ts_survived):
-        print(f"\t{':-)' if my_ts >= dn_ts else ':-('} I survived {my_ts} steps vs {dn_ts} for do nothing ({my_ts - dn_ts})")
+    for score, my_ts, dn_ts in zip(scores, n_played, dn_ts_survived):
+        print(f"\t{':-)' if my_ts >= dn_ts else ':-('}:"
+              f"\n\t\t- I survived {my_ts} steps vs {dn_ts} for do nothing ({my_ts - dn_ts})"
+              f"\n\t\t- my score is {score:.2f} (do nothing is 0.)")
         best_than_dn += my_ts >= dn_ts
     print(f"The agent \"{agent_name}\" beats \"do nothing\" baseline in {best_than_dn} out of {len(dn_ts_survived)} episodes")
     
     # compare with reco powerline
     best_than_reco = 0
-    for my_ts, reco_ts in zip(ts_survived, reco_ts_survived):
-        print(f"\t{':-)' if my_ts >= reco_ts else ':-('} I survived {my_ts} steps vs {reco_ts} for reco powerline ({my_ts - reco_ts})")
+    for score, my_ts, reco_ts, score_ in zip(scores, n_played, reco_ts_survived, scores_r):
+        print(f"\t{':-)' if my_ts >= reco_ts else ':-('}:"
+              f"\n\t\t- I survived {my_ts} steps vs {reco_ts} for reco powerline ({my_ts - reco_ts})"
+              f"\n\t\t- my score is {score:.2f} (reco powerline: {score_:.2f})")
         best_than_reco += my_ts >= reco_ts
     print(f"The agent \"{agent_name}\" beats \"reco powerline\" baseline in {best_than_reco} out of {len(reco_ts_survived)} episodes")
