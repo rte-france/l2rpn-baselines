@@ -13,10 +13,9 @@ Change Log
 - show an example on how to use some "heuristic" in training / evaluation of trained agents
 - show an example of model based RL agent
 - train sowhere a working baseline (that does better than do nothing)
-- refactor the `utils.DeepQAgent` to split the different part better: starting at different steps, not training for a certain number of steps, sampling hard scenarios etc.
-- stack multiple states in `utils/DeepQAgent`
+- show an example of a baseline that uses a GNN
 
-[0.6.0] - 2022-xx-yy
+[0.6.0] - 2022-06-07
 --------------------
 - [BREAKING] name of the file inside the submodule are now lowercase (PEP 8 compliance)
   Use `from l2rpn_baselines.[BASELINENAME] import [BASELINENAME]` by replacing 
@@ -25,7 +24,9 @@ Change Log
 - [FIXED] some bugs (especially in the type of actions) for some agents
 - [ADDED] a code example to use stable baselines 3 (see `l2rpn_baselines.PPO_SB3`)
 - [ADDED] a code example to use RLLIB (see `l2rpn_baselines.PPO_RLLIB`)
+- [ADDED] an optimizer (see `l2rpn_baselines.OptimCVXPY`)
 - [ADDED] some issue templates
+- [ADDED] some examples in the "examples" folder
 
 [0.5.1] - 2021-04-09
 ---------------------
