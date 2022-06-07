@@ -9,13 +9,12 @@
 # This file is part of L2RPN Baselines, L2RPN Baselines a repository to host baselines for l2rpn competitions.
 
 import os
-import tensorflow as tf
 import warnings
 
 from l2rpn_baselines.utils import cli_train
-from l2rpn_baselines.SACOld.SACOld import SACOld, DEFAULT_NAME
-from l2rpn_baselines.SACOld.SACOld_NNParam import SACOld_NNParam
-from l2rpn_baselines.SACOld.SACOld_NN import SACOld_NN
+from l2rpn_baselines.SACOld.sacOld import SACOld, DEFAULT_NAME
+from l2rpn_baselines.SACOld.sacOld_NNParam import SACOld_NNParam
+from l2rpn_baselines.SACOld.sacOld_NN import SACOld_NN
 from l2rpn_baselines.utils import TrainingParam
 from l2rpn_baselines.utils.waring_msgs import _WARN_GPU_MEMORY
 
@@ -33,7 +32,19 @@ def train(env,
           kwargs_archi={}):
     """
     This function implements the "training" part of the baselines "SAC" (old buggy implementation).
-    Please use the :class:`l2rpn_baselines.SAC.SAC` for new projects.
+    
+    .. warning::
+        This baseline recodes entire the RL training procedure. You can use it if you
+        want to have a deeper look at Deep Q Learning algorithm and a possible (non 
+        optimized, slow, etc. implementation ).
+        
+        For a much better implementation, you can reuse the code of "PPO_RLLIB" 
+        or the "PPO_SB3" baseline.
+        
+    .. warning::
+        We plan to add SAC based agents relying on external frameworks, such as stable baselines3 or ray / rllib.
+        
+        We will not code any SAC agent "from scratch".
 
     Parameters
     ----------
@@ -85,7 +96,7 @@ def train(env,
 
     Examples
     ---------
-    Here is an example on how to train a SAC baseline.
+    Here is an example on how to train a :class:`SACOld` baseline.
 
     First define a python script, for example
 
@@ -148,6 +159,7 @@ def train(env,
 
     """
 
+    import tensorflow as tf
     # Limit gpu usage
     try:
         physical_devices = tf.config.list_physical_devices('GPU')
@@ -211,7 +223,7 @@ if __name__ == "__main__":
     from grid2op.Reward import L2RPNReward
     import re
     try:
-        from lightsim2grid.LightSimBackend import LightSimBackend
+        from lightsim2grid import LightSimBackend
         backend = LightSimBackend()
     except:
         from grid2op.Backend import PandaPowerBackend

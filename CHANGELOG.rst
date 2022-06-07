@@ -1,15 +1,39 @@
 Change Log
 ===========
+
 [TODO]
 --------
-- stack multiple states in `utils/DeepQAgent`
+- in the "examples" folder, make some examples for possible "submissions"
+  usable in the competition for PPO_SB3 and PPO_RLLIB
+- add a vectorized environment for PPO in stable baselines for example
+  (ie map a MultiEnvironment into the proper stuff)
+- code a baseline example using mazerl
+- code a baseline using deepmind acme
+- code a baseline with a GNN somewhere
+- show an example on how to use some "heuristic" in training / evaluation of trained agents
+- show an example of model based RL agent
+- train sowhere a working baseline (that does better than do nothing)
+- show an example of a baseline that uses a GNN
+
+[0.6.0] - 2022-06-07
+--------------------
+- [BREAKING] name of the file inside the submodule are now lowercase (PEP 8 compliance)
+  Use `from l2rpn_baselines.[BASELINENAME] import [BASELINENAME]` by replacing 
+  `[BASELINENAME]` with ... the baseline name (*eg* `from l2rpn_baselines.DoNothing import DoNothing`)
+- [FIXED] clean the documentation
+- [FIXED] some bugs (especially in the type of actions) for some agents
+- [ADDED] a code example to use stable baselines 3 (see `l2rpn_baselines.PPO_SB3`)
+- [ADDED] a code example to use RLLIB (see `l2rpn_baselines.PPO_RLLIB`)
+- [ADDED] an optimizer (see `l2rpn_baselines.OptimCVXPY`)
+- [ADDED] some issue templates
+- [ADDED] some examples in the "examples" folder
 
 [0.5.1] - 2021-04-09
 ---------------------
 - [FIXED] issue with grid2op version >= 1.2.3 for some baselines
 - [FIXED] `Issue 26 <https://github.com/rte-france/l2rpn-baselines/issues/26>`_ : package can be installed even
   if the requirement for some baselines is not met.
-- [UPDATED] Kaist baselines
+- [UPDATED] `Kaist` baselines
 - [ADDED] The expert agent
 
 [0.5.0] - 2020-08-18

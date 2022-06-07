@@ -9,17 +9,14 @@
 # This file is part of L2RPN Baselines, L2RPN Baselines a repository to host baselines for l2rpn competitions.
 
 import os
-import tensorflow as tf
 import numpy as np
 from tqdm import tqdm
 
 from grid2op.MakeEnv import make
-from grid2op.Reward import *
-from grid2op.Action import *
 
-from l2rpn_baselines.LeapNetEncoded.LeapNetEncoded import LeapNetEncoded, DEFAULT_NAME
-from l2rpn_baselines.LeapNetEncoded.LeapNetEncoded_NNParam import LeapNetEncoded_NNParam
-from l2rpn_baselines.LeapNetEncoded.LeapNetEncoded_NN import LeapNetEncoded_NN
+from l2rpn_baselines.LeapNetEncoded.leapNetEncoded import LeapNetEncoded, DEFAULT_NAME
+from l2rpn_baselines.LeapNetEncoded.leapNetEncoded_NNParam import LeapNetEncoded_NNParam
+from l2rpn_baselines.LeapNetEncoded.leapNetEncoded_NN import LeapNetEncoded_NN
 
 import pdb
 
@@ -30,16 +27,28 @@ DEFAULT_MAX_STEPS = -1
 
 
 def study(env,
-             name=DEFAULT_NAME,
-             load_path=None,
-             logs_path=DEFAULT_LOGS_DIR,
-             nb_episode=DEFAULT_NB_EPISODE,
-             nb_process=DEFAULT_NB_PROCESS,
-             max_steps=DEFAULT_MAX_STEPS,
-             verbose=False,
-             save_gif=False):
-    """study the prediction of the grid_model"""
+          name=DEFAULT_NAME,
+          load_path=None,
+          logs_path=DEFAULT_LOGS_DIR,
+          nb_episode=DEFAULT_NB_EPISODE,
+          nb_process=DEFAULT_NB_PROCESS,
+          max_steps=DEFAULT_MAX_STEPS,
+          verbose=False,
+          save_gif=False):
+    """
+    study the prediction of the grid_model
+    
+    .. warning::
+        This baseline recodes entire the RL training procedure. You can use it if you
+        want to have a deeper look at Deep Q Learning algorithm and a possible (non 
+        optimized, slow, etc. implementation ).
+        
+        For a much better implementation, you can reuse the code of "PPO_RLLIB" 
+        or the "PPO_SB3" baseline.
+        
+    """
 
+    import tensorflow as tf
     # Limit gpu usage
     physical_devices = tf.config.list_physical_devices('GPU')
     if len(physical_devices):

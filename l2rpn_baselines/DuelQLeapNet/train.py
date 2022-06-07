@@ -10,13 +10,12 @@
 
 import os
 import warnings
-import tensorflow as tf
 
 from l2rpn_baselines.utils import cli_train
-from l2rpn_baselines.DuelQLeapNet.DuelQLeapNet import DuelQLeapNet, DEFAULT_NAME
-from l2rpn_baselines.DuelQLeapNet.DuelQLeapNet_NN import DuelQLeapNet_NN
+from l2rpn_baselines.DuelQLeapNet.duelQLeapNet import DuelQLeapNet, DEFAULT_NAME
+from l2rpn_baselines.DuelQLeapNet.duelQLeapNet_NN import DuelQLeapNet_NN
 from l2rpn_baselines.utils import TrainingParam
-from l2rpn_baselines.DuelQLeapNet.LeapNet_NNParam import LeapNet_NNParam
+from l2rpn_baselines.DuelQLeapNet.leapNet_NNParam import LeapNet_NNParam
 from l2rpn_baselines.utils.waring_msgs import _WARN_GPU_MEMORY
 
 
@@ -32,8 +31,16 @@ def train(env,
           kwargs_converters={},
           kwargs_archi={}):
     """
-    This function implements the "training" part of the balines "DuelQLeapNet".
+    This function implements the "training" part of the balines :class:`DuelQLeapNet`.
 
+    .. warning::
+        This baseline recodes entire the RL training procedure. You can use it if you
+        want to have a deeper look at Deep Q Learning algorithm and a possible (non 
+        optimized, slow, etc. implementation ).
+        
+        For a much better implementation, you can reuse the code of "PPO_RLLIB" 
+        or the "PPO_SB3" baseline.
+        
     Parameters
     ----------
     env: :class:`grid2op.Environment`
@@ -84,7 +91,7 @@ def train(env,
 
     Examples
     ---------
-    Here is an example on how to train a DuelQLeapNet baseline.
+    Here is an example on how to train a :class:`DuelQLeapNet` baseline.
 
     First define a python script, for example
 
@@ -155,7 +162,7 @@ def train(env,
             env.close()
 
     """
-
+    import tensorflow as tf  # lazy import to save time
     # Limit gpu usage
     try:
         physical_devices = tf.config.list_physical_devices('GPU')
@@ -209,6 +216,7 @@ def train(env,
     # it is not necessary to save it again here. But if you chose not to follow these advice, it is more than
     # recommended to save the "baseline" at the end of this function with:
     # baseline.save(path_save)
+    return baseline
 
 
 if __name__ == "__main__":

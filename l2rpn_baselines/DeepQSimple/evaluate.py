@@ -9,17 +9,14 @@
 # This file is part of L2RPN Baselines, L2RPN Baselines a repository to host baselines for l2rpn competitions.
 
 import os
-import tensorflow as tf
 
 from grid2op.MakeEnv import make
 from grid2op.Runner import Runner
-from grid2op.Reward import *
-from grid2op.Action import *
 
 from l2rpn_baselines.utils.save_log_gif import save_log_gif
-from l2rpn_baselines.DeepQSimple.DeepQSimple import DeepQSimple, DEFAULT_NAME
-from l2rpn_baselines.DeepQSimple.DeepQ_NNParam import DeepQ_NNParam
-from l2rpn_baselines.DeepQSimple.DeepQ_NN import DeepQ_NN
+from l2rpn_baselines.DeepQSimple.deepQSimple import DeepQSimple, DEFAULT_NAME
+from l2rpn_baselines.DeepQSimple.deepQ_NNParam import DeepQ_NNParam
+from l2rpn_baselines.DeepQSimple.deepQ_NN import DeepQ_NN
 
 
 DEFAULT_LOGS_DIR = "./logs-eval/do-nothing-baseline"
@@ -36,9 +33,18 @@ def evaluate(env,
              nb_process=DEFAULT_NB_PROCESS,
              max_steps=DEFAULT_MAX_STEPS,
              verbose=False,
-             save_gif=False):
+             save_gif=False,
+             filter_action_fun=None):
     """
-    How to evaluate the performances of the trained DeepQSimple agent.
+    How to evaluate the performances of the trained :class:`DeepQSimple` agent.
+
+    .. warning::
+        This baseline recodes entire the RL training procedure. You can use it if you
+        want to have a deeper look at Deep Q Learning algorithm and a possible (non 
+        optimized, slow, etc. implementation ).
+        
+        For a much better implementation, you can reuse the code of "PPO_RLLIB" 
+        or the "PPO_SB3" baseline.
 
     Parameters
     ----------
@@ -109,6 +115,7 @@ def evaluate(env,
 
     """
 
+    import tensorflow as tf  # lazy import to save import time
     # Limit gpu usage
     physical_devices = tf.config.list_physical_devices('GPU')
     if len(physical_devices):
@@ -128,7 +135,8 @@ def evaluate(env,
                         name=name,
                         store_action=nb_process == 1,
                         nn_archi=nn_archi,
-                        observation_space=env.observation_space)
+                        observation_space=env.observation_space,
+                        filter_action_fun=filter_action_fun)
 
     # Load weights from file
     agent.load(load_path)

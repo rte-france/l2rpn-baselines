@@ -11,13 +11,13 @@
 
 import argparse
 import json
-import tensorflow as tf
+    
 import numpy as np
 
 from grid2op.MakeEnv import make2
 from grid2op.Action import PowerlineChangeAndDispatchAction
 
-from l2rpn_baselines.DoubleDuelingDQN.DoubleDuelingDQN import DoubleDuelingDQN
+from l2rpn_baselines.DoubleDuelingDQN.doubleDuelingDQN import DoubleDuelingDQN
 
 
 class NpEncoder(json.JSONEncoder):
@@ -101,6 +101,7 @@ def print_actions(agent):
         
 
 if __name__ == "__main__":
+    import tensorflow as tf
     args = cli()
     env = make2(args.path_data, action_class=PowerlineChangeAndDispatchAction)
     # Limit gpu usage

@@ -9,15 +9,12 @@
 # This file is part of L2RPN Baselines, L2RPN Baselines a repository to host baselines for l2rpn competitions.
 
 import argparse
-import tensorflow as tf
 
 from grid2op.MakeEnv import make
-from grid2op.Reward import *
-from grid2op.Action import *
 from grid2op.Parameters import Parameters
 
-from l2rpn_baselines.SliceRDQN.SliceRDQN import SliceRDQN as RDQNAgent
-from l2rpn_baselines.SliceRDQN.SliceRDQN_Config import SliceRDQN_Config as RDQNConfig
+from l2rpn_baselines.SliceRDQN.sliceRDQN import SliceRDQN as RDQNAgent
+from l2rpn_baselines.SliceRDQN.sliceRDQN_Config import SliceRDQN_Config as RDQNConfig
 
 DEFAULT_NAME = "SliceRDQN"
 DEFAULT_SAVE_DIR = "./models"
@@ -78,6 +75,17 @@ def train(env,
           learning_rate=DEFAULT_LR,
           verbose=DEFAULT_VERBOSE):
 
+    """
+    .. warning::
+        This baseline recodes entire the RL training procedure. You can use it if you
+        want to have a deeper look at Deep Q Learning algorithm and a possible (non 
+        optimized, slow, etc. implementation ).
+        
+        For a much better implementation, you can reuse the code of "PPO_RLLIB" 
+        or the "PPO_SB3" baseline.
+        
+    """
+    import tensorflow as tf
     # Set config
     RDQNConfig.LR = learning_rate
     RDQNConfig.BATCH_SIZE = batch_size

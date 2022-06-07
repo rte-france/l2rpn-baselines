@@ -8,15 +8,15 @@
 # SPDX-License-Identifier: MPL-2.0
 # This file is part of L2RPN Baselines, L2RPN Baselines a repository to host baselines for l2rpn competitions.
 
+from email.mime import base
 import os
 import warnings
-import tensorflow as tf
 
 from l2rpn_baselines.utils import cli_train
-from l2rpn_baselines.LeapNetEncoded.LeapNetEncoded import LeapNetEncoded, DEFAULT_NAME
-from l2rpn_baselines.LeapNetEncoded.LeapNetEncoded_NN import LeapNetEncoded_NN
+from l2rpn_baselines.LeapNetEncoded.leapNetEncoded import LeapNetEncoded, DEFAULT_NAME
+from l2rpn_baselines.LeapNetEncoded.leapNetEncoded_NN import LeapNetEncoded_NN
 from l2rpn_baselines.utils import TrainingParam
-from l2rpn_baselines.LeapNetEncoded.LeapNetEncoded_NNParam import LeapNetEncoded_NNParam
+from l2rpn_baselines.LeapNetEncoded.leapNetEncoded_NNParam import LeapNetEncoded_NNParam
 from l2rpn_baselines.utils.waring_msgs import _WARN_GPU_MEMORY
 
 
@@ -32,9 +32,15 @@ def train(env,
           kwargs_converters={},
           kwargs_archi={}):
     """
-    This function implements the "training" part of the baselines "SAC". This is the "old" implementation
-    that most likely had bugs. We keep it here for backward compatibility, but it is not recommended to
-    use it on new projects.
+    This function implements the "training" part of the baselines :class:`LeapNetEncoded`.
+    
+    .. warning::
+        This baseline recodes entire the RL training procedure. You can use it if you
+        want to have a deeper look at Deep Q Learning algorithm and a possible (non 
+        optimized, slow, etc. implementation ).
+        
+        For a much better implementation, you can reuse the code of "PPO_RLLIB" 
+        or the "PPO_SB3" baseline.
 
     Parameters
     ----------
@@ -57,7 +63,7 @@ def train(env,
     logs_dir: ``str``
         Where to store the tensorboard generated logs during the training. ``None`` if you don't want to log them.
 
-    training_param: :class:`l2rpn_baselines.utils.TrainingParam`
+    training_param: :class:`l2rpn_baselines.utils.trainingParam.TrainingParam`
         The parameters describing the way you will train your model.
 
     filter_action_fun: ``function``
@@ -78,7 +84,7 @@ def train(env,
     Returns
     -------
 
-    baseline: :class:`DuelQLeapNet`
+    baseline: :class:`LeapNetEncoded``
         The trained baseline.
 
 
@@ -86,7 +92,7 @@ def train(env,
 
     Examples
     ---------
-    Here is an example on how to train a DuelQLeapNet baseline.
+    Here is an example on how to train a :class:`LeapNetEncoded` baseline.
 
     First define a python script, for example
 
@@ -151,7 +157,8 @@ def train(env,
             env.close()
 
     """
-
+    import tensorflow as tf  # lazy import to save import time
+    
     # Limit gpu usage
     try:
         physical_devices = tf.config.list_physical_devices('GPU')
@@ -209,7 +216,7 @@ def train(env,
     # it is not necessary to save it again here. But if you chose not to follow these advice, it is more than
     # recommended to save the "baseline" at the end of this function with:
     # baseline.save(path_save)
-
+    return baseline
 
 if __name__ == "__main__":
     # import grid2op

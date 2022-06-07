@@ -9,14 +9,13 @@
 # This file is part of L2RPN Baselines, L2RPN Baselines a repository to host baselines for l2rpn competitions.
 
 import argparse
-import tensorflow as tf
 
 from grid2op.MakeEnv import make
 from grid2op.Reward import *
 from grid2op.Action import *
 
-from l2rpn_baselines.DoubleDuelingRDQN.DoubleDuelingRDQNConfig import DoubleDuelingRDQNConfig as RDQNConfig
-from l2rpn_baselines.DoubleDuelingRDQN.DoubleDuelingRDQN import DoubleDuelingRDQN as RDQNAgent
+from l2rpn_baselines.DoubleDuelingRDQN.doubleDuelingRDQNConfig import DoubleDuelingRDQNConfig as RDQNConfig
+from l2rpn_baselines.DoubleDuelingRDQN.doubleDuelingRDQN import DoubleDuelingRDQN as RDQNAgent
 
 DEFAULT_NAME = "DoubleDuelingRDQN"
 DEFAULT_SAVE_DIR = "./models"
@@ -75,7 +74,17 @@ def train(env,
           batch_size=DEFAULT_BATCH_SIZE,
           learning_rate=DEFAULT_LR,
           verbose=DEFAULT_VERBOSE):
-
+    """
+    .. warning::
+        This baseline recodes entire the RL training procedure. You can use it if you
+        want to have a deeper look at Deep Q Learning algorithm and a possible (non 
+        optimized, slow, etc. implementation ).
+        
+        For a much better implementation, you can reuse the code of "PPO_RLLIB" 
+        or the "PPO_SB3" baseline.
+    """
+    import tensorflow as tf  # lazy import to save import time
+    
     # Set config
     RDQNConfig.TRACE_LENGTH = trace_length
     RDQNConfig.BATCH_SIZE = batch_size

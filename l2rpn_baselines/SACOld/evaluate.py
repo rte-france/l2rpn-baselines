@@ -9,17 +9,14 @@
 # This file is part of L2RPN Baselines, L2RPN Baselines a repository to host baselines for l2rpn competitions.
 
 import os
-import tensorflow as tf
 
 from grid2op.MakeEnv import make
 from grid2op.Runner import Runner
-from grid2op.Reward import *
-from grid2op.Action import *
 
 from l2rpn_baselines.utils.save_log_gif import save_log_gif
-from l2rpn_baselines.SACOld.SACOld import SACOld, DEFAULT_NAME
-from l2rpn_baselines.SACOld.SACOld_NNParam import SACOld_NNParam
-from l2rpn_baselines.SACOld.SACOld_NN import SACOld_NN
+from l2rpn_baselines.SACOld.sacOld import SACOld, DEFAULT_NAME
+from l2rpn_baselines.SACOld.sacOld_NNParam import SACOld_NNParam
+from l2rpn_baselines.SACOld.sacOld_NN import SACOld_NN
 
 DEFAULT_LOGS_DIR = "./logs-eval/do-nothing-baseline"
 DEFAULT_NB_EPISODE = 1
@@ -41,6 +38,14 @@ def evaluate(env,
 
     Please use the new implementation instead.
 
+    .. warning::
+        This baseline recodes entire the RL training procedure. You can use it if you
+        want to have a deeper look at Deep Q Learning algorithm and a possible (non 
+        optimized, slow, etc. implementation ).
+        
+        For a much better implementation, you can reuse the code of "PPO_RLLIB" 
+        or the "PPO_SB3" baseline.
+        
     Parameters
     ----------
     env: :class:`grid2op.Environment`
@@ -109,6 +114,7 @@ def evaluate(env,
                  save_gif=False)
     """
 
+    import tensorflow as tf
     # Limit gpu usage
     physical_devices = tf.config.list_physical_devices('GPU')
     if len(physical_devices):

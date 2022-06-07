@@ -9,20 +9,14 @@
 # This file is part of L2RPN Baselines, L2RPN Baselines a repository to host baselines for l2rpn competitions.
 
 import os
-import tensorflow as tf
 
 from grid2op.MakeEnv import make
 from grid2op.Runner import Runner
-from grid2op.Reward import *
-from grid2op.Action import *
-from grid2op.Episode import EpisodeData
 
 from l2rpn_baselines.utils.save_log_gif import save_log_gif
-from l2rpn_baselines.DuelQLeapNet.DuelQLeapNet import DuelQLeapNet, DEFAULT_NAME
-from l2rpn_baselines.DuelQLeapNet.LeapNet_NNParam import LeapNet_NNParam
-from l2rpn_baselines.DuelQLeapNet.DuelQLeapNet_NN import DuelQLeapNet_NN
-
-import pdb
+from l2rpn_baselines.DuelQLeapNet.duelQLeapNet import DuelQLeapNet, DEFAULT_NAME
+from l2rpn_baselines.DuelQLeapNet.leapNet_NNParam import LeapNet_NNParam
+from l2rpn_baselines.DuelQLeapNet.duelQLeapNet_NN import DuelQLeapNet_NN
 
 DEFAULT_LOGS_DIR = "./logs-eval/do-nothing-baseline"
 DEFAULT_NB_EPISODE = 1
@@ -38,10 +32,20 @@ def evaluate(env,
              nb_process=DEFAULT_NB_PROCESS,
              max_steps=DEFAULT_MAX_STEPS,
              verbose=False,
-             save_gif=False):
+             save_gif=False,
+             filter_action_fun=None):
     """
-    How to evaluate the performances of the trained DeepQSimple agent.
+    How to evaluate the performances of the trained :class:`DuelQLeapNet` agent.
 
+
+    .. warning::
+        This baseline recodes entire the RL training procedure. You can use it if you
+        want to have a deeper look at Deep Q Learning algorithm and a possible (non 
+        optimized, slow, etc. implementation ).
+        
+        For a much better implementation, you can reuse the code of "PPO_RLLIB" 
+        or the "PPO_SB3" baseline.
+        
     Parameters
     ----------
     env: :class:`grid2op.Environment`
@@ -75,7 +79,7 @@ def evaluate(env,
 
     Returns
     -------
-    agent: :class:`l2rpn_baselines.utils.DeepQAgent`
+    agent: :class:`DuelQLeapNet`
         The loaded agent that has been evaluated thanks to the runner.
 
     res: ``list``
@@ -84,7 +88,7 @@ def evaluate(env,
 
     Examples
     -------
-    You can evaluate a DeepQSimple this way:
+    You can evaluate a :class:`DuelQLeapNet` this way:
 
     .. code-block:: python
 
@@ -112,6 +116,7 @@ def evaluate(env,
 
     """
 
+    import tensorflow as tf  # lazy import to save time
     # Limit gpu usage
     physical_devices = tf.config.list_physical_devices('GPU')
     if len(physical_devices):
@@ -131,7 +136,8 @@ def evaluate(env,
                          name=name,
                          store_action=nb_process == 1,
                          nn_archi=nn_archi,
-                         observation_space=env.observation_space)
+                         observation_space=env.observation_space,
+                         filter_action_fun=filter_action_fun)
 
     # Load weights from file
     agent.load(load_path)

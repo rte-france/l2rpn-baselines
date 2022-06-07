@@ -8,7 +8,7 @@
 
 import setuptools
 from setuptools import setup
-__version__ = "0.5.1"
+__version__ = "0.6.0"
 
 
 pkgs = {
@@ -16,7 +16,8 @@ pkgs = {
         "grid2op",
         "statsmodels>=0.11.1",
         "scipy>=1.4.1",
-        "numpy"
+        "numpy",
+        "gym>=0.17.2"
     ],
     "extras": {
         "docs": [
@@ -24,35 +25,38 @@ pkgs = {
             "sphinx>=2.4.4",
             "sphinx-rtd-theme>=0.4.3",
             "sphinxcontrib-trio>=1.1.0",
-            "autodocsumm>=0.1.13"
+            "autodocsumm>=0.2.7",
+            "cvxpy"
         ],
-        "challenge": ["grid2op[challenge]>=0.9.1.post1"],
-        "optional": ["grid2op[optional]>=1.2.0",
+        "optional": ["grid2op[optional]>=1.6.5",
                      "tensorflow>=2.2.0",
                      "Keras>=2.3.1",
                      "torch>=1.4.0",
                      "scikit-learn>=0.22.2",
-                     "gym>=0.17.1"
-                     ]
+                     ],
+        "PPO_RLLIB": ["ray[rllib]",
+                      "jsonpickle",
+                      "lightsim2grid"],
+        "PPO_SB3": ["stable_baselines3", "lightsim2grid"]
     }
 }
 
+with open("README.md", "r", encoding="utf-8") as fh:
+    long_description = fh.read()
+    
 
 setup(name='l2rpn_baselines',
       version=__version__,
       description='L2RPN Baselines a repository to host ' \
       'baselines for l2rpn competitions.',
-      long_description='This repository aims at facilitating ' \
-      'the use of state of the art algorithm in coming from the ' \
-      'reinforcement learning community or the power system ' \
-      'community in the l2rpn competitions. It  also provides ' \
-      'some usefull function to make life or participants to the ' \
-      'l2rpn competitions easier.',
+      long_description=long_description,
+      long_description_content_type="text/markdown",
       classifiers=[
           'Development Status :: 4 - Beta',
-          'Programming Language :: Python :: 3.6',
           'Programming Language :: Python :: 3.7',
           'Programming Language :: Python :: 3.8',
+          'Programming Language :: Python :: 3.9',
+          'Programming Language :: Python :: 3.10',
           "License :: OSI Approved :: Mozilla Public License 2.0 (MPL 2.0)",
           "Intended Audience :: Developers",
           "Intended Audience :: Education",
@@ -62,7 +66,7 @@ setup(name='l2rpn_baselines',
       keywords='ML powergrid optmization RL power-systems',
       author='Benjamin DONNOT',
       author_email='benjamin.donnot@rte-france.com',
-      url="https://github.com/BDonnot/L2RPN_Baselines",
+      url="https://github.com/rte-france/L2RPN_Baselines",
       license='MPL',
       packages=setuptools.find_packages(),
       include_package_data=True,

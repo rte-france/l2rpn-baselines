@@ -10,14 +10,9 @@
 
 import os
 import argparse
-import tensorflow as tf
 
 from grid2op.MakeEnv import make
-from grid2op.Runner import Runner
-from grid2op.Reward import *
-from grid2op.Action import *
-
-from l2rpn_baselines.SliceRDQN.SliceRDQN import SliceRDQN as RDQNAgent
+from l2rpn_baselines.SliceRDQN.sliceRDQN import SliceRDQN as RDQNAgent
 from l2rpn_baselines.utils.save_log_gif import save_log_gif
 
 DEFAULT_LOGS_DIR = "./logs-eval"
@@ -59,7 +54,16 @@ def evaluate(env,
              max_steps=DEFAULT_MAX_STEPS,
              verbose=DEFAULT_VERBOSE,
              save_gif=False):
-
+    """
+    .. warning::
+        This baseline recodes entire the RL training procedure. You can use it if you
+        want to have a deeper look at Deep Q Learning algorithm and a possible (non 
+        optimized, slow, etc. implementation ).
+        
+        For a much better implementation, you can reuse the code of "PPO_RLLIB" 
+        or the "PPO_SB3" baseline.
+    """
+    import tensorflow as tf
     # Limit gpu usage
     physical_devices = tf.config.list_physical_devices('GPU')
     if len(physical_devices):

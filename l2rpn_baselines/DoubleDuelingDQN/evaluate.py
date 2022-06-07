@@ -10,15 +10,14 @@
 
 import os
 import argparse
-import tensorflow as tf
 
 from grid2op.MakeEnv import make
 from grid2op.Runner import Runner
 from grid2op.Reward import *
 from grid2op.Action import *
 
-from l2rpn_baselines.DoubleDuelingDQN.DoubleDuelingDQN import DoubleDuelingDQN as D3QNAgent
-from l2rpn_baselines.DoubleDuelingDQN.DoubleDuelingDQNConfig import DoubleDuelingDQNConfig as D3QNConfig
+from l2rpn_baselines.DoubleDuelingDQN.doubleDuelingDQN import DoubleDuelingDQN as D3QNAgent
+from l2rpn_baselines.DoubleDuelingDQN.doubleDuelingDQNConfig import DoubleDuelingDQNConfig as D3QNConfig
 from l2rpn_baselines.utils.save_log_gif import save_log_gif
 
 DEFAULT_LOGS_DIR = "./logs-evals"
@@ -67,6 +66,8 @@ def evaluate(env,
              verbose=DEFAULT_VERBOSE,
              save_gif=False):
 
+    import tensorflow as tf  # lazy import to save import time
+    
     # Set config
     D3QNConfig.N_FRAMES = num_frames
     D3QNConfig.VERBOSE = verbose

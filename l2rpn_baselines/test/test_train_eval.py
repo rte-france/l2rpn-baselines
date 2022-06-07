@@ -75,6 +75,21 @@ try:
     has_ExpertAgent = None
 except ImportError as exc_:
     has_ExpertAgent = exc_
+    has_SliceRDQN = exc_
+    
+try:
+    from l2rpn_baselines.PPO_RLLIB import train as train_ppo_rllib
+    from l2rpn_baselines.PPO_RLLIB import evaluate as eval_ppo_rllib
+    has_ppo_rllib = None
+except ImportError as exc_:
+    has_ppo_rllib = exc_
+    
+try:
+    from l2rpn_baselines.PPO_SB3 import train as train_ppo_sb3
+    from l2rpn_baselines.PPO_SB3 import evaluate as eval_ppo_sb3
+    has_ppo_sb3 = None
+except ImportError as exc_:
+    has_ppo_sb3 = exc_
 
 
 class TestDeepQSimple(unittest.TestCase):
@@ -644,6 +659,69 @@ class TestExpertAgent(unittest.TestCase):
         env = grid2op.make("l2rpn_neurips_2020_track1", True)
         res = eval_expert(env, grid="IEEE118_3")
         assert res is not None
+
+
+class TestPPOSB3(unittest.TestCase):
+    def test_train_eval(self):
+        tmp_dir = tempfile.mkdtemp()
+        if has_ppo_sb3 is not None:
+            raise ImportError(f"PPO_SB3 is not available with error:\n{has_ppo_sb3}")
+
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore")
+            env = grid2op.make("l2rpn_case14_sandbox", test=True)
+            nm_ = "TestPPOSB3"
+
+            train_ppo_sb3(env,
+                       name=nm_,
+                       iterations=10,
+                       save_path=tmp_dir,
+                       load_path=None,
+                       logs_dir=tmp_dir,
+                       learning_rate=1e-4,
+                       verbose=False)
+            
+            agent, eval_res = eval_ppo_sb3(env,
+                                 load_path=tmp_dir,
+                                 name=nm_,
+                                 logs_path=tmp_dir,
+                                 nb_episode=1,
+                                 nb_process=1,
+                                 max_steps=10,
+                                 verbose=False,
+                                 save_gif=False)
+            assert eval_res is not None
+
+
+class TestPPORLLIB(unittest.TestCase):
+    def test_train_eval(self):
+        tmp_dir = tempfile.mkdtemp()
+        if has_ppo_rllib is not None:
+            raise ImportError(f"PPO_RLLIB is not available with error:\n{has_ppo_rllib}")
+
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore")
+            env = grid2op.make("l2rpn_case14_sandbox", test=True)
+            nm_ = "TestPPORLLIB"
+
+            train_ppo_rllib(env,
+                       name=nm_,
+                       iterations=1,
+                       save_path=tmp_dir,
+                       load_path=None,
+                       learning_rate=1e-4,
+                       verbose=False)
+            
+            agent, eval_res = eval_ppo_rllib(env,
+                                 load_path=tmp_dir,
+                                 name=nm_,
+                                 logs_path=tmp_dir,
+                                 nb_episode=1,
+                                 nb_process=1,
+                                 max_steps=10,
+                                 verbose=False,
+                                 save_gif=False)
+            assert eval_res is not None
 
 
 if __name__ == "__main__":

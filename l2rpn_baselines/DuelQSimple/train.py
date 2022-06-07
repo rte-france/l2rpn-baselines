@@ -10,12 +10,11 @@
 
 import os
 import warnings
-import tensorflow as tf
 
 from l2rpn_baselines.utils import cli_train
-from l2rpn_baselines.DuelQSimple.DuelQSimple import DuelQSimple, DEFAULT_NAME
-from l2rpn_baselines.DuelQSimple.DuelQ_NNParam import DuelQ_NNParam
-from l2rpn_baselines.DuelQSimple.DuelQ_NN import DuelQ_NN
+from l2rpn_baselines.DuelQSimple.duelQSimple import DuelQSimple, DEFAULT_NAME
+from l2rpn_baselines.DuelQSimple.duelQ_NNParam import DuelQ_NNParam
+from l2rpn_baselines.DuelQSimple.duelQ_NN import DuelQ_NN
 from l2rpn_baselines.utils import TrainingParam
 from l2rpn_baselines.utils.waring_msgs import _WARN_GPU_MEMORY
 
@@ -35,6 +34,14 @@ def train(env,
     """
     This function implements the "training" part of the balines "DuelQSimple".
 
+    .. warning::
+        This baseline recodes entire the RL training procedure. You can use it if you
+        want to have a deeper look at Deep Q Learning algorithm and a possible (non 
+        optimized, slow, etc. implementation ).
+        
+        For a much better implementation, you can reuse the code of "PPO_RLLIB" 
+        or the "PPO_SB3" baseline.
+        
     Parameters
     ----------
     env: :class:`grid2op.Environment`
@@ -142,6 +149,7 @@ def train(env,
 
     """
 
+    import tensorflow as tf  # lazy import to save package import time
     # Limit gpu usage
     try:
         physical_devices = tf.config.list_physical_devices('GPU')
@@ -177,6 +185,7 @@ def train(env,
                             name=name,
                             istraining=True,
                             verbose=verbose,
+                            filter_action_fun=filter_action_fun,
                             **kwargs_converters
                             )
 
@@ -194,6 +203,7 @@ def train(env,
     # it is not necessary to save it again here. But if you chose not to follow these advice, it is more than
     # recommended to save the "baseline" at the end of this function with:
     # baseline.save(path_save)
+    return baseline
 
 
 if __name__ == "__main__":
@@ -204,7 +214,7 @@ if __name__ == "__main__":
     from grid2op.Reward import L2RPNReward
     import re
     try:
-        from lightsim2grid.LightSimBackend import LightSimBackend
+        from lightsim2grid import LightSimBackend
         backend = LightSimBackend()
     except:
         from grid2op.Backend import PandaPowerBackend

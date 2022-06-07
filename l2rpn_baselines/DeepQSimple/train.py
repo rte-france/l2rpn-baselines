@@ -9,13 +9,12 @@
 # This file is part of L2RPN Baselines, L2RPN Baselines a repository to host baselines for l2rpn competitions.
 
 import os
-import tensorflow as tf
 import warnings
 
 from l2rpn_baselines.utils import cli_train
-from l2rpn_baselines.DeepQSimple.DeepQSimple import DeepQSimple, DEFAULT_NAME
-from l2rpn_baselines.DeepQSimple.DeepQ_NNParam import DeepQ_NNParam
-from l2rpn_baselines.DeepQSimple.DeepQ_NN import DeepQ_NN
+from l2rpn_baselines.DeepQSimple.deepQSimple import DeepQSimple, DEFAULT_NAME
+from l2rpn_baselines.DeepQSimple.deepQ_NNParam import DeepQ_NNParam
+from l2rpn_baselines.DeepQSimple.deepQ_NN import DeepQ_NN
 from l2rpn_baselines.utils import TrainingParam
 from l2rpn_baselines.utils.waring_msgs import _WARN_GPU_MEMORY
 
@@ -34,6 +33,14 @@ def train(env,
     """
     This function implements the "training" part of the balines "DeepQSimple".
 
+    .. warning::
+        This baseline recodes entire the RL training procedure. You can use it if you
+        want to have a deeper look at Deep Q Learning algorithm and a possible (non 
+        optimized, slow, etc. implementation ).
+        
+        For a much better implementation, you can reuse the code of "PPO_RLLIB" 
+        or the "PPO_SB3" baseline.
+        
     Parameters
     ----------
     env: :class:`grid2op.Environment`
@@ -140,7 +147,7 @@ def train(env,
             env.close()
 
     """
-
+    import tensorflow as tf  # lazy import to save import time
     # Limit gpu usage
     try:
         physical_devices = tf.config.list_physical_devices('GPU')
@@ -176,6 +183,7 @@ def train(env,
                            name=name,
                            istraining=True,
                            verbose=verbose,
+                           filter_action_fun=filter_action_fun,
                             **kwargs_converters
                             )
 

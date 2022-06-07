@@ -4,7 +4,7 @@ __all__ = [
     "train"
 ]
 
-from l2rpn_baselines.Template.Template import Template
+from l2rpn_baselines.Template.template import Template
 from l2rpn_baselines.Template.evaluate import evaluate
 from l2rpn_baselines.Template.train import train
 
@@ -14,7 +14,7 @@ For example, say you chose to write a baseline with the awesome name "XXX" (what
 in this __init__.py file:
 
 - `XXX` [**mandatory**] contains the definition of your baseline. It must follow the directives
-   given in "Template.py"
+   given in "template.py" (or "Template.py" at your convenience)
 - `evaluate` [**mandatory**] contains the script to evaluate the performance of this baseline. It must
   follow the directive in "evaluate.py"
 - `train` [**optional**] contains the script to train your baseline. If provided, it must follow

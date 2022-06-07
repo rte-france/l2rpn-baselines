@@ -1,3 +1,5 @@
+.. currentmodule:: l2rpn_baselines.Template
+
 Template: How to contribute to l2rpn baselines
 ==============================================
 
