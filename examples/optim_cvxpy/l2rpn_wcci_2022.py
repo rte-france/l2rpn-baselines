@@ -15,7 +15,7 @@ from lightsim2grid import LightSimBackend
 from tqdm import tqdm
 import pdb
 
-env_name = "wcci_2022_dev"  # name subject to change
+env_name = "l2rpn_wcci_2022"
 is_test = False
 
 env = grid2op.make(env_name,

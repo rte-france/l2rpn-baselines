@@ -182,6 +182,23 @@ class GymEnvWithHeuristics(GymEnv):
                 break
         return g2op_obs, res_reward, done, info
     
+    def fix_action(self, grid2op_action):
+        """This function can be used to "fix" / "modify" / "cut" / "change"
+        a grid2op action just before it will be applied to the underlying "env.step(...)"
+        
+        This can be used, for example to "limit the curtailment or storage" of the
+        action in case this one is too strong and would lead to a game over.
+
+        By default it does nothing.
+        
+        Parameters
+        ----------
+        grid2op_action : _type_
+            _description_
+            
+        """
+        return grid2op_action
+    
     def step(self, gym_action):
         """This function implements the special case of the "step" function (as seen by the "gym environment") that might
         call multiple times the "step" function of the underlying "grid2op environment" depending on the
@@ -216,7 +233,8 @@ class GymEnvWithHeuristics(GymEnv):
             Other type of informations
             
         """
-        g2op_act = self.action_space.from_gym(gym_action)
+        g2op_act_tmp = self.action_space.from_gym(gym_action)
+        g2op_act = self.fix_action(g2op_act_tmp)
         g2op_obs, reward, done, info = self.init_env.step(g2op_act)
         if not done:
             g2op_obs, reward, done, info = self.apply_heuristics_actions(g2op_obs, reward, done, info)
