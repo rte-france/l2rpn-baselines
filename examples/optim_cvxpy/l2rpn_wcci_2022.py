@@ -10,6 +10,7 @@ import os
 import sys
 import logging
 import grid2op
+from grid2op.Agent import RecoPowerlineAgent
 from l2rpn_baselines.OptimCVXPY import OptimCVXPY
 from lightsim2grid import LightSimBackend
 from tqdm import tqdm
@@ -23,6 +24,8 @@ env = grid2op.make(env_name,
                    backend=LightSimBackend()
                    )
 logger = None
+
+reco_agent = RecoPowerlineAgent(env.action_space)
 
 agent = OptimCVXPY(env.action_space,
                    env,
@@ -50,22 +53,24 @@ scen_test = ["2050-01-03_31",
 
 print("For do nothing: ")
 dn_act = env.action_space()
+env.seed(0)
 for scen_id in scen_test:
     env.set_id(scen_id)
     obs = env.reset()
     done = False
     for nb_step in tqdm(range(obs.max_step)):
         prev_obs = obs
+        act = reco_agent.act(obs, None, None)
         obs, reward, done, info = env.step(dn_act)
         if done and (nb_step != prev_obs.max_step - 1):
             break
     print(f"\t scenario: {os.path.split(env.chronics_handler.get_id())[-1]}: {nb_step + 1} / {obs.max_step}")
 
 print("For the optimizer: ")
+env.seed(0)
 for scen_id in scen_test:
     act = None
     env.set_id(scen_id)
-    env.seed(0)
     obs = env.reset()
     agent.reset(obs)
     done = False
