@@ -15,6 +15,11 @@ Change Log
 - train sowhere a working baseline (that does better than do nothing)
 - show an example of a baseline that uses a GNN
 
+[0.6.0.post1] - 2022-07-xx
+---------------------------
+- [FIXED] issue with the `PPO_SB3` agent when using a runner, particularly when no "heuristic" are
+  used at inference time.
+
 [0.6.0] - 2022-06-07
 --------------------
 - [BREAKING] name of the file inside the submodule are now lowercase (PEP 8 compliance)
