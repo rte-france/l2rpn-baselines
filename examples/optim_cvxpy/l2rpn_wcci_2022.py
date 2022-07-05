@@ -15,6 +15,9 @@ from l2rpn_baselines.OptimCVXPY import OptimCVXPY
 from lightsim2grid import LightSimBackend
 from tqdm import tqdm
 import pdb
+import numpy as np
+from numpy.random import default_rng
+prng = default_rng(0)
 
 env_name = "l2rpn_wcci_2022"
 is_test = False
@@ -51,11 +54,14 @@ scen_test = ["2050-01-03_31",
              "2050-12-19_31",
              ]
 
+seeds = prng.integers(0, np.iinfo(np.int32).max, size=len(scen_test))
+seeds = {scen: int(seed) for scen, seed in zip(scen_test, seeds)}
+
 print("For do nothing: ")
 dn_act = env.action_space()
-env.seed(0)
-for scen_id in scen_test:
+for i, scen_id in enumerate(scen_test):
     env.set_id(scen_id)
+    env.seed(seeds[scen_id])
     obs = env.reset()
     done = False
     for nb_step in tqdm(range(obs.max_step)):
@@ -67,10 +73,10 @@ for scen_id in scen_test:
     print(f"\t scenario: {os.path.split(env.chronics_handler.get_id())[-1]}: {nb_step + 1} / {obs.max_step}")
 
 print("For the optimizer: ")
-env.seed(0)
-for scen_id in scen_test:
+for i, scen_id in enumerate(scen_test):
     act = None
     env.set_id(scen_id)
+    env.seed(seeds[scen_id])
     obs = env.reset()
     agent.reset(obs)
     done = False

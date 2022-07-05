@@ -22,7 +22,7 @@ from l2rpn_baselines.OptimCVXPY.optimCVXPY import OptimCVXPY
 import pdb
 
 class TestOptimCVXPY(unittest.TestCase):
-    def _aux_check_type(self, act, line_status=False, redisp=True):
+    def _aux_check_type(self, act, line_status=False, redisp=True, curtailment=True):
         # return
         types = act.get_types()
         injection, voltage, topology, line, redispatching, storage, curtailment = types
@@ -38,7 +38,10 @@ class TestOptimCVXPY(unittest.TestCase):
         else:
             assert not redispatching
         assert storage
-        assert curtailment
+        if curtailment:
+            assert curtailment
+        else:
+            assert not curtailment
     
     def _aux_create_env_setup(self, param=None):
         if param is None:
@@ -59,7 +62,10 @@ class TestOptimCVXPY(unittest.TestCase):
         
     def test_unsafe(self):
         env = self._aux_create_env_setup()
-        agent = OptimCVXPY(env.action_space, env, rho_danger=0., margin_th_limit=0.85,
+        agent = OptimCVXPY(env.action_space,
+                           env,
+                           rho_danger=0.,
+                           margin_th_limit=0.85,
                            alpha_por_error=0.)
         
         obs, reward, done, info = env.step(env.action_space())
@@ -67,7 +73,7 @@ class TestOptimCVXPY(unittest.TestCase):
         max_rhos = [1.0063555, 1.0104821, 1.0110041]
         
         act = agent.act(obs, None, None)
-        self._aux_check_type(act)
+        self._aux_check_type(act, curtailment=False)
         obs, reward, done, info = env.step(act)
         assert not info["exception"]
         assert not done
@@ -92,7 +98,11 @@ class TestOptimCVXPY(unittest.TestCase):
         
     def test_unsafe_linedisc(self):
         env = self._aux_create_env_setup()
-        agent = OptimCVXPY(env.action_space, env, rho_danger=0., margin_th_limit=0.85, alpha_por_error=0.)
+        agent = OptimCVXPY(env.action_space,
+                           env,
+                           rho_danger=0.,
+                           margin_th_limit=0.85,
+                           alpha_por_error=0.)
         
         l_id_disc = 4
         obs, reward, done, info = env.step(env.action_space({"set_line_status": [(l_id_disc, -1)]}))
@@ -104,7 +114,7 @@ class TestOptimCVXPY(unittest.TestCase):
         
         act = agent.act(obs, None, None)
         assert agent.flow_computed[l_id_disc] <= 1e-6, f"{agent.flow_computed[l_id_disc]} > 1e-6"
-        self._aux_check_type(act)
+        self._aux_check_type(act, curtailment=False)
         obs, reward, done, info = env.step(act)
         assert not info["exception"]
         assert not done
