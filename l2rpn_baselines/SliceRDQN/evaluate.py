@@ -12,6 +12,8 @@ import os
 import argparse
 
 from grid2op.MakeEnv import make
+from grid2op.Runner import Runner
+
 from l2rpn_baselines.SliceRDQN.sliceRDQN import SliceRDQN as RDQNAgent
 from l2rpn_baselines.utils.save_log_gif import save_log_gif
 
