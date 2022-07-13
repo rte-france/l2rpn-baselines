@@ -44,6 +44,7 @@ def train(env,
           net_arch=None,
           logs_dir=None,
           learning_rate=3e-4,
+          checkpoint_callback=None,
           save_every_xxx_steps=None,
           model_policy=MlpPolicy,
           obs_attr_to_keep=copy.deepcopy(default_obs_attr_to_keep),
@@ -256,16 +257,16 @@ def train(env,
             env_gym.observation_space.normalize_attr(attr_nm)
     
     # Save a checkpoint every "save_every_xxx_steps" steps
-    checkpoint_callback = None
-    if save_every_xxx_steps is not None:
-        if save_path is None:
-            warnings.warn("save_every_xxx_steps is set, but no path are "
-                          "set to save the model (save_path is None). No model "
-                          "will be saved.")
-        else:
-            checkpoint_callback = CheckpointCallback(save_freq=save_every_xxx_steps,
-                                                     save_path=my_path,
-                                                     name_prefix=name)
+    if checkpoint_callback is None:
+        if save_every_xxx_steps is not None:
+            if save_path is None:
+                warnings.warn("save_every_xxx_steps is set, but no path are "
+                              "set to save the model (save_path is None). No model "
+                              "will be saved.")
+            else:
+                checkpoint_callback = CheckpointCallback(save_freq=save_every_xxx_steps,
+                                                        save_path=my_path,
+                                                        name_prefix=name)
 
     # define the policy
     if load_path is None:
