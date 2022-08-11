@@ -37,7 +37,8 @@ pkgs = {
         "PPO_RLLIB": ["ray[rllib]",
                       "jsonpickle",
                       "lightsim2grid"],
-        "PPO_SB3": ["stable_baselines3", "lightsim2grid"]
+        "PPO_SB3": ["stable_baselines3", "lightsim2grid"],
+        "CurriculumAgent":["curriculumagent"]
     }
 }
 
