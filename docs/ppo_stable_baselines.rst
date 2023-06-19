@@ -169,6 +169,19 @@ For example, to create an agent **from scratch**, with some parameters:
     You should probably train it before hand (see the `train` function)
 
 
+Caveats
++++++++++
+
+Be carefull, at time of writing, there is a migration from all major RL packages 
+from the legacy "open ai gym" api to the more recent "gymanisium" api.
+
+This transition will happen soon in grid2op too. But for now, and not to
+break legacy code that might have worked on previous L2RPN competitions, the
+switch from gym to gymanisium is not yet made.
+
+This means that installing stable-baselines3 might cause some issues with grid2op
+and l2rpn baselines due to the gym / gymanisium migration. 
+
 Detailed documentation
 ++++++++++++++++++++++++
 
