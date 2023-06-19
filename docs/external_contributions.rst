@@ -22,14 +22,17 @@ Baseline                  Notes
 :ref:`asynch`             🥈 @ WCCI 2019
 :ref:`binbinchen`         🥈 @ Neurips 2020 (robustness)
 :ref:`geirina`            🥇 @ WCCI 2019
+:ref:`HRI`                🥉 @ WCCI 20222
 :ref:`indigosix`          4️⃣ @ ICAPS 2021 
 :ref:`kaist`              🥇 @ WCCI 2020
 :ref:`lujixiang`          🥉 @ Neurips 2020 (robustness)
 :ref:`lujixiang`          🥉 @ Neurips 2020 (adaptability)
 :ref:`magicpowergrids`    Neurips 2020 (robustness)
 :ref:`mazerl`             🥉 @ ICAPS 2021 
+:ref:`mazerl`             🥇 @ WCCI 20222
 :ref:`ppopf`              General optimization model 
 :ref:`rccccc`             Neurips 2020 (robustness) 
+:ref:`Richardwth`         🥈 @ WCCI 20222
 :ref:`rlagnet`            🥇 @ Neurips 2020 (robustness)
 :ref:`rlagnet`            🥇 @ Neurips 2020 (adaptability)
 :ref:`supremaciachina`    🥈 @ ICAPS 2021 
@@ -72,6 +75,15 @@ github: https://github.com/AsprinChina/L2RPN_NIPS_2020_a_PPO_Solution
 .. _geirina:
 
 Geirina
+-----------
+guthub: https://github.com/djmax008/GEIRINA_baseline
+
+.. note::
+    1st at the first L2RPN competion in 2019 (team "*Geirina*")
+
+.. _geirina:
+
+HRI
 -----------
 guthub: https://github.com/djmax008/GEIRINA_baseline
 
@@ -123,13 +135,19 @@ github: https://github.com/rl-developer/l2rpn-expert_experience_strategy
 
 .. _mazerl:
 
-Maze-rl
---------
+Maze-rl (2 submissions)
+--------------------------
 
 github: https://github.com/enlite-ai/maze-l2rpn-2021-submission 
 
 .. note::
     3rd at the fourth L2RPN competion in 2021 for ICAPS conference (team "*Maze-rl*")
+
+github: https://github.com/enlite-ai/maze-l2rpn-2022-submission 
+
+.. note::
+    1st at the fith L2RPN competion in 2022 for WCCI conference (team "*Maze-RL*")
+
 
 .. _ppopf:
 
@@ -149,6 +167,16 @@ github: https://github.com/eexuyan/A-Rainbow-based-agent-for-L2RPN
 
 .. note::
     Participated in the third L2RPN competion in 2020 for Neurips conference, track robustness
+
+.. _Richardwth:
+
+Richard Wth
+------------
+
+github: https://github.com/AlibabaResearch/l2rpn-wcci-2022
+
+.. note::
+    2nd at the fifth L2RPN competion in 2022 for WCCI conference (team "*Richard Wth*")
 
 .. _rlagnet:
 

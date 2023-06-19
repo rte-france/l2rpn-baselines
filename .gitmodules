@@ -10,3 +10,6 @@
 [submodule "l2rpn_baselines/Kaist"]
 	path = l2rpn_baselines/Kaist
 	url = https://github.com/sunghoonhong/L2RPN-WCCI-2020-Winner
+[submodule "l2rpn_baselines/curriculumagent"]
+	path = l2rpn_baselines/curriculumagent
+	url = https://github.com/FraunhoferIEE/curriculumagent/
