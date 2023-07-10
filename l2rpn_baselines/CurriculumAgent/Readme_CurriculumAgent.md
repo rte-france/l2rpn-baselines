@@ -1,13 +1,26 @@
 CurriculumAgent
 ===============
 
-The CurriculumAgent basline is a Reinforcement Learning Agent designed to learn from and act within the  
+The CurriculumAgent baseline is a Reinforcement Learning Agent designed to learn from and act within the  
 [Grid2Op Environments](https://grid2op.readthedocs.io/en/latest/). The overall functionallity of the different modules
-can be found in the package [curriculumagent](https://github.com/FraunhoferIEE/curriculumagent). The original idea was
-from the [NeurIPS 2020 Competition Agent by binbinchen](https://github.com/AsprinChina/L2RPN_NIPS_2020_a_PPO_Solution),
-t package
+can be found in the package [curriculumagent](https://github.com/FraunhoferIEE/curriculumagent). The CurriculumAgent is 
+a cleanup and improved version of the[NeurIPS 2020 Competition Agent by binbinchen](https://github.com/AsprinChina/L2RPN_NIPS_2020_a_PPO_Solution),
+The agent is build to extract action sets of the Grid2Op Environment and then use rule-based agent to train
+a Reinforcement Learning agent. We explain each step in more detail in our paper. 
 
-
+When using the CurriculumAgent, please cite our paper with.
+```
+@article{lehna_managing_2023,
+	title = {Managing power grids through topology actions: A comparative study between advanced rule-based and reinforcement learning agents},
+	issn = {2666-5468},
+	url = {https://www.sciencedirect.com/science/article/pii/S2666546823000484},
+	doi = {https://doi.org/10.1016/j.egyai.2023.100276},
+	pages = {100276},
+	journaltitle = {Energy and {AI}},
+	author = {Lehna, Malte and Viebahn, Jan and Marot, Antoine and Tomforde, Sven and Scholz, Christoph},
+	date = {2023},
+}
+```
 Usage/Documentation
 -------------------
 

@@ -93,6 +93,9 @@ class TestPPOSB3(TestImport, unittest.TestCase):
     def load_module(self):
         return "PPO_RLLIB"
 
+class TestCurriculumAgent(TestImport, unittest.TestCase):
+    def load_module(self):
+        return "CurriculumAgent"
 
 # because it deactivates the eager mode
 # class TestPandapowerGeirina(TestImport, unittest.TestCase):

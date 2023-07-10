@@ -10,38 +10,48 @@
 from pathlib import Path
 from typing import Union, Optional
 
+import grid2op
+import ray
+
 from curriculumagent.baseline import CurriculumAgent
 
 
-def train(env,
-          name="Template",
-          iterations=1,
-          model_path=Union[Path, str],
-          save_path=Optional[Union[Path, str]],
-          load_path=None,
-          **kwargs):
-    """ Train method of the agent. Generally try training with the baseline agent.
+def train(
+        env: grid2op.Environment.BaseEnv,
+        name: str = "Training_Pipeline",
+        iterations: int = 1,
+        save_path=Optional[Union[Path, str]],
+        **kwargs
+):
+    """
+    This is the method to train the full pipeline of the CurriculumAgent.
+    For a quick training the CurriculumAgent we recommend to use the agent.train() method to only
+    train the RL agent. This, however, requires that you already have an model and an action set.
+
+    If you want/have to start at zero and need to find actions as well as the model, feel free to run
+    this pipeline. This pipeline will create for each step (agent) in the pipeline a directory.
+
+    Note two things:
+    1. This pipeline does not require a loading of the CurriculumAgent and thus does not need an action
+    set and a pretrained model. You start from scratch.
+    2. This execution is computationally expensive. Further, your machine needs to be able to run RLlib.
 
     Args:
-        env: Grid2op Environment
-        name: Name of the Training agent
-        iterations: Number of iterations to train
-        model_path: Where to find the initial model. This is required in order to initialize the model.
-        save_path: Optional Savepath where to save the model
-        load_path: Optional Load Path, if a model should be loaded.
-        **kwargs:
+        env: Grid2op Environment.
+        name: Name of the Training agent.
+        iterations: Number of iterations to train.
+        save_path: Optional Save path where to save the model.
+        **kwargs: Additional arguments you want to pass to the train_full_pipeline.
 
-    Returns: None
+    Returns:
+        None.
 
     """
-    baseline = CurriculumAgent(action_space=env.action_space,
-                               model_path=model_path,
-                               name=name)
+    baseline = CurriculumAgent(action_space=env.action_space, observation_space=env.observation_space, name=name)
 
-    if load_path is not None:
-        baseline.load(load_path)
+    baseline.train_full_pipeline(env=env, name=name, iterations=iterations, save_path=save_path,**kwargs)
+    ray.shutdown()
 
-    baseline.train(env=env, name=name, iterations=iterations, save_path=save_path)
 
 
 if __name__ == "__main__":
@@ -53,8 +63,9 @@ if __name__ == "__main__":
 
     args_cli = cli_train().parse_args()
     env = grid2op.make()
-    train(env=env,
-          name=args_cli.name,
-          iterations=args_cli.num_train_steps,
-          save_path=args_cli.save_path,
-          load_path=args_cli.load_path)
+    train(
+        env=env,
+        name=args_cli.name,
+        iterations=args_cli.num_train_steps,
+        save_path=args_cli.save_path,
+    )
