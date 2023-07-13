@@ -15,6 +15,11 @@ Change Log
 - train sowhere a working baseline (that does better than do nothing)
 - show an example of a baseline that uses a GNN
 
+[0.7.0] - 2023-07-13
+------------------------
+- [ADDED] the "topo oracle agent" (contrib)
+- [ADDED] the "curriculumagent" (contrib)
+
 [0.6.0.post1] - 2022-07-05
 ---------------------------
 - [FIXED] issue with the `PPO_SB3` agent when using a runner, particularly when no "heuristic" are
