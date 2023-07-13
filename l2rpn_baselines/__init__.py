@@ -6,7 +6,7 @@
 # SPDX-License-Identifier: MPL-2.0
 # This file is part of L2RPN Baselines, L2RPN Baselines a repository to host baselines for l2rpn competitions.
 
-__version__ = "0.6.0.post1"
+__version__ = "0.7.0"
 
 all_baselines_li = [
     "Template",

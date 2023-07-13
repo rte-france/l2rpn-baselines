@@ -91,6 +91,14 @@ try:
 except ImportError as exc_:
     has_ppo_sb3 = exc_
 
+try:
+    from l2rpn_baselines.CurriculumAgent import train as train_curiculum_agent
+    from l2rpn_baselines.CurriculumAgent import evaluate as eval_curiculum_agent
+    has_curiculum = None
+except ImportError as exc_:
+    has_curiculum = exc_
+
+
 
 class TestDeepQSimple(unittest.TestCase):
     def setUp(self) -> None:
@@ -724,5 +732,35 @@ class TestPPORLLIB(unittest.TestCase):
             assert eval_res is not None
 
 
+class TestCuriculumAgent(unittest.TestCase):
+    def test_train_eval(self):
+        tmp_dir = tempfile.mkdtemp()
+        if has_curiculum is not None:
+            raise ImportError(f"CuriculumAgent is not available with error:\n{has_curiculum}")
+
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore")
+            env = grid2op.make("l2rpn_case14_sandbox", test=True)
+            nm_ = "TestCuriculumAgent"
+
+            train_curiculum_agent(env,
+                       name=nm_,
+                       iterations=1,
+                       save_path=tmp_dir,
+                       load_path=None,
+                       learning_rate=1e-4,
+                       verbose=False)
+            
+            agent, eval_res = eval_curiculum_agent(env,
+                                 load_path=tmp_dir,
+                                 name=nm_,
+                                 logs_path=tmp_dir,
+                                 nb_episode=1,
+                                 nb_process=1,
+                                 max_steps=10,
+                                 verbose=False,
+                                 save_gif=False)
+            assert eval_res is not None
+            
 if __name__ == "__main__":
     unittest.main()
