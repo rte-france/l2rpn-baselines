@@ -18,7 +18,7 @@ import json
 import numpy as np
 from grid2op.Reward import BaseReward
 from grid2op.Action import PlayableAction
-from l2rpn_baselines.utils import GymEnvWithReco, GymEnvWithRecoWithDN
+from .gymenv_custom import GymEnvWithRecoWithDN
 
 env_name = "l2rpn_wcci_2022_train"
 

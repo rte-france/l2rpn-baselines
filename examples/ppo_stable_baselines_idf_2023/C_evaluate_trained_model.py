@@ -17,8 +17,8 @@ from lightsim2grid import LightSimBackend
 
 from l2rpn_baselines.PPO_SB3 import evaluate
 
-from A_prep_env import _aux_get_env, get_env_seed, name_stats
-from B_train_agent import gymenv_class, name, safe_max_rho
+from .A_prep_env import _aux_get_env, get_env_seed, name_stats
+from .B_train_agent import gymenv_class, name, safe_max_rho
 # NB you can also chose to change the "safe_max_rho" parameter 
 # and use a different parameter for evaluation than the one used for 
 # training.
