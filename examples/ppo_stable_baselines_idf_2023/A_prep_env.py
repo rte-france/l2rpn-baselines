@@ -7,6 +7,8 @@
 # This file is part of L2RPN Baselines, L2RPN Baselines a repository to host baselines for l2rpn competitions.
 
 # this file needs to be run only once, it might take a while !
+# we show it here because we want to include the "full stack"
+
 import os
 import json
 import sys
@@ -16,7 +18,6 @@ from grid2op.dtypes import dt_int
 from grid2op.Agent import RecoPowerlineAgent
 from grid2op.utils import EpisodeStatistics, ScoreL2RPN2022, ScoreICAPS2021, ScoreL2RPN2023
 from lightsim2grid import LightSimBackend
-import numpy as np
 
 is_windows = sys.platform.startswith("win32")
 
