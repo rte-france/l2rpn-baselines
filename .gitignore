@@ -195,3 +195,4 @@ examples/ppo_stable_baselines/preprocess_act.json
 examples/ppo_stable_baselines/preprocess_obs.json
 l2rpn_baselines/test/END_RESULT_DATAFRAME.csv
 l2rpn_baselines/test/logs-eval/
+examples/ppo_stable_baselines/saved_model_2023/FirstAgent/FirstAgent_*_steps.zip
