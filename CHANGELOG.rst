@@ -15,7 +15,7 @@ Change Log
 - train sowhere a working baseline (that does better than do nothing)
 - show an example of a baseline that uses a GNN
 
-[0.8.0] - 2023-07-xx
+[0.8.0] - 2023-07-24
 -------------------------
 - [BREAKING] remove support for gym, use gymnasium instead (if you still want
   gym it should be fine to install `l2rpn-baselines` with `pip install l2rpn_baselines --no-deps` 
