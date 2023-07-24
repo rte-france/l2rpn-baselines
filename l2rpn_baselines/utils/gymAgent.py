@@ -145,6 +145,8 @@ class GymAgent(BaseAgent):
         
         It can be used, for example, to reorder the `self._action_list` for example.
 
+        It is not used during training.
+        
         Args:
             observation (BaseObservation): The current observation
             reward (float): the current reward
@@ -199,6 +201,6 @@ class GymAgent(BaseAgent):
             
             # fix the action if needed (for example by limiting curtailment and storage)
             if self._has_heuristic:
-                grid2op_act = self.gymenv.fix_action(grid2op_act)
+                grid2op_act = self.gymenv.fix_action(grid2op_act, observation)
             
         return grid2op_act

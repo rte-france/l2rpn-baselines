@@ -10,7 +10,7 @@ import json
 import numpy as np
 
 import grid2op
-from grid2op.utils import ScoreL2RPN2022
+from grid2op.utils import ScoreL2RPN2023
 from grid2op.Agent import RecoPowerlineAgent
 
 from lightsim2grid import LightSimBackend
@@ -23,13 +23,15 @@ from B_train_agent import gymenv_class, name, safe_max_rho
 # and use a different parameter for evaluation than the one used for 
 # training.
 
-env_name = "l2rpn_wcci_2022_val"
-SCOREUSED = ScoreL2RPN2022
+# env_name = "l2rpn_wcci_2022_val"
+# SCOREUSED = ScoreL2RPN2022
+env_name = "l2rpn_idf_2023_val"
+SCOREUSED = ScoreL2RPN2023
 
 agent_name = name
 nb_scenario = 10
 nb_process_stats = 1
-load_path = "./saved_model"
+load_path = "./saved_model_2023"
 iter_num = None  # put None for the latest version
 verbose = True
 
@@ -60,6 +62,7 @@ def get_ts_survived_dn(env_name):
     res = np.array(res)
     res -= 1  # the first observation (after reset) is counted as a step in the runner
     return res
+
 
 def get_ts_survived_reco(env_name):
     dict_ = _aux_get_env(env_name, name_stat=name_stats)
@@ -103,7 +106,7 @@ if __name__ == "__main__":
     scores_r, n_played_r, total_ts_r = my_score.get(RecoPowerlineAgent(env_val.action_space))
     scores, n_played, total_ts = my_score.get(my_agent)
     
-    res_scores = {"scores": [float(score) for score in scores],
+    res_scores = {"scores": [float(score[0]) for score in scores],
                   "n_played": [int(el) for el in n_played],
                   "total_ts": [int(el) for el in total_ts]}
     
@@ -112,7 +115,7 @@ if __name__ == "__main__":
     for score, my_ts, dn_ts in zip(scores, n_played, dn_ts_survived):
         print(f"\t{':-)' if my_ts >= dn_ts else ':-('}:"
               f"\n\t\t- I survived {my_ts} steps vs {dn_ts} for do nothing ({my_ts - dn_ts})"
-              f"\n\t\t- my score is {score:.2f} (do nothing is 0.)")
+              f"\n\t\t- my score is {score[0]:.2f} (do nothing is 15.)")
         best_than_dn += my_ts >= dn_ts
     print(f"The agent \"{agent_name}\" beats \"do nothing\" baseline in {best_than_dn} out of {len(dn_ts_survived)} episodes")
     
@@ -121,6 +124,6 @@ if __name__ == "__main__":
     for score, my_ts, reco_ts, score_ in zip(scores, n_played, reco_ts_survived, scores_r):
         print(f"\t{':-)' if my_ts >= reco_ts else ':-('}:"
               f"\n\t\t- I survived {my_ts} steps vs {reco_ts} for reco powerline ({my_ts - reco_ts})"
-              f"\n\t\t- my score is {score:.2f} (reco powerline: {score_:.2f})")
+              f"\n\t\t- my score is {score[0]:.2f} (reco powerline: {score_[0]:.2f})")
         best_than_reco += my_ts >= reco_ts
     print(f"The agent \"{agent_name}\" beats \"reco powerline\" baseline in {best_than_reco} out of {len(reco_ts_survived)} episodes")

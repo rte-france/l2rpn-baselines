@@ -54,7 +54,7 @@ class GymEnvWithHeuristics(GymEnv):
 
     """
     POSSIBLE_REWARD_CUMUL = ["init", "last", "sum", "max"]
-    def __init__(self, env_init, *args, reward_cumul="init", **kwargs):
+    def __init__(self, env_init, *args, reward_cumul="last", **kwargs):
         super().__init__(env_init, *args, **kwargs)
         self._reward_cumul = reward_cumul
         
@@ -182,7 +182,7 @@ class GymEnvWithHeuristics(GymEnv):
                 break
         return g2op_obs, res_reward, done, info
     
-    def fix_action(self, grid2op_action):
+    def fix_action(self, grid2op_action, g2op_obs):
         """This function can be used to "fix" / "modify" / "cut" / "change"
         a grid2op action just before it will be applied to the underlying "env.step(...)"
         
@@ -234,14 +234,19 @@ class GymEnvWithHeuristics(GymEnv):
             
         """
         g2op_act_tmp = self.action_space.from_gym(gym_action)
-        g2op_act = self.fix_action(g2op_act_tmp)
+        g2op_act = self.fix_action(g2op_act_tmp, self._previous_act)
         g2op_obs, reward, done, info = self.init_env.step(g2op_act)
         if not done:
             g2op_obs, reward, done, info = self.apply_heuristics_actions(g2op_obs, reward, done, info)
+        self._previous_act = g2op_obs
         gym_obs = self.observation_space.to_gym(g2op_obs)
-        return gym_obs, float(reward), done, info
+        if hasattr(type(self), "_gymnasium") and type(self)._gymnasium:
+            truncated = False
+            return gym_obs, float(reward), done, truncated, info
+        else:
+            return gym_obs, float(reward), done, info
         
-    def reset(self, seed=None, return_info=False, options=None):
+    def reset(self, *, seed=None, return_info=False, options=None):
         """This function implements the "reset" function. It is called at the end of every episode and
         marks the beginning of a new one.
         
@@ -256,10 +261,13 @@ class GymEnvWithHeuristics(GymEnv):
         gym_obs:
             The first open ai gym observation received by the agent
         """
+        if hasattr(type(self), "_gymnasium") and type(self)._gymnasium:
+            return_info = True
+            
         done = True
         info = {}  # no extra information provided !
         while done:
-            super().reset(seed, return_info, options)  # reset the scenario
+            super()._aux_reset(seed, return_info, options)  # reset the scenario
             g2op_obs = self.init_env.get_obs()  # retrieve the observation
             reward = self.init_env.reward_range[0]  # the reward at first step is always minimal
             
@@ -267,7 +275,10 @@ class GymEnvWithHeuristics(GymEnv):
             g2op_obs, reward, done, info = self.apply_heuristics_actions(g2op_obs, reward, False, info)
             
             # convert back the observation to gym
-            gym_obs = self.observation_space.to_gym(g2op_obs)
+            if not done:
+                self._previous_act = g2op_obs
+                gym_obs = self.observation_space.to_gym(g2op_obs)
+                break
             
         if return_info:
             return gym_obs, info

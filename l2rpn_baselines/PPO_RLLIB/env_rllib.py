@@ -6,10 +6,23 @@
 # SPDX-License-Identifier: MPL-2.0
 # This file is part of L2RPN Baselines, L2RPN Baselines a repository to host baselines for l2rpn competitions.
 
-import gym
+
 import grid2op
-from grid2op.gym_compat import BoxGymActSpace, BoxGymObsSpace, GymEnv
+from grid2op.gym_compat import (BoxGymActSpace,
+                                BoxGymObsSpace,
+                                GymEnv
+                                )
+from grid2op.gym_compat.utils import ALL_ATTR_CONT
+from grid2op.gym_compat.box_gym_obsspace import ALL_ATTR_OBS
 from l2rpn_baselines.PPO_SB3 import remove_non_usable_attr
+
+
+if GymEnv._gymnasium:
+    import gymnasium as gym
+    from gymnasium.spaces import Box
+else:
+    import gym
+    from gym.spaces import Box
 
 
 class Env_RLLIB(gym.Env):
@@ -27,7 +40,15 @@ class Env_RLLIB(gym.Env):
     .. warning::
         A grid2op environment is created  when this agent is made. We found
         out rllib worked better this way.
+    
+    .. alert::
+        This class inherits either from `gymnasium.Env` or 
+        `gym.Env` depending on grid2op underlying `GymEnv` base class.
         
+        Please consult grid2op docs for more information.
+        
+        By default it should be a gymnasium environment !
+    
     To be built, it requires the `env_config` parameters. This parameter is a 
     dictionnary with keys:
     
@@ -61,6 +82,7 @@ class Env_RLLIB(gym.Env):
         if "act_attr_to_keep" in env_config:  
             act_attr_to_keep = env_config["act_attr_to_keep"]
             del  env_config["act_attr_to_keep"]
+            
         if "backend_class" in env_config:
             backend_kwargs = {}
             if "backend_kwargs" in env_config:
@@ -68,6 +90,14 @@ class Env_RLLIB(gym.Env):
                 del env_config["backend_kwargs"]
             backend = env_config["backend_class"](**backend_kwargs)
             del  env_config["backend_class"]
+        else:
+            try:
+                from lightsim2grid import LightSimBackend
+                backend = LightSimBackend()
+            except ImportError as exc_:
+                from grid2op.Backend import PandaPowerBackend
+                backend = PandaPowerBackend()
+                
             
         # 1. create the grid2op environment
         self.env_glop = grid2op.make(nm_env, backend=backend, **env_config)
@@ -77,25 +107,31 @@ class Env_RLLIB(gym.Env):
         # 2. create the gym environment
         self.env_gym = GymEnv(self.env_glop)
 
-        # 3. customize action space
-        if obs_attr_to_keep is not None:
-            self.env_gym.observation_space.close()
-            self.env_gym.observation_space =  BoxGymObsSpace(self.env_glop.observation_space,
-                                                             attr_to_keep=obs_attr_to_keep)
+        # 3. customize action space and observation space
+        if obs_attr_to_keep is None:
+            obs_attr_to_keep = ALL_ATTR_OBS
         
-        if act_attr_to_keep is not None:    
-            self.env_gym.action_space.close()
-            self.env_gym.action_space = BoxGymActSpace(self.env_glop.action_space,
-                                                       attr_to_keep=act_attr_to_keep)
+        self.env_gym.observation_space.close()
+        self.env_gym.observation_space = BoxGymObsSpace(self.env_glop.observation_space,
+                                                        attr_to_keep=obs_attr_to_keep)
+        
+        if act_attr_to_keep is None:    
+            act_attr_to_keep = ALL_ATTR_CONT
+        self.env_gym.action_space.close()
+        self.env_gym.action_space = BoxGymActSpace(self.env_glop.action_space,
+                                                    attr_to_keep=act_attr_to_keep)
 
         # 4. specific to rllib
-        self.action_space = self.env_gym.action_space
-        self.observation_space = self.env_gym.observation_space
+        self.action_space = Box(low=self.env_gym.action_space.low,
+                                high=self.env_gym.action_space.high,
+                                shape=self.env_gym.action_space.shape)
+        self.observation_space = Box(low=self.env_gym.observation_space.low,
+                                     high=self.env_gym.observation_space.high,
+                                     shape=self.env_gym.observation_space.shape)
 
-    def reset(self):
-        obs = self.env_gym.reset()
-        return obs
-
+    def reset(self, *, seed=None, options=None):
+        tmp = self.env_gym.reset(seed=seed, options=options)
+        return tmp
+    
     def step(self, action):
-        obs, reward, done, info = self.env_gym.step(action)
-        return obs, reward, done, info
+        return self.env_gym.step(action)

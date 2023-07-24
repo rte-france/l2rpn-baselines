@@ -9,9 +9,11 @@
 __all__ = [
     "evaluate",
     "train",
-    "PPO_RLLIB"
+    "PPO_RLLIB",
+    "Env_RLLIB"
 ]
 
 from l2rpn_baselines.PPO_RLLIB.rllibagent import RLLIBAgent as PPO_RLLIB
 from l2rpn_baselines.PPO_RLLIB.evaluate import evaluate
 from l2rpn_baselines.PPO_RLLIB.train import train
+from l2rpn_baselines.PPO_RLLIB.env_rllib import Env_RLLIB

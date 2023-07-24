@@ -228,7 +228,10 @@ class DuelQLeapNet_NN(BaseDeepQ):
         # Apply gradients
         optimizer_model.apply_gradients(zip(grads, model.trainable_variables))
         # Store LR
-        self.train_lr = optimizer_model._decayed_lr('float32').numpy()
+        if hasattr(optimizer_model, "_decayed_lr"):
+            self.train_lr = optimizer_model._decayed_lr('float32').numpy()
+        else:
+            self.train_lr = optimizer_model.learning_rate.numpy()
         # Return loss scalar
         return loss_npy
 

@@ -112,7 +112,10 @@ class DoubleDuelingDQN_NN(object):
         self.optimizer.apply_gradients(grad_pairs)
 
         # Store LR
-        self.train_lr = self.optimizer._decayed_lr('float32').numpy()
+        if hasattr(self.optimizer, "_decayed_lr"):
+            self.train_lr = self.optimizer._decayed_lr('float32').numpy()
+        else:
+            self.train_lr = self.optimizer.learning_rate.numpy()
         # Return loss scalar
         return loss.numpy()
 

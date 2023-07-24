@@ -14,7 +14,7 @@ import numpy as np
 import grid2op
 from grid2op.dtypes import dt_int
 from grid2op.Agent import RecoPowerlineAgent
-from grid2op.utils import EpisodeStatistics, ScoreL2RPN2022, ScoreICAPS2021
+from grid2op.utils import EpisodeStatistics, ScoreL2RPN2022, ScoreICAPS2021, ScoreL2RPN2023
 from lightsim2grid import LightSimBackend
 import numpy as np
 
@@ -22,6 +22,10 @@ is_windows = sys.platform.startswith("win32")
 
 env_name = "l2rpn_wcci_2022"
 SCOREUSED = ScoreL2RPN2022  # ScoreICAPS2021
+
+env_name = "l2rpn_idf_2023"
+SCOREUSED = ScoreL2RPN2023  # ScoreICAPS2021
+
 
 name_stats = "_reco_powerline"
 nb_process_stats = 4 if not is_windows else 1
@@ -137,7 +141,12 @@ if __name__ == "__main__":
         if nm_ == nm_val:
             # save the normalization parameters from the validation set
             dict_ = {"subtract": {}, 'divide': {}}
-            for attr_nm in ["gen_p", "load_p", "p_or", "rho"]:
+            for attr_nm in ["gen_p", "load_p", "p_or", "rho",
+                            "timestep_overflow", "line_status",
+                            "actual_dispatch", "target_dispatch",
+                            "storage_charge", "storage_power",
+                            "curtailment", "curtailment_limit",  "gen_p_before_curtail",
+                            ]:
                 avg_ = stats_reco.get(attr_nm)[0].mean(axis=0)
                 std_ = stats_reco.get(attr_nm)[0].std(axis=0)
                 dict_["subtract"][attr_nm] = [float(el) for el in avg_]

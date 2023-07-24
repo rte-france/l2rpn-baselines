@@ -21,7 +21,9 @@ from grid2op.Action import PlayableAction
 from l2rpn_baselines.utils import GymEnvWithReco, GymEnvWithRecoWithDN
 
 env_name = "l2rpn_wcci_2022_train"
-save_path = "./saved_model"
+
+env_name = "l2rpn_idf_2023_train"
+save_path = "./saved_model_2023"
 name = "FirstAgent"
 gymenv_class = GymEnvWithRecoWithDN  # uses the heuristic to do nothing is the grid is not at risk and to reconnect powerline automatically
 max_iter = 7 * 24 * 12  # None to deactivate it
@@ -124,7 +126,6 @@ if __name__ == "__main__":
                         # curtailment part of the observation
                         "curtailment", "curtailment_limit",  "gen_p_before_curtail",
                         ]
-    TODO = ...
     # same here you can change it as you please
     act_attr_to_keep = ["redispatch", "curtail", "set_storage"]
     # parameters for the learning
@@ -156,14 +157,15 @@ if __name__ == "__main__":
     param.LIMIT_INFEASIBLE_CURTAILMENT_STORAGE_ACTION = True
     env.change_parameters(param)
     
-    if max_iter is not None:
-        env.set_max_iter(max_iter)  # one week
-    obs = env.reset()
     # train on all february month, why not ?
-    env.chronics_handler.real_data.set_filter(lambda x: re.match(r".*2050-02-.*$", x) is not None)
+    env.chronics_handler.real_data.set_filter(lambda x: re.match(r".*2035-02-.*$", x) is not None)
     env.chronics_handler.real_data.reset()
     # see https://grid2op.readthedocs.io/en/latest/environment.html#optimize-the-data-pipeline
     # for more information !
+    
+    if max_iter is not None:
+        env.set_max_iter(max_iter)  # one week
+    obs = env.reset()
     
     print("environment loaded !")
     trained_agent = train(

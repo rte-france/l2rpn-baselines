@@ -1,5 +1,6 @@
 # Byte-compiled / optimized / DLL files
 __pycache__/
+**__pycache__/
 *.py[cod]
 *$py.class
 
@@ -195,3 +196,7 @@ examples/ppo_stable_baselines/preprocess_act.json
 examples/ppo_stable_baselines/preprocess_obs.json
 l2rpn_baselines/test/END_RESULT_DATAFRAME.csv
 l2rpn_baselines/test/logs-eval/
+examples/ppo_stable_baselines/saved_model_2023/FirstAgent/FirstAgent_*_steps.zip
+examples/ppo_stable_baselines_idf_2023/saved_model_2023/FirstAgent/FirstAgent_*_steps.zip
+test_cmd/
+test_rho_select_scen.py

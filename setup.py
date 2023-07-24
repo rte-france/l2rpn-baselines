@@ -8,7 +8,7 @@
 
 import setuptools
 from setuptools import setup
-__version__ = "0.7.0"
+__version__ = "0.8.0"
 
 
 pkgs = {
@@ -17,7 +17,8 @@ pkgs = {
         "statsmodels>=0.11.1",
         "scipy>=1.4.1",
         "numpy",
-        "gym>=0.17.2"
+        "gymnasium",
+        "lightsim2grid"
     ],
     "extras": {
         "docs": [
@@ -26,18 +27,18 @@ pkgs = {
             "sphinx-rtd-theme>=0.4.3",
             "sphinxcontrib-trio>=1.1.0",
             "autodocsumm>=0.2.7",
-            "cvxpy"
         ],
         "optional": ["grid2op[optional]>=1.6.5",
                      "tensorflow>=2.2.0",
                      "Keras>=2.3.1",
                      "torch>=1.4.0",
                      "scikit-learn>=0.22.2",
+                     "cvxpy"
                      ],
         "PPO_RLLIB": ["ray[rllib]",
                       "jsonpickle",
-                      "lightsim2grid"],
-        "PPO_SB3": ["stable_baselines3", "lightsim2grid"],
+                      "torch"],
+        "PPO_SB3": ["stable_baselines3"],
         "CurriculumAgent":["curriculumagent"]
     }
 }

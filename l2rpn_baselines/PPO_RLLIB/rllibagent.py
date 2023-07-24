@@ -6,32 +6,33 @@
 # SPDX-License-Identifier: MPL-2.0
 # This file is part of L2RPN Baselines, L2RPN Baselines a repository to host baselines for l2rpn competitions.
 
-import copy
 import os
 import re
-from typing import List, Optional
 
 from l2rpn_baselines.utils import GymAgent
 from l2rpn_baselines.PPO_RLLIB.env_rllib import Env_RLLIB
 
 try:
-    from ray.rllib.agents.ppo import PPOTrainer
+    try:
+        from ray.rllib.algorithms.ppo import PPO
+    except ImportError:
+        from ray.rllib.agents.ppo import PPOTrainer as PPO
     _CAN_USE_RLLIB = True
 except ImportError:
     _CAN_USE_RLLIB = False
     
-    class PPOTrainer(object):
+    class PPO(object):
         """
         Do not use, this class is a template when rllib is not installed.
         
-        It represents `from ray.rllib.agents.ppo import PPOTrainer`
+        It represents `from ray.rllib.algorithms.ppo import PPO`
         """
         
 
 class RLLIBAgent(GymAgent):
     """This class represents the Agent (directly usable with grid2op framework)
 
-    This agents uses the stable baseline `nn_type` (by default PPOTrainer) as
+    This agents uses the stable baseline `nn_type` (by default PPO) as
     the neural network to take decisions on the grid.
     
     To be built, it requires:
@@ -44,7 +45,7 @@ class RLLIBAgent(GymAgent):
     
     It can also accept different types of parameters:
     
-    - `nn_type`: the type of "neural network" from rllib (by default PPOTrainer)
+    - `nn_type`: the type of "neural network" from rllib (by default PPO)
     - `nn_path`: the path where the neural network can be loaded from
     
     For this class `nn_config` is mandatory. The trainer is built with:
@@ -52,7 +53,7 @@ class RLLIBAgent(GymAgent):
     .. code-block:: python
     
         from l2rpn_baselines.PPO_RLLIB import Env_RLLIB
-        PPOTrainer(env=Env_RLLIB, config=nn_config)
+        PPO(env=Env_RLLIB, config=nn_config)
     
     Examples
     ---------
@@ -110,7 +111,7 @@ class RLLIBAgent(GymAgent):
                       # "difficulty": ...
                       }
 
-        # now define the configuration for the PPOTrainer
+        # now define the configuration for the PPO
         env_config_ppo = {
             # config to pass to env class
             "env_config": env_config,
@@ -146,7 +147,7 @@ class RLLIBAgent(GymAgent):
                  gym_act_space,
                  gym_obs_space,
                  nn_config,
-                 nn_type=PPOTrainer,
+                 nn_type=PPO,
                  nn_path=None,
                  ):
         if not _CAN_USE_RLLIB:
@@ -194,7 +195,7 @@ class RLLIBAgent(GymAgent):
         
         .. code-block:: python
             
-            PPOTrainer.restore(nn_path)
+            PPO.restore(nn_path)
             
         """
         self.build()
@@ -218,10 +219,10 @@ class RLLIBAgent(GymAgent):
         
         .. code-block:: python
             
-            PPOTrainer(env= Env_RLLIB, config=nn_config)
+            PPO(env= Env_RLLIB, config=nn_config)
             
         """
-        self.nn_model = PPOTrainer(**self._nn_kwargs)
+        self.nn_model = PPO(**self._nn_kwargs)
 
 if __name__ == "__main__":
     import grid2op
