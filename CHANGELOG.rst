@@ -15,6 +15,15 @@ Change Log
 - train sowhere a working baseline (that does better than do nothing)
 - show an example of a baseline that uses a GNN
 
+[0.8.0] - 2023-07-xx
+-------------------------
+- [BREAKING] remove support for gym, use gymnasium instead (if you still want
+  gym it should be fine to install `l2rpn-baselines` with `pip install l2rpn_baselines --no-deps` 
+  and install gym elsewhere. But we do not recommend to do so)
+- [FIXED] a "bug" due to the gymnasium / gym in grid2op
+- [FIXED] way to retrieve the learning rate from Adam (in keras)
+- [FIXED] `PPO_RLLIB` with new version of ray, rllib, gymnasium etc. 
+
 [0.7.0] - 2023-07-13
 ------------------------
 - [ADDED] the "topo oracle agent" (contrib)

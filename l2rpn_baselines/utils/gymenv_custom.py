@@ -245,7 +245,7 @@ class GymEnvWithHeuristics(GymEnv):
         else:
             return gym_obs, float(reward), done, info
         
-    def reset(self, seed=None, return_info=False, options=None):
+    def reset(self, *, seed=None, return_info=False, options=None):
         """This function implements the "reset" function. It is called at the end of every episode and
         marks the beginning of a new one.
         
@@ -274,7 +274,9 @@ class GymEnvWithHeuristics(GymEnv):
             g2op_obs, reward, done, info = self.apply_heuristics_actions(g2op_obs, reward, False, info)
             
             # convert back the observation to gym
-            gym_obs = self.observation_space.to_gym(g2op_obs)
+            if not done:
+                gym_obs = self.observation_space.to_gym(g2op_obs)
+                break
             
         if return_info:
             return gym_obs, info

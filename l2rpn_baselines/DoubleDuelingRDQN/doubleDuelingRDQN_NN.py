@@ -108,7 +108,7 @@ class DoubleDuelingRDQN_NN(object):
             self._no_loss,
             self._no_loss
         ]
-        self.optimizer = tfko.Adam(lr=self.lr, clipnorm=1.0)
+        self.optimizer = tfko.Adam(learning_rate=self.lr, clipnorm=1.0)
         self.model.compile(loss=losses, optimizer=self.optimizer)
 
     def _no_loss(self, y_true, y_pred):

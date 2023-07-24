@@ -21,7 +21,6 @@ from l2rpn_baselines.PPO_RLLIB.rllibagent import RLLIBAgent
 
 try:
     import ray
-    from ray.rllib.agents import ppo
     from ray.tune.logger import pretty_print
     _CAN_USE_RLLIB = True
 except ImportError as exc_:

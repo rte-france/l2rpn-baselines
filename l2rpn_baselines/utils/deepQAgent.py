@@ -681,7 +681,10 @@ class DeepQAgent(AgentWithConverter):
             loss = self.deep_q.train(s_batch, a_batch, r_batch, d_batch, s2_batch,
                                      tf_writer)
             # save learning rate for later
-            self._train_lr = self.deep_q._optimizer_model._decayed_lr('float32').numpy()
+            if hasattr(self.deep_q._optimizer_model, "_decayed_lr"):
+                self.train_lr = self.deep_q._optimizer_model._decayed_lr('float32').numpy()
+            else:
+                self.train_lr = self.deep_q._optimizer_model.learning_rate.numpy()
             self.__graph_saved = True
             if not np.all(np.isfinite(loss)):
                 # if the loss is not finite i stop the learning
