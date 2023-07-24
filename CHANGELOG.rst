@@ -20,9 +20,11 @@ Change Log
 - [BREAKING] remove support for gym, use gymnasium instead (if you still want
   gym it should be fine to install `l2rpn-baselines` with `pip install l2rpn_baselines --no-deps` 
   and install gym elsewhere. But we do not recommend to do so)
+- [BREAKING] change the signature of the "`GymEnvWithHeuristics.fix_action`"
 - [FIXED] a "bug" due to the gymnasium / gym in grid2op
 - [FIXED] way to retrieve the learning rate from Adam (in keras)
 - [FIXED] `PPO_RLLIB` with new version of ray, rllib, gymnasium etc. 
+- [ADDED] example for training a model based on the "l2rpn_idf_2023" environment
 
 [0.7.0] - 2023-07-13
 ------------------------

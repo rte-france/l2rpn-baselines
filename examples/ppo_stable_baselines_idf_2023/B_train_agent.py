@@ -18,16 +18,37 @@ import json
 import numpy as np
 from grid2op.Reward import BaseReward
 from grid2op.Action import PlayableAction
-from .gymenv_custom import GymEnvWithRecoWithDN
+from l2rpn_baselines.utils import GymEnvWithRecoWithDN
 
-env_name = "l2rpn_wcci_2022_train"
 
 env_name = "l2rpn_idf_2023_train"
 save_path = "./saved_model_2023"
 name = "FirstAgent"
-gymenv_class = GymEnvWithRecoWithDN  # uses the heuristic to do nothing is the grid is not at risk and to reconnect powerline automatically
 max_iter = 7 * 24 * 12  # None to deactivate it
-safe_max_rho = 0.9  # the grid is said "safe" if the rho is lower than this value, it is a really important parameter to tune !
+
+
+class CustomGymEnv(GymEnvWithRecoWithDN):
+    """ 
+    
+    For this, you might want to have a look at: 
+      - https://grid2op.readthedocs.io/en/latest/parameters.html#grid2op.Parameters.Parameters.LIMIT_INFEASIBLE_CURTAILMENT_STORAGE_ACTION
+      - https://grid2op.readthedocs.io/en/latest/action.html#grid2op.Action.BaseAction.limit_curtail_storage
+    
+    This really helps the training, but you cannot change
+    this parameter when you evaluate your agent, so you need to rely
+    on act.limit_curtail_storage(...) before you give your action to the
+    environment
+    """
+    def __init__(self, env_init, *args, reward_cumul="init", safe_max_rho=0.9, curtail_margin=30, **kwargs):
+        super().__init__(env_init, reward_cumul=reward_cumul, safe_max_rho=safe_max_rho, *args, **kwargs)
+        self._curtail_margin = curtail_margin
+        
+    def fix_action(self, grid2op_action, g2op_obs):
+        # We try to limit to end up with a "game over" because actions on curtailment or storage units.
+        # this is "required" because we use curtailment and action on storage units
+        # but the main goal is to 
+        grid2op_action.limit_curtail_storage(g2op_obs, margin=self._curtail_margin)
+        return grid2op_action
 
 
 # customize the reward function (optional)
@@ -107,6 +128,11 @@ class CustomReward(BaseReward):
         res = score_goal * (1.0 - 0.5 * (score_action + score_state))
         return score_goal * res
     
+
+# parameters for the training
+gymenv_class = CustomGymEnv  # uses the heuristic to do nothing is the grid is not at risk and to reconnect powerline automatically
+safe_max_rho = 0.9  # the grid is said "safe" if the rho is lower than this value, it is a really important parameter to tune !
+curtail_margin = 30  # it is a really important parameter to tune !
     
 if __name__ == "__main__":
     
@@ -129,7 +155,7 @@ if __name__ == "__main__":
     # same here you can change it as you please
     act_attr_to_keep = ["redispatch", "curtail", "set_storage"]
     # parameters for the learning
-    nb_iter = 30_000
+    nb_iter = 100_000
     learning_rate = 3e-4
     net_arch = [200, 200, 200, 200]
     gamma = 0.999
@@ -140,11 +166,6 @@ if __name__ == "__main__":
                        backend=LightSimBackend(),
                        chronics_class=MultifolderWithCache)
     
-    with open("preprocess_obs.json", "r", encoding="utf-8") as f:
-        obs_space_kwargs = json.load(f)
-    with open("preprocess_act.json", "r", encoding="utf-8") as f:
-        act_space_kwargs = json.load(f)
-    
     # for this, you might want to have a look at: 
     #  - https://grid2op.readthedocs.io/en/latest/parameters.html#grid2op.Parameters.Parameters.LIMIT_INFEASIBLE_CURTAILMENT_STORAGE_ACTION
     #  - https://grid2op.readthedocs.io/en/latest/action.html#grid2op.Action.BaseAction.limit_curtail_storage
@@ -152,10 +173,14 @@ if __name__ == "__main__":
     # this parameter when you evaluate your agent, so you need to rely
     # on act.limit_curtail_storage(...) before you give your action to the
     # environment
-    
     param = env.parameters
     param.LIMIT_INFEASIBLE_CURTAILMENT_STORAGE_ACTION = True
     env.change_parameters(param)
+    
+    with open("preprocess_obs.json", "r", encoding="utf-8") as f:
+        obs_space_kwargs = json.load(f)
+    with open("preprocess_act.json", "r", encoding="utf-8") as f:
+        act_space_kwargs = json.load(f)
     
     # train on all february month, why not ?
     env.chronics_handler.real_data.set_filter(lambda x: re.match(r".*2035-02-.*$", x) is not None)
@@ -186,5 +211,5 @@ if __name__ == "__main__":
             verbose=1,
             gamma=0.999,
             gymenv_class=gymenv_class,
-            gymenv_kwargs={"safe_max_rho": safe_max_rho}
+            gymenv_kwargs={"safe_max_rho": safe_max_rho, "curtail_margin": curtail_margin}
             )

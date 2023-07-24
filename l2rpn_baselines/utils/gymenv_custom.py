@@ -54,7 +54,7 @@ class GymEnvWithHeuristics(GymEnv):
 
     """
     POSSIBLE_REWARD_CUMUL = ["init", "last", "sum", "max"]
-    def __init__(self, env_init, *args, reward_cumul="init", **kwargs):
+    def __init__(self, env_init, *args, reward_cumul="last", **kwargs):
         super().__init__(env_init, *args, **kwargs)
         self._reward_cumul = reward_cumul
         
@@ -182,7 +182,7 @@ class GymEnvWithHeuristics(GymEnv):
                 break
         return g2op_obs, res_reward, done, info
     
-    def fix_action(self, grid2op_action):
+    def fix_action(self, grid2op_action, g2op_obs):
         """This function can be used to "fix" / "modify" / "cut" / "change"
         a grid2op action just before it will be applied to the underlying "env.step(...)"
         
@@ -234,10 +234,11 @@ class GymEnvWithHeuristics(GymEnv):
             
         """
         g2op_act_tmp = self.action_space.from_gym(gym_action)
-        g2op_act = self.fix_action(g2op_act_tmp)
+        g2op_act = self.fix_action(g2op_act_tmp, self._previous_act)
         g2op_obs, reward, done, info = self.init_env.step(g2op_act)
         if not done:
             g2op_obs, reward, done, info = self.apply_heuristics_actions(g2op_obs, reward, done, info)
+        self._previous_act = g2op_obs
         gym_obs = self.observation_space.to_gym(g2op_obs)
         if hasattr(type(self), "_gymnasium") and type(self)._gymnasium:
             truncated = False
@@ -275,6 +276,7 @@ class GymEnvWithHeuristics(GymEnv):
             
             # convert back the observation to gym
             if not done:
+                self._previous_act = g2op_obs
                 gym_obs = self.observation_space.to_gym(g2op_obs)
                 break
             

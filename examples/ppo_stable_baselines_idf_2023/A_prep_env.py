@@ -21,12 +21,8 @@ from lightsim2grid import LightSimBackend
 
 is_windows = sys.platform.startswith("win32")
 
-env_name = "l2rpn_wcci_2022"
-SCOREUSED = ScoreL2RPN2022  # ScoreICAPS2021
-
 env_name = "l2rpn_idf_2023"
-SCOREUSED = ScoreL2RPN2023  # ScoreICAPS2021
-
+SCOREUSED = ScoreL2RPN2023
 
 name_stats = "_reco_powerline"
 nb_process_stats = 4 if not is_windows else 1

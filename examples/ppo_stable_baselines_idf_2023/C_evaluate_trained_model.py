@@ -18,13 +18,11 @@ from lightsim2grid import LightSimBackend
 from l2rpn_baselines.PPO_SB3 import evaluate
 
 from .A_prep_env import _aux_get_env, get_env_seed, name_stats
-from .B_train_agent import gymenv_class, name, safe_max_rho
+from .B_train_agent import gymenv_class, name, safe_max_rho as safe_max_rho_train, curtail_margin as curtail_margin_train
 # NB you can also chose to change the "safe_max_rho" parameter 
 # and use a different parameter for evaluation than the one used for 
 # training.
 
-# env_name = "l2rpn_wcci_2022_val"
-# SCOREUSED = ScoreL2RPN2022
 env_name = "l2rpn_idf_2023_val"
 SCOREUSED = ScoreL2RPN2023
 
@@ -35,10 +33,13 @@ load_path = "./saved_model_2023"
 iter_num = None  # put None for the latest version
 verbose = True
 
+# two meta parameters controlling the heuristics
+safe_max_rho = safe_max_rho_train
+curtail_margin = curtail_margin_train
 
 def load_agent(env, load_path, name,
                gymenv_class=gymenv_class,
-               gymenv_kwargs={"safe_max_rho": safe_max_rho},
+               gymenv_kwargs={"safe_max_rho": safe_max_rho, "curtail_margin": curtail_margin},
                obs_space_kwargs=None,
                act_space_kwargs=None):
     trained_agent, _ = evaluate(env,
