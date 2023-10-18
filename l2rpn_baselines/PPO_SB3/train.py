@@ -279,7 +279,7 @@ def train(env,
                             obs_space_kwargs,
                             act_attr_to_keep,
                             act_space_kwargs)
-    if eval_env is None:
+    if eval_env is not None:
         env_gym_eval = build_gym_env(eval_env,
                                     gymenv_class,
                                     gymenv_kwargs,
@@ -363,7 +363,7 @@ def train(env,
                          nn_path=os.path.join(load_path, name)
         )
 
-    if eval_env is None:
+    if eval_every_xxx_steps is not None:
         callbacks.append(EvalCallback(eval_env=env_gym_eval,
                                     best_model_save_path=my_path,
                                     log_path=my_path,
