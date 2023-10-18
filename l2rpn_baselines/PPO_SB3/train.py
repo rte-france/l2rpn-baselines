@@ -417,5 +417,6 @@ if __name__ == "__main__":
           name="test4",
           net_arch=[200, 200, 200],
           save_every_xxx_steps=2000,
+          eval_every_xxx_steps=1000,
           eval_env=eval_env,
           )
