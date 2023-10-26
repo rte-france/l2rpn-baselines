@@ -1,7 +1,5 @@
 from typing import Any
-import torch
 from torch_geometric.data import HeteroData
-from collections import defaultdict
 import grid2op
 from grid2op.Reward import LinesCapacityReward
 from grid2op.Chronics import MultifolderWithCache
