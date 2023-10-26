@@ -12,8 +12,8 @@ import os
 import grid2op
 import json
 
-from grid2op.gym_compat import BoxGymActSpace, BoxGymObsSpace, GymEnv
-
+from grid2op.gym_compat import BoxGymActSpace, BoxGymObsSpace, GymEnv, GymObservationSpace, GymActionSpace
+from gymnasium import spaces
 from l2rpn_baselines.PPO_SB3.utils import SB3Agent
 
 try:
@@ -74,18 +74,19 @@ def build_gym_env(env,
         gymenv_kwargs = {}
     env_gym = gymenv_class(env, **gymenv_kwargs)
 
-    env_gym.observation_space.close()
-    if obs_space_kwargs is None:
-        obs_space_kwargs = {}
-    env_gym.observation_space = BoxGymObsSpace(env.observation_space,
-                                               attr_to_keep=obs_attr_to_keep,
-                                               **obs_space_kwargs)
+    # env_gym.action_space = spaces.Dict(env_gym.action_space)
+    # env_gym.observation_space.close()
+    # if obs_space_kwargs is None:
+    #     obs_space_kwargs = {}
+    # env_gym.observation_space = BoxGymObsSpace(env.observation_space,
+    #                                            attr_to_keep=obs_attr_to_keep,
+    #                                            **obs_space_kwargs)
     
     env_gym.action_space.close()
     if act_space_kwargs is None:
         act_space_kwargs = {}
     env_gym.action_space = BoxGymActSpace(env.action_space,
-                                          attr_to_keep=act_attr_to_keep,
+                                        #   attr_to_keep=act_attr_to_keep,
                                           **act_space_kwargs)
     return env_gym
 
@@ -341,7 +342,8 @@ def train(env,
             this_logs_dir = os.path.join(logs_dir, name)
         else:
             this_logs_dir = None
-                
+
+        policy_kwargs["env"] = env_gym
         nn_kwargs = {
             "policy": model_policy,
             "env": env_gym,
@@ -354,6 +356,7 @@ def train(env,
         agent = SB3Agent(env.action_space,
                          env_gym.action_space,
                          env_gym.observation_space,
+                         gymenv=env_gym,
                          nn_kwargs=nn_kwargs,
         )
     else:        

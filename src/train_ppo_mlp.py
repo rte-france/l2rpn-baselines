@@ -7,7 +7,7 @@ from lightsim2grid import LightSimBackend
 
 env_name = "l2rpn_case14_sandbox"
 env = grid2op.make(
-    env_name,
+    env_name + "_train",
     reward_class=LinesCapacityReward,
     backend=LightSimBackend(),
     chronics_class=MultifolderWithCache,

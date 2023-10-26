@@ -125,7 +125,7 @@ class GymAgent(BaseAgent):
         """
         Load the NN model
         
-        ..info:: Only called if the agent has been build with `nn_path` not None and `nn_kwargs=None`
+        ..info:: Only called if the agent has been build with `nn_path` not None and `policy_kwargs=None`
         """
         pass
     
@@ -134,7 +134,7 @@ class GymAgent(BaseAgent):
         """
         Build the NN model.
         
-        ..info:: Only called if the agent has been build with `nn_path=None` and `nn_kwargs` not None
+        ..info:: Only called if the agent has been build with `nn_path=None` and `policy_kwargs` not None
         """
         pass
     
