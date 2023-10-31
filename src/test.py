@@ -8,10 +8,12 @@ from lightsim2grid import LightSimBackend
 
 env_name = "l2rpn_case14_sandbox"
 env_name = env_name + "_test"
-env = grid2op.make(env_name,
-                        reward_class=LinesCapacityReward,
-                        backend=LightSimBackend(),
-                        chronics_class=MultifolderWithCache)
+env = grid2op.make(
+    env_name,
+    reward_class=LinesCapacityReward,
+    backend=LightSimBackend(),
+    chronics_class=MultifolderWithCache,
+)
 env.chronics_handler.real_data.set_filter(lambda x: re.match(".*", x) is not None)
 env.chronics_handler.reset()
 res_agent = evaluate(env, load_path="runs", nb_episode=8, verbose=True)
