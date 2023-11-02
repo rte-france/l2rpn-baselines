@@ -24,12 +24,12 @@ class TestEnv(Env):
     def __init__(self) -> None:
         super().__init__()
         self.bound = 10
-        self.n_dim = 2
+        self.n_dim = 3  # Update to 3D
         self.n_agents = 1
         self.observation_space = spaces.Box(
             low=-3*self.bound,
             high=3*self.bound,
-            shape=(3, self.n_dim,),
+            shape=(3, self.n_dim,),  # Adjust shape for 3D
         )
         self.action_space = spaces.Box(
             low=-1,
@@ -58,23 +58,22 @@ class TestEnv(Env):
         self.curr_state = np.clip(self.curr_state, -2*self.bound, 2*self.bound)
         new_distance = np.linalg.norm(self.curr_state - self.target_state)
         reward = initial_distance - new_distance
-        # reward = min(2*reward,reward)
         self.n_steps += 1
         return self.observe(), reward, self.n_steps >= 100, False, {}
 
-
     def render(self, mode='human'):
-        fig, ax = plt.subplots(tight_layout=True)
-        ax.set_xlim(-3 * self.bound, 3 * self.bound)
-        ax.set_ylim(-3 * self.bound, 3 * self.bound)
+        fig, axs = plt.subplots(3, 1, tight_layout=True)
 
-        # Draw target state
-        ax.scatter(self.target_state[0], self.target_state[1], c='red', label='Target')
+        components = ['X', 'Y', 'Z']
+        for i, ax in enumerate(axs):
+            ax.set_xlim(-3 * self.bound, 3 * self.bound)
+            ax.set_ylim(0, 1)  # Static height just to visualize the points.
+            ax.scatter(self.target_state[i], 0.5, c='red', label='Target ' + components[i])
+            ax.scatter(self.curr_state[i], 0.5, c='blue', label='Agent ' + components[i])
+            ax.legend()
 
-        # Draw current state
-        ax.scatter(self.curr_state[0], self.curr_state[1], c='blue', label='Agent')
-
-        ax.legend()
+            # Remove y ticks for cleaner visualization.
+            ax.yaxis.set_visible(False)
 
         if mode == 'human':
             plt.show()

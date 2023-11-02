@@ -19,11 +19,11 @@ class CustomTorchModel(TorchModelV2, nn.Module):
         
         # Create a list of actor models, one for each agent
         self.actors = nn.Sequential(
-                            nn.Linear(obs_space.shape[0]*obs_space.shape[1], 8),
+                            nn.Linear(obs_space.shape[0]*obs_space.shape[1], 64),
                             nn.ReLU(),
-                            nn.Linear(8, 8),
+                            nn.Linear(64, 64),
                             nn.ReLU(),
-                            nn.Linear(8, 2*self.n_dim),
+                            nn.Linear(64, 2*self.n_dim),
                         )
         # Set bias to 0
         for param in self.actors.parameters():
@@ -33,11 +33,11 @@ class CustomTorchModel(TorchModelV2, nn.Module):
         normc_initializer(0.01)(self.actors[4].weight)
         
         self.critic = nn.Sequential(
-                            nn.Linear(obs_space.shape[0]*obs_space.shape[1], 8),
+                            nn.Linear(obs_space.shape[0]*obs_space.shape[1], 64),
                             nn.ReLU(),
-                            nn.Linear(8, 8),
+                            nn.Linear(64, 64),
                             nn.ReLU(),
-                            nn.Linear(8, 1),
+                            nn.Linear(64, 1),
                         )
         # Set bias to 0
         for param in self.critic.parameters():
