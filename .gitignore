@@ -2,6 +2,7 @@ runs/
 logs-eval
 PPO_logs
 PPO_preTrained/
+.vscode
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
