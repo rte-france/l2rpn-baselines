@@ -19,7 +19,6 @@ from collections import OrderedDict
 
 class Grid2OpEnv(Env):
     def __init__(self, env_name) -> None:
-        
         super().__init__()
         self.env_name = env_name
         self.env = grid2op.make(
@@ -32,7 +31,6 @@ class Grid2OpEnv(Env):
         elements_graph = obs.get_elements_graph()
         pyg_graph = to_pyg_graph(elements_graph)
 
-        
         self.action_space = GymActionSpace(self.env, action_attr_to_keep=["redispatch"])
         self.observation_space = ObservationSpace(pyg_graph, self.env)
         self.n_steps = 0
@@ -64,17 +62,19 @@ class Grid2OpEnv(Env):
     ) -> tuple[Any, dict[str, Any]]:
         obs = self.env.reset()
         self.n_steps = 0
-    
+
         ### TEST CASE
         self.gen_targets = np.random.uniform(
-            low=-10, high=10, size=(self.action_space["redispatch"].shape[0],1)
+            low=-10, high=10, size=(self.action_space["redispatch"].shape[0], 1)
         )
-        self.gen_targets = self.gen_targets * self.action_space['redispatch'].high.reshape(-1,1)
+        self.gen_targets = self.gen_targets * self.action_space[
+            "redispatch"
+        ].high.reshape(-1, 1)
         self.gen_curr = np.zeros_like(self.gen_targets)
         ### TEST CASE
 
         obs = self.convert_observation_space(obs)
-        
+
         if not self.observation_space.contains(obs):
             raise Exception("Invalid observation")
         return obs, {}
@@ -93,7 +93,7 @@ class Grid2OpEnv(Env):
         truncated = False
         if not self.observation_space.contains(obs):
             raise Exception("Invalid observation")
-        return obs, reward, self.n_steps>100, truncated, info
+        return obs, reward, self.n_steps > 100, truncated, info
 
     def render(self, mode: str = "human") -> Any:
         return self.env.render(mode=mode)

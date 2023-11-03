@@ -41,7 +41,7 @@ class CustomTorchModel(TorchModelV2, nn.Module):
             nn.ReLU(),
             nn.Linear(self.embedding_size, 2),
         )
-        self.param = nn.Parameter(torch.tensor([-1.0,1.0]))
+        self.param = nn.Parameter(torch.tensor([-1.0, 1.0]))
         self.value_model = nn.Sequential(
             nn.Linear(
                 self.embedding_size
@@ -70,7 +70,9 @@ class CustomTorchModel(TorchModelV2, nn.Module):
 
         action = {}
         gen_embeds = torch.stack([i["gen"].x for i in batch.to_data_list()])
-        action["redispatch"] = self.param.repeat((gen_embeds.shape[0],gen_embeds.shape[1],1))# self.action_model(gen_embeds).squeeze()
+        action["redispatch"] = self.param.repeat(
+            (gen_embeds.shape[0], gen_embeds.shape[1], 1)
+        )  # self.action_model(gen_embeds).squeeze()
         if len(action["redispatch"].shape) == 2:  # batch size 1
             action["redispatch"] = action["redispatch"].unsqueeze(0)
         action["redispatch"][:, :, 0] = torch.sigmoid(
