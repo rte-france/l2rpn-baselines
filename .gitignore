@@ -1,3 +1,8 @@
+runs/
+logs-eval
+PPO_logs
+PPO_preTrained/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 **__pycache__/

@@ -12,12 +12,12 @@ import os
 import grid2op
 import json
 
-from grid2op.gym_compat import BoxGymActSpace, BoxGymObsSpace, GymEnv
-
+from grid2op.gym_compat import BoxGymActSpace, BoxGymObsSpace, GymEnv, GymObservationSpace, GymActionSpace
+from gymnasium import spaces
 from l2rpn_baselines.PPO_SB3.utils import SB3Agent
 
 try:
-    from stable_baselines3.common.callbacks import CheckpointCallback
+    from stable_baselines3.common.callbacks import CheckpointCallback, EvalCallback, CallbackList
     from stable_baselines3 import PPO
     from stable_baselines3.ppo import MlpPolicy
     _CAN_USE_STABLE_BASELINE = True
@@ -35,6 +35,60 @@ from l2rpn_baselines.PPO_SB3.utils import (default_obs_attr_to_keep,
                                            remove_non_usable_attr,
                                            save_used_attribute)
 
+def build_gym_env(env, 
+         gymenv_class, 
+         gymenv_kwargs, 
+         obs_attr_to_keep, 
+         obs_space_kwargs, 
+         act_attr_to_keep, 
+         act_space_kwargs
+         ):
+    """
+    Build the gym environment from the grid2op environment.
+    Args:
+        env: grid2op environment
+        gymenv_class: gym environment class
+        gymenv_kwargs: gym environment kwargs
+        obs_attr_to_keep: list of string
+            Grid2op attribute to use to build the BoxObservationSpace. It is passed
+            as the "attr_to_keep" value of the
+            BoxObservation space (see
+            https://grid2op.readthedocs.io/en/latest/gym.html#grid2op.gym_compat.BoxGymObsSpace)
+
+        obs_space_kwargs:
+            Extra kwargs to build the BoxGymObsSpace (**NOT** saved then NOT restored)
+
+        act_attr_to_keep: list of string
+            Grid2op attribute to use to build the BoxGymActSpace. It is passed
+            as the "attr_to_keep" value of the
+            BoxAction space (see
+            https://grid2op.readthedocs.io/en/latest/gym.html#grid2op.gym_compat.BoxGymActSpace)
+
+        act_space_kwargs:
+            Extra kwargs to build the BoxGymActSpace (**NOT** saved then NOT restored)
+    Returns:
+        gym environment
+    """
+    # define the gym environment from the grid2op env
+    if gymenv_kwargs is None:
+        gymenv_kwargs = {}
+    env_gym = gymenv_class(env, **gymenv_kwargs)
+
+    # env_gym.action_space = spaces.Dict(env_gym.action_space)
+    # env_gym.observation_space.close()
+    # if obs_space_kwargs is None:
+    #     obs_space_kwargs = {}
+    # env_gym.observation_space = BoxGymObsSpace(env.observation_space,
+    #                                            attr_to_keep=obs_attr_to_keep,
+    #                                            **obs_space_kwargs)
+    
+    env_gym.action_space.close()
+    if act_space_kwargs is None:
+        act_space_kwargs = {}
+    env_gym.action_space = BoxGymActSpace(env.action_space,
+                                        #   attr_to_keep=act_attr_to_keep,
+                                          **act_space_kwargs)
+    return env_gym
 
 def train(env,
           name="PPO_SB3",
@@ -46,6 +100,7 @@ def train(env,
           learning_rate=3e-4,
           checkpoint_callback=None,
           save_every_xxx_steps=None,
+          eval_every_xxx_steps=None,
           model_policy=MlpPolicy,
           obs_attr_to_keep=copy.deepcopy(default_obs_attr_to_keep),
           obs_space_kwargs=None,
@@ -58,7 +113,7 @@ def train(env,
           gymenv_kwargs=None,
           verbose=True,
           seed=None,  # TODO
-          eval_env=None,  # TODO
+          eval_env=None,
           **kwargs):
     """
     This function will use stable baselines 3 to train a PPO agent on
@@ -105,6 +160,10 @@ def train(env,
         If set (by default it's None) the stable baselines3 model will be saved
         to the hard drive each `save_every_xxx_steps` steps performed in the
         environment.
+
+    eval_every_xxx_steps: ``int``
+        If set (by default it's None) the stable baselines3 model will be evaluated
+        each `eval_every_xxx_steps` steps performed in the environment.
 
     model_policy: 
         Type of neural network model trained in stable baseline. By default
@@ -214,21 +273,21 @@ def train(env,
     save_used_attribute(save_path, name, obs_attr_to_keep, act_attr_to_keep)
 
     # define the gym environment from the grid2op env
-    if gymenv_kwargs is None:
-        gymenv_kwargs = {}
-    env_gym = gymenv_class(env, **gymenv_kwargs)
-    env_gym.observation_space.close()
-    if obs_space_kwargs is None:
-        obs_space_kwargs = {}
-    env_gym.observation_space = BoxGymObsSpace(env.observation_space,
-                                               attr_to_keep=obs_attr_to_keep,
-                                               **obs_space_kwargs)
-    env_gym.action_space.close()
-    if act_space_kwargs is None:
-        act_space_kwargs = {}
-    env_gym.action_space = BoxGymActSpace(env.action_space,
-                                          attr_to_keep=act_attr_to_keep,
-                                          **act_space_kwargs)
+    env_gym = build_gym_env(env,
+                            gymenv_class,
+                            gymenv_kwargs,
+                            obs_attr_to_keep,
+                            obs_space_kwargs,
+                            act_attr_to_keep,
+                            act_space_kwargs)
+    if eval_env is not None:
+        env_gym_eval = build_gym_env(eval_env,
+                                    gymenv_class,
+                                    gymenv_kwargs,
+                                    obs_attr_to_keep,
+                                    obs_space_kwargs,
+                                    act_attr_to_keep,
+                                    act_space_kwargs)
 
     if normalize_act:
         if save_path is not None:
@@ -255,8 +314,11 @@ def train(env,
                 # attribute is scaled elsewhere
                 continue
             env_gym.observation_space.normalize_attr(attr_nm)
+            if eval_env is not None:
+                env_gym_eval.observation_space.normalize_attr(attr_nm)
     
     # Save a checkpoint every "save_every_xxx_steps" steps
+    callbacks = []
     if checkpoint_callback is None:
         if save_every_xxx_steps is not None:
             if save_path is None:
@@ -264,9 +326,9 @@ def train(env,
                               "set to save the model (save_path is None). No model "
                               "will be saved.")
             else:
-                checkpoint_callback = CheckpointCallback(save_freq=save_every_xxx_steps,
+                callbacks.append(CheckpointCallback(save_freq=save_every_xxx_steps,
                                                         save_path=my_path,
-                                                        name_prefix=name)
+                                                        name_prefix=name))
 
     # define the policy
     if load_path is None:
@@ -280,7 +342,8 @@ def train(env,
             this_logs_dir = os.path.join(logs_dir, name)
         else:
             this_logs_dir = None
-                
+
+        policy_kwargs["env"] = env_gym
         nn_kwargs = {
             "policy": model_policy,
             "env": env_gym,
@@ -293,6 +356,7 @@ def train(env,
         agent = SB3Agent(env.action_space,
                          env_gym.action_space,
                          env_gym.observation_space,
+                         gymenv=env_gym,
                          nn_kwargs=nn_kwargs,
         )
     else:        
@@ -302,10 +366,19 @@ def train(env,
                          nn_path=os.path.join(load_path, name)
         )
 
+    if eval_every_xxx_steps is not None:
+        callbacks.append(EvalCallback(eval_env=env_gym_eval,
+                                    best_model_save_path=my_path,
+                                    log_path=my_path,
+                                    eval_freq=eval_every_xxx_steps,
+                                    deterministic=True,
+                                    render=False,
+                                    verbose=verbose,
+                                    n_eval_episodes=8,
+                                    ))
     # train it
     agent.nn_model.learn(total_timesteps=iterations,
-                         callback=checkpoint_callback,
-                         # eval_env=eval_env  # TODO
+                         callback=CallbackList(callbacks),
                          )
 
     # save it
@@ -328,9 +401,16 @@ if __name__ == "__main__":
                        reward_class=LinesCapacityReward,
                        backend=LightSimBackend(),
                        chronics_class=MultifolderWithCache)
+    eval_env = grid2op.make(env_name,
+                            reward_class=LinesCapacityReward,
+                            backend=LightSimBackend(),
+                            chronics_class=MultifolderWithCache,
+                            test=True)
 
     env.chronics_handler.real_data.set_filter(lambda x: re.match(".*0$", x) is not None)
     env.chronics_handler.real_data.reset()
+    eval_env.chronics_handler.real_data.set_filter(lambda x: re.match(".*0$", x) is not None)
+    eval_env.chronics_handler.real_data.reset()
     # see https://grid2op.readthedocs.io/en/latest/environment.html#optimize-the-data-pipeline
     # for more information !
     train(env,
@@ -340,4 +420,6 @@ if __name__ == "__main__":
           name="test4",
           net_arch=[200, 200, 200],
           save_every_xxx_steps=2000,
+          eval_every_xxx_steps=1000,
+          eval_env=eval_env,
           )
