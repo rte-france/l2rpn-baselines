@@ -71,7 +71,7 @@ ModelCatalog.register_custom_model("my_torch_model", CustomTorchModel)
 if __name__ == "__main__":
     import env_0
 
-    context = ray.init(local_mode=True)
+    context = ray.init()
     print(context.dashboard_url)
 
     env = env_0.TestEnv()
@@ -94,11 +94,11 @@ if __name__ == "__main__":
     #         "type": "StochasticSampling",
     #     }
     # )
-    config = config.evaluation(
+    config = config.evaluation( # type: ignore
         evaluation_interval=10,
         evaluation_num_episodes=10,
     )
-    config = config.resources(num_gpus=1).rollouts(num_rollout_workers=4)
+    config = config.resources(num_gpus=1).rollouts(num_rollout_workers=4) # type: ignore
 
     trainer = config.build()
     trainer.train()

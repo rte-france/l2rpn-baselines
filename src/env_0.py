@@ -29,7 +29,7 @@ class TestEnv(Env):
         self.observation_space = spaces.Box(
             low=-3*self.bound,
             high=3*self.bound,
-            shape=(3, self.n_dim,),  # Adjust shape for 3D
+            shape=(self.n_dim, 3,),  # Adjust shape for 3D
         )
         self.action_space = spaces.Box(
             low=-1,
@@ -42,7 +42,7 @@ class TestEnv(Env):
             self.curr_state - self.target_state,
             self.target_state,
             self.curr_state,
-        ])
+        ], axis=1)
         assert self.observation_space.contains(obs)
         return obs
 
