@@ -11,7 +11,7 @@ if __name__ == "__main__":
     parsers.add_argument(
         "--checkpoint",
         type=str,
-        default="/home/scheschb/ray_results/PPO_2023-11-06_09-12-35/PPO_test_env_ae056_00000_0_2023-11-06_09-12-35/checkpoint_000009",
+        default="/home/scheschb/ray_results/PPO_2023-11-06_09-37-39/PPO_test_env_2e721_00000_0_2023-11-06_09-37-39/checkpoint_000009",
     )
     args = parsers.parse_args()
 

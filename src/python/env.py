@@ -103,6 +103,8 @@ class TestEnv(Env):
         new_distance = np.linalg.norm(self.curr_state - self.target_state)
         reward = initial_distance - new_distance
         self.n_steps += 1
+        if self.n_steps in [50]:
+            self.set_target_state()
         done = self.n_steps >= 100
         return self.observe(), reward, done, False, {}
 
