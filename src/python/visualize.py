@@ -11,7 +11,7 @@ if __name__ == "__main__":
     parsers.add_argument(
         "--checkpoint",
         type=str,
-        default="/home/scheschb/ray_results/PPO_2023-11-03_14-43-27/PPO_test_env_05b29_00000_0_2023-11-03_14-43-27/checkpoint_000009",
+        default="/home/scheschb/ray_results/PPO_2023-11-06_09-12-35/PPO_test_env_ae056_00000_0_2023-11-06_09-12-35/checkpoint_000009",
     )
     args = parsers.parse_args()
 
@@ -23,8 +23,9 @@ if __name__ == "__main__":
     frames = []
     rewards = []
     for i in tqdm(range(100)):
-        action = my_new_ppo.compute_single_action(obs, explore=False)
+        action = my_new_ppo.compute_single_action(obs, explore=False, update=False)
         obs, reward, done, terminated, info = env.step(action)
+        print(obs[:, 0])
         rewards.append(reward)
         frames.append(env.render(mode="rgb_array"))
         if done:

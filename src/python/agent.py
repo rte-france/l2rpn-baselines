@@ -85,12 +85,17 @@ if __name__ == "__main__":
     config = config.environment(  # type: ignore
         env="test_env",
         env_config={"env_name": "l2rpn_case14_sandbox"},
+        # normalize_actions=True,
     )
+    # config = config.rollouts( # type: ignore
+    #     observation_filter="MeanStdFilter",
+    # )
     config.rl_module(_enable_rl_module_api=False)
     config = config.training(
         _enable_learner_api=False,
         model={"custom_model": "my_torch_model"},
-        gamma=0.95,
+        # model={"fcnet_hiddens": [64, 64]},
+        gamma=0.99,
         vf_clip_param=100,
     )
     # config = config.exploration(

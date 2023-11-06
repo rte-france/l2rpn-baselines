@@ -19,7 +19,6 @@ import torch
 import networkx as nx
 from collections import OrderedDict
 
-
 class TestEnv(Env):
     def __init__(self, env_name) -> None:
         super().__init__()
@@ -31,52 +30,69 @@ class TestEnv(Env):
             experimental_read_from_local_dir=True,
         )
         self.n_gen = self.env.n_gen
-        self.n_agents = 1
+
+        # Observation space normalization factors
+        self.gen_pmax = self.env.observation_space.gen_pmax
+        self.gen_pmin = self.env.observation_space.gen_pmin
+        assert np.all(self.gen_pmax >= self.gen_pmin) and np.all(self.gen_pmin >= 0) # type: ignore
+
+        # Normalized observation and action spaces
         self.observation_space = spaces.Box(
-            low=-np.repeat(
-                self.env.observation_space.gen_pmax[:, np.newaxis], 3, axis=1
-            ),
-            high=np.repeat(
-                self.env.observation_space.gen_pmax[:, np.newaxis], 3, axis=1
-            ),
-            shape=(
-                self.n_gen,
-                3,
-            ),  # Adjust shape for 3D
+            low=np.repeat(np.array([[-1, 0, 0]]), self.n_gen, axis=0),
+            high=np.repeat(np.array([[1, 1, 1]]), self.n_gen, axis=0),
+            shape=(self.n_gen, 3),
+            dtype=np.float32
         )
         self.action_space = spaces.Box(
-            low=-self.env.observation_space.gen_max_ramp_down,
-            high=self.env.observation_space.gen_max_ramp_up,
+            low=-1,
+            high=1,
             shape=(self.n_gen,),
+            dtype=np.float32
+        )
+        
+        # Action space normalization factor
+        self.action_norm_factor = np.maximum( # type: ignore
+            self.env.observation_space.gen_max_ramp_up, # type: ignore
+            -self.env.observation_space.gen_max_ramp_down # type: ignore
         )
 
-    def observe(self):
-        obs = np.stack(
-            [
-                self.curr_state - self.target_state,
-                self.target_state,
-                self.curr_state,
-            ],
-            axis=1,
-        )
-        assert self.observation_space.contains(obs)
+    def normalize_obs(self, obs):
+        obs_diff_range = self.gen_pmax - self.gen_pmin # type: ignore
+        obs[:,0] = obs[:,0]/obs_diff_range
+        obs[:,1] = (obs[:,1]-self.gen_pmin)/obs_diff_range
+        obs[:,2] = (obs[:,2]-self.gen_pmin)/obs_diff_range
         return obs
 
-    def reset(
-        self, *, seed: int | None = None, options: dict[str, Any] | None = None
-    ) -> tuple[Any, dict[str, Any]]:
-        np.random.seed(seed)
-        self.target_state = np.random.uniform(
-            low=self.env.observation_space.gen_pmin,
-            high=self.env.observation_space.gen_pmax,
-            size=(self.n_gen,),
+    def denormalize_action(self, action):
+        return action * self.action_norm_factor
+
+    def observe(self):
+        obs = np.stack([
+            self.curr_state - self.target_state,
+            self.target_state,
+            self.curr_state,
+        ], axis=1)
+        normalized_obs = self.normalize_obs(obs)
+        assert self.observation_space.contains(normalized_obs)
+        return normalized_obs
+
+    def set_target_state(self):
+        self.target_state = np.random.uniform( # type: ignore
+            low=self.env.observation_space.gen_pmin, # type: ignore
+            high=self.env.observation_space.gen_pmax,  # type: ignore
+            size=(self.n_gen,)
         ).astype(np.float32)
         self.target_state[self.env.observation_space.gen_max_ramp_up == 0] = 0
+
+    def reset(self, *, seed: int | None = None, options: dict[str, Any] | None = None) -> tuple[Any, dict[str, Any]]:
+        np.random.seed(seed)
+        self.set_target_state()
         self.curr_state = np.zeros_like(self.target_state).astype(np.float32)
         self.n_steps = 0
         return self.observe(), {}
 
-    def step(self, action: Any):
+    def step(self, action):
+        action = self.denormalize_action(action)
         initial_distance = np.linalg.norm(self.curr_state - self.target_state)
         self.curr_state += action
         self.curr_state = np.clip(
@@ -87,7 +103,9 @@ class TestEnv(Env):
         new_distance = np.linalg.norm(self.curr_state - self.target_state)
         reward = initial_distance - new_distance
         self.n_steps += 1
-        return self.observe(), reward, self.n_steps >= 100, False, {}
+        done = self.n_steps >= 100
+        return self.observe(), reward, done, False, {}
+
 
     def render(self, mode="human"):
         fig, axs = plt.subplots(
@@ -95,8 +113,8 @@ class TestEnv(Env):
         )
         for i, ax in enumerate(axs):
             ax.set_xlim(
-                self.env.observation_space.gen_pmin.min() - 10,
-                self.env.observation_space.gen_pmax.max() + 10,
+                self.env.observation_space.gen_pmin.min(),
+                self.env.observation_space.gen_pmax.max(),
             )
             ax.scatter(self.target_state[i], 0.5, c="red", label=f"Gen {i} Target")
             ax.scatter(self.curr_state[i], 0.5, c="blue", label=f"Gen {i} Agent")
