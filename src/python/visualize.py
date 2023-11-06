@@ -11,7 +11,7 @@ if __name__ == "__main__":
     parsers.add_argument(
         "--checkpoint",
         type=str,
-        default="/home/scheschb/ray_results/PPO_2023-11-06_09-37-39/PPO_test_env_2e721_00000_0_2023-11-06_09-37-39/checkpoint_000009",
+        default="/home/scheschb/ray_results/PPO_2023-11-06_11-12-49/PPO_test_env_79d47_00000_0_2023-11-06_11-12-49/checkpoint_000029",
     )
     args = parsers.parse_args()
 
@@ -19,7 +19,7 @@ if __name__ == "__main__":
     my_new_ppo = Algorithm.from_checkpoint(args.checkpoint)
     env = env.TestEnv(env_name="l2rpn_case14_sandbox")
 
-    obs, _ = env.reset(seed=42)
+    obs, _ = env.reset(seed=0)
     frames = []
     rewards = []
     for i in tqdm(range(100)):

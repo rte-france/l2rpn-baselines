@@ -98,12 +98,12 @@ if __name__ == "__main__":
         gamma=0.99,
         vf_clip_param=100,
     )
-    # config = config.exploration(
-    #     explore=True,
-    #     exploration_config={
-    #         "type": "StochasticSampling",
-    #     }
-    # )
+    config = config.exploration(
+        explore=True,
+        exploration_config={
+            "type": "StochasticSampling",
+        }
+    )
     config = config.evaluation(  # type: ignore
         evaluation_interval=10,
         evaluation_num_episodes=10,
@@ -116,7 +116,7 @@ if __name__ == "__main__":
     tuner = tune.Tuner(
         "PPO",
         run_config=train.RunConfig(
-            stop={"training_iteration": 100},
+            stop={"training_iteration": 1000},
             checkpoint_config=train.CheckpointConfig(
                 checkpoint_frequency=10,
                 checkpoint_at_end=True,
