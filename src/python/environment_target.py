@@ -124,14 +124,14 @@ class ObservationSpace(spaces.Dict):
         # TEST CASE
 
         # Add edges
-        # dic["edge_list"] = spaces.Dict()
-        # for edge_type, _ in graph.edge_items():
-        #     num_node_type_source = len(graph[edge_type[0]].x)
-        #     num_node_type_target = len(graph[edge_type[2]].x)
-        #     dic["edge_list"][edge_type] = Repeated(
-        #         spaces.MultiDiscrete([num_node_type_source, num_node_type_target]),
-        #         max_len=num_node_type_source * num_node_type_target,
-        #     )
+        dic["edge_list"] = spaces.Dict()
+        for edge_type, _ in graph.edge_items():
+            num_node_type_source = len(graph[edge_type[0]].x)
+            num_node_type_target = len(graph[edge_type[2]].x)
+            dic["edge_list"][edge_type] = Repeated(
+                spaces.MultiDiscrete([num_node_type_source, num_node_type_target]),
+                max_len=num_node_type_source * num_node_type_target,
+            )
 
         spaces.Dict.__init__(self, dic)
 

@@ -1,3 +1,4 @@
+from threading import local
 from torch import nn
 from ray.rllib.algorithms.ppo import PPOConfig
 import imageio
@@ -19,39 +20,51 @@ class CustomTorchModel(TorchModelV2, nn.Module):
             self, obs_space, action_space, num_outputs, model_config, name
         )
         nn.Module.__init__(self)
-        self.n_dim = action_space.shape[0]
+        self.n_dim = action_space["gen"].shape[0]
 
         # Create a list of actor models, one for each agent
+        obs_space = obs_space.original_space
         self.actors = nn.Sequential(
-            nn.Linear(obs_space.shape[0] * obs_space.shape[1], 64),
+            nn.Flatten(),
+            nn.Linear(
+                obs_space["node_features"]["gen"].shape[0]
+                * obs_space["node_features"]["gen"].shape[1],
+                64,
+            ),
             nn.ReLU(),
             nn.Linear(64, 64),
             nn.ReLU(),
             nn.Linear(64, 2 * self.n_dim),
         )
-        # Set bias to 0
-        for param in self.actors.parameters():
-            nn.init.zeros_(param)
-        normc_initializer(1.0)(self.actors[0].weight)
-        normc_initializer(1.0)(self.actors[2].weight)
-        normc_initializer(0.01)(self.actors[4].weight)
+        self.special_init(self.actors)
 
         self.critic = nn.Sequential(
-            nn.Linear(obs_space.shape[0] * obs_space.shape[1], 64),
+            nn.Flatten(),
+            nn.Linear(
+                obs_space["node_features"]["gen"].shape[0]
+                * obs_space["node_features"]["gen"].shape[1],
+                64,
+            ),
             nn.ReLU(),
             nn.Linear(64, 64),
             nn.ReLU(),
             nn.Linear(64, 1),
         )
-        # Set bias to 0
-        for param in self.critic.parameters():
-            nn.init.zeros_(param)
-        normc_initializer(1.0)(self.critic[0].weight)
-        normc_initializer(1.0)(self.critic[2].weight)
-        normc_initializer(0.01)(self.critic[4].weight)
+        self.special_init(self.critic)
+
+    def special_init(self, module):
+        is_last_linear_layer = True
+        for m in reversed(list(module.modules())):
+            if isinstance(m, nn.Linear):
+                nn.init.zeros_(m.bias)
+                if is_last_linear_layer:
+                    normc_initializer(0.01)(m.weight)
+                    is_last_linear_layer = False
+                else:
+                    normc_initializer(1.0)(m.weight)
 
     def forward(self, input_dict, state, seq_lens):
-        obs = input_dict["obs_flat"]
+        obs = input_dict["obs"]["node_features"]["gen"]
 
         # Apply distinct actor policy for each agent
         action = self.actors(obs)  # .reshape(-1, self.n_dim, 2)
@@ -102,7 +115,7 @@ if __name__ == "__main__":
         explore=True,
         exploration_config={
             "type": "StochasticSampling",
-        }
+        },
     )
     config = config.evaluation(  # type: ignore
         evaluation_interval=10,

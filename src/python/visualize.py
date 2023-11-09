@@ -11,7 +11,7 @@ if __name__ == "__main__":
     parsers.add_argument(
         "--checkpoint",
         type=str,
-        default="/home/scheschb/ray_results/PPO_2023-11-06_11-12-49/PPO_test_env_79d47_00000_0_2023-11-06_11-12-49/checkpoint_000029",
+        default="/home/scheschb/ray_results/PPO_2023-11-08_14-45-52/PPO_test_env_9205e_00000_0_2023-11-08_14-45-52/checkpoint_000035",
     )
     args = parsers.parse_args()
 
@@ -25,7 +25,7 @@ if __name__ == "__main__":
     for i in tqdm(range(100)):
         action = my_new_ppo.compute_single_action(obs, explore=False, update=False)
         obs, reward, done, terminated, info = env.step(action)
-        print(obs[:, 0])
+        # print(obs[:, 0])
         rewards.append(reward)
         frames.append(env.render(mode="rgb_array"))
         if done:
@@ -34,16 +34,16 @@ if __name__ == "__main__":
     print("RL Reward:", sum(rewards))
     print("Done")
 
-    obs, _ = env.reset(seed=42)
-    frames = []
-    rewards = []
-    for i in tqdm(range(100)):
-        action = -2.0 * (obs[:, 0] >= 0) + 1.0
-        obs, reward, done, terminated, info = env.step(action)
-        rewards.append(reward)
-        frames.append(env.render(mode="rgb_array"))
-        if done:
-            break
-    imageio.mimsave("movie_expert.gif", frames)
-    print("Expert Reward:", sum(rewards))
-    print("Done")
+    # obs, _ = env.reset(seed=42)
+    # frames = []
+    # rewards = []
+    # for i in tqdm(range(100)):
+    #     action = -2.0 * (obs[:, 0] >= 0) + 1.0
+    #     obs, reward, done, terminated, info = env.step(action)
+    #     rewards.append(reward)
+    #     frames.append(env.render(mode="rgb_array"))
+    #     if done:
+    #         break
+    # imageio.mimsave("movie_expert.gif", frames)
+    # print("Expert Reward:", sum(rewards))
+    # print("Done")
