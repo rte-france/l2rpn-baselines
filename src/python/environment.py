@@ -1,3 +1,4 @@
+from typing import Dict
 from typing import Any
 from torch_geometric.data import HeteroData
 import grid2op
@@ -18,7 +19,13 @@ from collections import defaultdict
 import torch
 import networkx as nx
 from collections import OrderedDict
-from utils import to_pyg_graph, edge_data_fields, node_data_fields
+from utils import (
+    to_pyg_graph,
+    edge_data_fields,
+    node_data_fields,
+    node_observation_space,
+)
+from grid2op.Environment import Environment
 
 
 class TestEnv(Env):
@@ -33,41 +40,23 @@ class TestEnv(Env):
         )
         self.n_gen = self.env.n_gen
 
-        self.obs_reset = self.env.reset()
-        self.elements_graph = self.obs_reset.get_elements_graph()
-        self.graph = to_pyg_graph(self.elements_graph)
-
         # Observation space normalization factors
         self.gen_pmax = self.env.observation_space.gen_pmax
         self.gen_pmin = self.env.observation_space.gen_pmin
         assert np.all(self.gen_pmax >= self.gen_pmin) and np.all(self.gen_pmin >= 0)  # type: ignore
 
-        # Normalized observation and action spaces
-        self.observation_space = ObservationSpace(self.graph, self.env)
-        # self.observation_space = spaces.Dict()
-        # self.observation_space["node_features"] = spaces.Box(
-        #     low=np.repeat(np.array([[-1, 0, 0]]), self.n_gen, axis=0),
-        #     high=np.repeat(np.array([[1, 1, 1]]), self.n_gen, axis=0),
-        #     shape=(self.n_gen, 3),
-        #     dtype=np.float32
-        # )
+        # Observation space observation
+        self.observation_space: ObservationSpace = ObservationSpace(self.env)
+        self.elements_graph = self.env.reset().get_elements_graph()
 
-        # self.observation_space["edge_list"] = spaces.Dict()
-        # for edge_type, _ in graph.edge_items():
-        #     num_node_type_source = len(graph[edge_type[0]].x)
-        #     num_node_type_target = len(graph[edge_type[2]].x)
-        #     self.observation_space["edge_list"][edge_type] = Repeated(
-        #         spaces.MultiDiscrete([num_node_type_source, num_node_type_target]),
-        #         max_len=num_node_type_source * num_node_type_target,
-        #     )
-
+        # Action space
         self.action_space = spaces.Dict()
-        self.action_space["gen"] = spaces.Box(
+        self.action_space["redispatch"] = spaces.Box(
             low=-1, high=1, shape=(self.n_gen,), dtype=np.float32
         )
 
         # Action space normalization factor
-        self.action_norm_factor = np.maximum(  # type: ignore
+        self.action_norm_factor = np.maximum(
             self.env.observation_space.gen_max_ramp_up,  # type: ignore
             -self.env.observation_space.gen_max_ramp_down,  # type: ignore
         )
@@ -80,7 +69,7 @@ class TestEnv(Env):
         return obs
 
     def denormalize_action(self, action):
-        action["gen"] = action["gen"] * self.action_norm_factor
+        action["redispatch"] = action["redispatch"] * self.action_norm_factor
         return action
 
     def observe(self):
@@ -93,10 +82,11 @@ class TestEnv(Env):
             axis=1,
         )
         obs = self.normalize_obs(obs)
-        obs_original = self.observation_space.to_gym(self.obs_reset)
+        obs_original = self.observation_space.grid2op_to_pyg(self.elements_graph)
         obs_original["gen"].x = torch.tensor(obs)
-        obs = self.observation_space.convert_observation_space(obs_original)
-        assert self.observation_space.contains(obs)
+        obs = self.observation_space.pyg_to_dict(obs_original)
+        if not self.observation_space.contains(obs):
+            raise Exception("Invalid observation")
         return obs
 
     def set_target_state(self):
@@ -119,7 +109,7 @@ class TestEnv(Env):
     def step(self, action):
         action = self.denormalize_action(action)
         initial_distance = np.linalg.norm(self.curr_state - self.target_state)
-        self.curr_state += action["gen"]
+        self.curr_state += action["redispatch"]
         self.curr_state = np.clip(
             self.curr_state,
             self.env.observation_space.gen_pmin,
@@ -139,8 +129,8 @@ class TestEnv(Env):
         )
         for i, ax in enumerate(axs):
             ax.set_xlim(
-                self.env.observation_space.gen_pmin.min(),
-                self.env.observation_space.gen_pmax.max(),
+                self.env.observation_space.gen_pmin.min(),  # type: ignore
+                self.env.observation_space.gen_pmax.max(),  # type: ignore
             )
             ax.scatter(self.target_state[i], 0.5, c="red", label=f"Gen {i} Target")
             ax.scatter(self.curr_state[i], 0.5, c="blue", label=f"Gen {i} Agent")
@@ -159,41 +149,34 @@ class TestEnv(Env):
 
 
 class ObservationSpace(spaces.Dict):
-    def __init__(self, graph, env):
-        # do as you please here
+    def __init__(self, env: Environment):
+        graph = self.grid2op_to_pyg(env.reset().get_elements_graph())
+
         dic = OrderedDict()
         dic["node_features"] = spaces.Dict()
-        self.n_gen = env.n_gen
-        # Add nodes
-        for node_type, info in graph.node_items():
-            if node_type != "gen":
-                continue
-            dic["node_features"]["gen"] = spaces.Box(
-                low=np.repeat(np.array([[-1, 0, 0]]), self.n_gen, axis=0),
-                high=np.repeat(np.array([[1, 1, 1]]), self.n_gen, axis=0),
-                shape=(self.n_gen, 3),
-                dtype=np.float32,
+        for node_type, _ in graph.node_items():
+            dic["node_features"][node_type] = node_observation_space[node_type](
+                len(graph[node_type].x)
             )
+        self.n_gen = env.n_gen
 
         # Add edges
         dic["edge_list"] = spaces.Dict()
         for edge_type, _ in graph.edge_items():
             num_node_type_source = len(graph[edge_type[0]].x)
             num_node_type_target = len(graph[edge_type[2]].x)
-            dic["edge_list"][edge_type] = Repeated(
+            dic["edge_list"][edge_type] = Repeated(  # type: ignore
                 spaces.MultiDiscrete([num_node_type_source, num_node_type_target]),
                 max_len=num_node_type_source * num_node_type_target,
             )
 
         spaces.Dict.__init__(self, dic)
 
-    def convert_observation_space(self, pyg_graph):
+    def pyg_to_dict(self, pyg_graph: HeteroData) -> Dict[str, Dict[str, np.ndarray]]:
         result = OrderedDict()
         result["node_features"] = OrderedDict()
         for node_type, info in pyg_graph.node_items():
-            if node_type != "gen":
-                continue
-            result["node_features"][node_type] = info.x.numpy()
+            result["node_features"][node_type] = info.x.numpy().astype(np.float32)
 
         result["edge_list"] = OrderedDict()
         for edge_type, info in pyg_graph.edge_items():
@@ -201,11 +184,7 @@ class ObservationSpace(spaces.Dict):
 
         return result
 
-    def to_gym(self, obs):
-        # this is this very same function that you need to implement
-        # it should have this exact name, take only one observation (grid2op) as input
-        # and return a gym object that belong to your space "AGymSpace"
-        r = obs.get_elements_graph()
+    def grid2op_to_pyg(self, elements_graph: nx.DiGraph) -> HeteroData:
         # Initialize HeteroData
         graph = HeteroData()
         id_map = defaultdict(lambda: defaultdict(int))
@@ -214,10 +193,8 @@ class ObservationSpace(spaces.Dict):
         edge_features = defaultdict(list)
 
         # Node processing
-        for new_id, (old_id, features) in enumerate(r.nodes(data=True)):
+        for new_id, (old_id, features) in enumerate(elements_graph.nodes(data=True)):
             node_type = features["type"]
-            if node_type != "gen":
-                continue
             id_map[node_type][old_id] = len(id_map[node_type])
             nodes[node_type].append(
                 torch.tensor(
@@ -233,8 +210,11 @@ class ObservationSpace(spaces.Dict):
         edge_features = defaultdict(list)
 
         # Edge processing
-        for src, dst, attr in r.edges(data=True):
-            src_type, dst_type = r.nodes[src]["type"], r.nodes[dst]["type"]
+        for src, dst, attr in elements_graph.edges(data=True):
+            src_type, dst_type = (
+                elements_graph.nodes[src]["type"],
+                elements_graph.nodes[dst]["type"],
+            )
             edge_type = attr["type"]
 
             if edge_type not in edge_data_fields:
@@ -260,7 +240,7 @@ class ObservationSpace(spaces.Dict):
         return graph
 
 
-def env_creator(env_config):
+def env_creator(env_config: dict[str, Any]) -> TestEnv:
     return TestEnv(env_config["env_name"])
 
 

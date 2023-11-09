@@ -1,7 +1,10 @@
 from collections import defaultdict
+from typing import OrderedDict
 import torch
 import networkx as nx
 from torch_geometric.data import HeteroData
+from gymnasium import spaces
+import numpy as np
 
 node_data_fields = {
     "substation": [
@@ -35,6 +38,7 @@ node_data_fields = {
         "id"
     ],  # {'id': 0, 'type': 'shunt', 'name': 'shunt_8_0', 'connected': True}
 }
+
 edge_data_fields = {
     "bus_to_substation": {},
     "load_to_bus": {
@@ -66,6 +70,37 @@ edge_data_fields = {
         "q",
     },  # {'id': 0, 'type': 'shunt_to_bus', 'p': -6.938894e-16, 'q': -21.208096, 'v': 21.13022}
 }
+
+node_observation_space = OrderedDict(
+    {
+        "substation": lambda n_lements: spaces.Box(
+            low=-np.inf, high=np.inf, shape=(n_lements, 1), dtype=np.float32
+        ),
+        "bus": lambda n_lements: spaces.Box(
+            low=-np.inf, high=np.inf, shape=(n_lements, 3), dtype=np.float32
+        ),
+        "load": lambda n_lements: spaces.Box(
+            low=-np.inf, high=np.inf, shape=(n_lements, 1), dtype=np.float32
+        ),
+        "gen": lambda n_lements: spaces.Box(
+            low=-1, high=1, shape=(n_lements, 3), dtype=np.float32
+        ),
+        "line": lambda n_lements: spaces.Box(
+            low=-np.inf, high=np.inf, shape=(n_lements, 2), dtype=np.float32
+        ),
+        "shunt": lambda n_lements: spaces.Box(
+            low=-np.inf, high=np.inf, shape=(n_lements, 1), dtype=np.float32
+        ),
+    }
+)
+
+# edge_observation_space = spaces.Dict({
+#     "bus_to_substation": spaces.Box(low=-np.inf, high=np.inf, shape=(1,), dtype=np.float32),
+#     "load_to_bus": spaces.Box(low=-np.inf, high=np.inf, shape=(5,), dtype=np.float32),
+#     "gen_to_bus": spaces.Box(low=-np.inf, high=np.inf, shape=(5,), dtype=np.float32),
+#     "line_to_bus": spaces.Box(low=-np.inf, high=np.inf, shape=(6,), dtype=np.float32),
+#     "shunt_to_bus": spaces.Box(low=-np.inf, high=np.inf, shape=(4,), dtype=np.float32),
+# })
 
 
 def to_pyg_graph(graph_nx: nx.DiGraph) -> HeteroData:

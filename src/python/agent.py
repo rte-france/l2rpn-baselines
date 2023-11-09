@@ -1,5 +1,7 @@
+from pyexpat import model
 from threading import local
-from torch import nn
+from IPython import embed
+from torch import mode, nn
 from ray.rllib.algorithms.ppo import PPOConfig
 import imageio
 import ray
@@ -9,6 +11,7 @@ from ray.rllib.models import ModelCatalog
 from tqdm import tqdm
 from ray import tune, train
 from ray.rllib.models.torch.misc import normc_initializer
+from ray.air.integrations.wandb import WandbLoggerCallback, setup_wandb
 
 
 import torch.nn.functional as F
@@ -20,21 +23,22 @@ class CustomTorchModel(TorchModelV2, nn.Module):
             self, obs_space, action_space, num_outputs, model_config, name
         )
         nn.Module.__init__(self)
-        self.n_dim = action_space["gen"].shape[0]
+        self.n_dim = action_space["redispatch"].shape[0] # type: ignore
+        self.embed_dim = 64
 
         # Create a list of actor models, one for each agent
-        obs_space = obs_space.original_space
+        obs_space = obs_space.original_space # type: ignore
         self.actors = nn.Sequential(
             nn.Flatten(),
             nn.Linear(
                 obs_space["node_features"]["gen"].shape[0]
                 * obs_space["node_features"]["gen"].shape[1],
-                64,
+                self.embed_dim,
             ),
             nn.ReLU(),
-            nn.Linear(64, 64),
+            nn.Linear(self.embed_dim, self.embed_dim),
             nn.ReLU(),
-            nn.Linear(64, 2 * self.n_dim),
+            nn.Linear(self.embed_dim, 2 * self.n_dim),
         )
         self.special_init(self.actors)
 
@@ -43,12 +47,12 @@ class CustomTorchModel(TorchModelV2, nn.Module):
             nn.Linear(
                 obs_space["node_features"]["gen"].shape[0]
                 * obs_space["node_features"]["gen"].shape[1],
-                64,
+                self.embed_dim,
             ),
             nn.ReLU(),
-            nn.Linear(64, 64),
+            nn.Linear(self.embed_dim, self.embed_dim),
             nn.ReLU(),
-            nn.Linear(64, 1),
+            nn.Linear(self.embed_dim, 1),
         )
         self.special_init(self.critic)
 
@@ -64,7 +68,7 @@ class CustomTorchModel(TorchModelV2, nn.Module):
                     normc_initializer(1.0)(m.weight)
 
     def forward(self, input_dict, state, seq_lens):
-        obs = input_dict["obs"]["node_features"]["gen"]
+        obs = input_dict["obs"]["node_features"]["gen"] # type: ignore
 
         # Apply distinct actor policy for each agent
         action = self.actors(obs)  # .reshape(-1, self.n_dim, 2)
@@ -86,12 +90,12 @@ class CustomTorchModel(TorchModelV2, nn.Module):
 ModelCatalog.register_custom_model("my_torch_model", CustomTorchModel)
 
 if __name__ == "__main__":
-    import env
+    import environment
 
     context = ray.init()
     print(context.dashboard_url)
 
-    env = env.TestEnv(env_name="l2rpn_case14_sandbox")
+    env = environment.TestEnv(env_name="l2rpn_case14_sandbox")
     ray.rllib.utils.check_env(env)
     config: PPOConfig = PPOConfig()
     config = config.framework("torch")  # type: ignore
@@ -111,12 +115,13 @@ if __name__ == "__main__":
         gamma=0.99,
         vf_clip_param=100,
     )
-    config = config.exploration(
-        explore=True,
-        exploration_config={
-            "type": "StochasticSampling",
-        },
-    )
+    
+    # config = config.exploration(
+    #     explore=True,
+    #     exploration_config={
+    #         "type": "StochasticSampling",
+    #     },
+    # )
     config = config.evaluation(  # type: ignore
         evaluation_interval=10,
         evaluation_num_episodes=10,
@@ -134,8 +139,9 @@ if __name__ == "__main__":
                 checkpoint_frequency=10,
                 checkpoint_at_end=True,
             ),
+            callbacks=[WandbLoggerCallback(project="grid2op")]
         ),
-        param_space=config,
+        param_space=config, # type: ignore
     )
 
     tuner.fit()
