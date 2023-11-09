@@ -23,11 +23,11 @@ class CustomTorchModel(TorchModelV2, nn.Module):
             self, obs_space, action_space, num_outputs, model_config, name
         )
         nn.Module.__init__(self)
-        self.n_dim = action_space["redispatch"].shape[0] # type: ignore
+        self.n_dim = action_space["redispatch"].shape[0]  # type: ignore
         self.embed_dim = 64
 
         # Create a list of actor models, one for each agent
-        obs_space = obs_space.original_space # type: ignore
+        obs_space = obs_space.original_space  # type: ignore
         self.actors = nn.Sequential(
             nn.Flatten(),
             nn.Linear(
@@ -68,7 +68,7 @@ class CustomTorchModel(TorchModelV2, nn.Module):
                     normc_initializer(1.0)(m.weight)
 
     def forward(self, input_dict, state, seq_lens):
-        obs = input_dict["obs"]["node_features"]["gen"] # type: ignore
+        obs = input_dict["obs"]["node_features"]["gen"]  # type: ignore
 
         # Apply distinct actor policy for each agent
         action = self.actors(obs)  # .reshape(-1, self.n_dim, 2)
@@ -115,7 +115,7 @@ if __name__ == "__main__":
         gamma=0.99,
         vf_clip_param=100,
     )
-    
+
     # config = config.exploration(
     #     explore=True,
     #     exploration_config={
@@ -134,14 +134,14 @@ if __name__ == "__main__":
     tuner = tune.Tuner(
         "PPO",
         run_config=train.RunConfig(
-            stop={"training_iteration": 1000},
+            stop={"training_iteration": 100},
             checkpoint_config=train.CheckpointConfig(
                 checkpoint_frequency=10,
                 checkpoint_at_end=True,
             ),
-            callbacks=[WandbLoggerCallback(project="grid2op")]
+            callbacks=[WandbLoggerCallback(project="grid2op")],
         ),
-        param_space=config, # type: ignore
+        param_space=config,  # type: ignore
     )
 
     tuner.fit()
