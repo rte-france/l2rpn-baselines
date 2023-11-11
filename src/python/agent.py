@@ -91,8 +91,8 @@ class ActorCritic(TorchModelV2, nn.Module):
         return self.val.flatten()
 
     def act_eval(self, state):
-        if len(state.shape) == 2:
-            state = state.unsqueeze(0)
+        # if len(state.shape) == 2:
+        #     state = state.unsqueeze(0)
         action_mean, action_std, _ = self.forward(state, None, None)
         return action_mean
 

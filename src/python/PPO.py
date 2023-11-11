@@ -89,13 +89,15 @@ class PPO:
     def select_action_eval(self, state):
         if self.has_continuous_action_space:
             with torch.no_grad():
-                state = torch.FloatTensor(state).to(device)
+                state = state.to(device)
+                state.num_graphs = 1
                 action = self.policy_old.act_eval(state)
 
             return action.detach().cpu().numpy().flatten()
         else:
             with torch.no_grad():
-                state = torch.FloatTensor(state).to(device)
+                state = state.to(device)
+                state.num_graphs = 1
                 action = self.policy_old.act_eval(state)
 
             return action.item()
