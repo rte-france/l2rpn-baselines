@@ -85,12 +85,12 @@ class TestEnv(Env):
             axis=1,
         )
         obs = self.normalize_obs(obs)
-        # obs_original = self.observation_space.grid2op_to_pyg(self.elements_graph)
-        # obs_original["gen"].x = torch.tensor(obs)
+        obs_original = self.observation_space.grid2op_to_pyg(self.elements_graph)
+        obs_original["gen"].x = torch.tensor(obs)
         # obs = self.observation_space.pyg_to_dict(obs_original)
         # if not self.observation_space.contains(obs):
         #     raise Exception("Invalid observation")
-        return torch.tensor(obs)
+        return obs_original
 
     def set_target_state(self):
         self.target_state = np.random.uniform(  # type: ignore
