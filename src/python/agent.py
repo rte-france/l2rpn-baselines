@@ -32,7 +32,7 @@ class ActorCritic(TorchModelV2, nn.Module):
         # Create a list of actor models, one for each agent
         self.original_space = obs_space
         self.actor = nn.Sequential(
-            nn.Flatten(),
+            # nn.Flatten(),
             nn.Linear(
                 obs_space["node_features"]["gen"].shape[0]
                 * obs_space["node_features"]["gen"].shape[1],
@@ -46,7 +46,7 @@ class ActorCritic(TorchModelV2, nn.Module):
         self.special_init(self.actor)
 
         self.critic = nn.Sequential(
-            nn.Flatten(),
+            # nn.Flatten(),
             nn.Linear(
                 obs_space["node_features"]["gen"].shape[0]
                 * obs_space["node_features"]["gen"].shape[1],
@@ -70,11 +70,11 @@ class ActorCritic(TorchModelV2, nn.Module):
                 else:
                     normc_initializer(1.0)(m.weight)
 
-    def forward(self, input_dict, state, seq_lens):
+    def forward(self, input, state, seq_lens):
         # obs = input_dict["obs"]["node_features"]["gen"]  # type: ignore
         # graph = self.original_space.dict_to_pyg(input_dict["obs"]) # type: ignore
         # Apply distinct actor policy for each agent
-        obs = input_dict["gen"].x.unsqueeze(0)
+        obs = input["gen"].x.reshape((input.num_graphs, -1))
         action = self.actor(obs)  # .reshape(-1, self.n_dim, 2)
 
         mean, log_std = torch.chunk(action, 2, dim=1)
@@ -89,7 +89,7 @@ class ActorCritic(TorchModelV2, nn.Module):
 
     def value_function(self):
         return self.val.flatten()
-    
+
     def act_eval(self, state):
         if len(state.shape) == 2:
             state = state.unsqueeze(0)
@@ -110,47 +110,45 @@ class ActorCritic(TorchModelV2, nn.Module):
         return action.detach(), action_logprob.detach(), state_val.detach()
 
     def evaluate(self, state, action):
-        action_means = []
-        action_stds = []
-        state_vals = []
-        for i in range(len(state)):
-            action_mean, action_var, _ = self.forward(state[i], None, None)
-            action_means.append(action_mean)
-            action_stds.append(action_var)
-            state_vals.append(self.value_function())
-        
-        action_mean = torch.cat(action_means)
-        action_var = torch.cat(action_stds)
-        state_values = torch.cat(state_vals)
+        # action_means = []
+        # action_stds = []
+        # state_vals = []
+        # for i in range(len(state)):
+        #     action_mean, action_var, _ = self.forward(state[i], None, None)
+        #     action_means.append(action_mean)
+        #     action_stds.append(action_var)
+        #     state_vals.append(self.value_function())
 
-        # action_var = self.action_var.expand_as(action_mean)
-        cov_mat = torch.diag_embed(action_var)
-        dist = MultivariateNormal(action_mean, cov_mat)
-        
-        # For Single Action Environments.
-        # if self.action_dim == 1:
-        #     action = action.reshape(-1, self.action_dim)
-        action_logprobs = dist.log_prob(action)
-        dist_entropy = dist.entropy()
+        # action_mean = torch.cat(action_means)
+        # action_var = torch.cat(action_stds)
+        # state_values = torch.cat(state_vals)
 
-        # # state_values = self.value_function()
-        # print(action_logprobs.mean(), state_values.mean(), dist_entropy.mean())
-        # # return action_logprobs, state_values, dist_entropy
-        # action_mean2, action_var2, _ = self.forward(torch.stack(state),None,None)
-        
         # # action_var = self.action_var.expand_as(action_mean)
-        # cov_mat2 = torch.diag_embed(action_var2)
-        # dist2 = MultivariateNormal(action_mean2, cov_mat2)
-        
+        # cov_mat = torch.diag_embed(action_var)
+        # dist = MultivariateNormal(action_mean, cov_mat)
+
         # # For Single Action Environments.
         # # if self.action_dim == 1:
         # #     action = action.reshape(-1, self.action_dim)
-        # action_logprobs2 = dist2.log_prob(action)
-        # dist_entropy2 = dist2.entropy()
-        # state_values2 = self.value_function()
-        # print(action_logprobs2.mean(), state_values2.mean(), dist_entropy2.mean())
-        return action_logprobs, state_values, dist_entropy
+        # action_logprobs = dist.log_prob(action)
+        # dist_entropy = dist.entropy()
 
+        # state_values = self.value_function()
+        # return action_logprobs, state_values, dist_entropy
+        action_mean2, action_var2, _ = self.forward(state, None, None)
+
+        # action_var = self.action_var.expand_as(action_mean)
+        cov_mat2 = torch.diag_embed(action_var2)
+        dist2 = MultivariateNormal(action_mean2, cov_mat2)
+
+        # For Single Action Environments.
+        # if self.action_dim == 1:
+        #     action = action.reshape(-1, self.action_dim)
+        action_logprobs2 = dist2.log_prob(action)
+        dist_entropy2 = dist2.entropy()
+        state_values2 = self.value_function()
+        # print(action_logprobs2.mean(), state_values2.mean(), dist_entropy2.mean())
+        return action_logprobs2, state_values2, dist_entropy2
 
 
 ModelCatalog.register_custom_model("my_torch_model", ActorCritic)
@@ -180,7 +178,7 @@ if __name__ == "__main__":
         # model={"fcnet_hiddens": [64, 64]},
         gamma=0.99,
         vf_clip_param=100,
-        sgd_minibatch_size=1
+        sgd_minibatch_size=1,
     )
 
     # config = config.exploration(
@@ -208,7 +206,7 @@ if __name__ == "__main__":
                 checkpoint_at_end=True,
             ),
             callbacks=[WandbLoggerCallback(project="grid2op")],
-            verbose=3
+            verbose=3,
         ),
         param_space=config,  # type: ignore
     )

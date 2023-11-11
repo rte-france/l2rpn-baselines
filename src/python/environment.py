@@ -31,7 +31,7 @@ from grid2op.Environment import Environment
 
 
 class TestEnv(Env):
-    def __init__(self, env_name:str="l2rpn_case14_sandbox") -> None:
+    def __init__(self, env_name: str = "l2rpn_case14_sandbox") -> None:
         super().__init__()
         self.env_name = env_name
         self.env = grid2op.make(
@@ -241,30 +241,31 @@ class ObservationSpace(spaces.Dict):
                 graph[key].edge_attr = torch.stack(edge_features[key[1]])
 
         return graph
-    
+
     def dict_to_pyg(self, graph_dict: OrderedDict):
-        batch_size = graph_dict['node_features']['gen'].shape[0]
+        batch_size = graph_dict["node_features"]["gen"].shape[0]
         graphs = []
         for i in range(batch_size):
             pyg_graph = HeteroData()
 
             # Convert node features back to tensor
-            for node_type, features in graph_dict['node_features'].items():
+            for node_type, features in graph_dict["node_features"].items():
                 pyg_graph[node_type].x = features[i]
             graphs.append(pyg_graph)
-        
+
         # Convert edge index arrays back to tensors
         # for edge_type, edge_indices in graph_dict['edge_list'].items():
         #     edges = edge_indices.unbatch_all()
         #     for i in range(batch_size):
         #         graphs[i][edge_type].edge_index = edges[i]
 
-        batched_graph = Batch.from_data_list(graphs) # type: ignore
+        batched_graph = Batch.from_data_list(graphs)  # type: ignore
         return batched_graph
 
 
 def env_creator(env_config: dict[str, Any]) -> TestEnv:
     return TestEnv(env_config["env_name"])
+
 
 register("test_env", TestEnv)
 
