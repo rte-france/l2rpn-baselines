@@ -1,6 +1,7 @@
 from typing import Dict
 from typing import Any
 from torch_geometric.data import HeteroData
+from torch_geometric.data import Batch
 import grid2op
 from grid2op.Reward import LinesCapacityReward
 from grid2op.Chronics import MultifolderWithCache
@@ -25,11 +26,12 @@ from utils import (
     node_data_fields,
     node_observation_space,
 )
+from gymnasium import register
 from grid2op.Environment import Environment
 
 
 class TestEnv(Env):
-    def __init__(self, env_name) -> None:
+    def __init__(self, env_name:str="l2rpn_case14_sandbox") -> None:
         super().__init__()
         self.env_name = env_name
         self.env = grid2op.make(
@@ -69,7 +71,8 @@ class TestEnv(Env):
         return obs
 
     def denormalize_action(self, action):
-        action["redispatch"] = action["redispatch"] * self.action_norm_factor
+        action = action * self.action_norm_factor
+        # action["redispatch"] = action["redispatch"] * self.action_norm_factor
         return action
 
     def observe(self):
@@ -82,12 +85,12 @@ class TestEnv(Env):
             axis=1,
         )
         obs = self.normalize_obs(obs)
-        obs_original = self.observation_space.grid2op_to_pyg(self.elements_graph)
-        obs_original["gen"].x = torch.tensor(obs)
-        obs = self.observation_space.pyg_to_dict(obs_original)
-        if not self.observation_space.contains(obs):
-            raise Exception("Invalid observation")
-        return obs
+        # obs_original = self.observation_space.grid2op_to_pyg(self.elements_graph)
+        # obs_original["gen"].x = torch.tensor(obs)
+        # obs = self.observation_space.pyg_to_dict(obs_original)
+        # if not self.observation_space.contains(obs):
+        #     raise Exception("Invalid observation")
+        return torch.tensor(obs)
 
     def set_target_state(self):
         self.target_state = np.random.uniform(  # type: ignore
@@ -109,7 +112,7 @@ class TestEnv(Env):
     def step(self, action):
         action = self.denormalize_action(action)
         initial_distance = np.linalg.norm(self.curr_state - self.target_state)
-        self.curr_state += action["redispatch"]
+        self.curr_state += action
         self.curr_state = np.clip(
             self.curr_state,
             self.env.observation_space.gen_pmin,
@@ -238,10 +241,31 @@ class ObservationSpace(spaces.Dict):
                 graph[key].edge_attr = torch.stack(edge_features[key[1]])
 
         return graph
+    
+    def dict_to_pyg(self, graph_dict: OrderedDict):
+        batch_size = graph_dict['node_features']['gen'].shape[0]
+        graphs = []
+        for i in range(batch_size):
+            pyg_graph = HeteroData()
+
+            # Convert node features back to tensor
+            for node_type, features in graph_dict['node_features'].items():
+                pyg_graph[node_type].x = features[i]
+            graphs.append(pyg_graph)
+        
+        # Convert edge index arrays back to tensors
+        # for edge_type, edge_indices in graph_dict['edge_list'].items():
+        #     edges = edge_indices.unbatch_all()
+        #     for i in range(batch_size):
+        #         graphs[i][edge_type].edge_index = edges[i]
+
+        batched_graph = Batch.from_data_list(graphs) # type: ignore
+        return batched_graph
 
 
 def env_creator(env_config: dict[str, Any]) -> TestEnv:
     return TestEnv(env_config["env_name"])
 
+register("test_env", TestEnv)
 
 register_env("test_env", env_creator)
