@@ -1,6 +1,7 @@
 from pyexpat import model
 from threading import local
 from IPython import embed
+from numpy import size
 from torch import mode, nn
 from ray.rllib.algorithms.ppo import PPOConfig
 import imageio
@@ -14,10 +15,61 @@ from ray.rllib.models.torch.misc import normc_initializer
 from ray.air.integrations.wandb import WandbLoggerCallback, setup_wandb
 from torch.distributions import MultivariateNormal
 from torch.distributions import Categorical
+from torch_geometric.data import HeteroData
+from torch_geometric.utils import add_self_loops
+from torch_geometric.nn import FastRGCNConv
 
 import torch.nn.functional as F
 
 from environment import ObservationSpace
+
+
+class GraphNet(nn.Module):
+    def __init__(self, obs_space, action_space, embed_dim, out_dim):
+        super().__init__()
+        self.n_dim = action_space["redispatch"].shape[0]  # type: ignore
+        self.embed_dim = embed_dim
+        self.obs_space = obs_space
+
+        self.embeder = nn.Linear(
+            obs_space["node_features"]["gen"].shape[1],
+            self.embed_dim // 6,
+        )
+        self.conv1 = FastRGCNConv(
+            in_channels=self.embed_dim,
+            out_channels=self.embed_dim,
+            num_relations=1,
+            aggr="mean",
+        )
+        self.layer2 = nn.Linear(
+            self.embed_dim,
+            self.embed_dim,
+        )
+        self.conv2 = FastRGCNConv(
+            in_channels=self.embed_dim,
+            out_channels=self.embed_dim,
+            num_relations=1,
+            aggr="mean",
+        )
+        self.act = nn.ReLU()
+        self.final_layer = nn.Linear(self.embed_dim, out_dim)
+
+    def forward(self, input: HeteroData):
+        # obs = input_dict["obs"]["node_features"]["gen"]  # type: ignore
+        # graph = self.original_space.dict_to_pyg(input_dict["obs"]) # type: ignore
+        # Apply distinct actor policy for each agent
+        # Add self loops from "gen" to "gen"
+        obs = input["gen"].x
+        # obs = input["gen"].x.view((input.num_graphs,-1))
+        x = self.embeder(obs)
+        x = self.act(x)
+        x = x.view((input.num_graphs, -1))
+        x = self.layer2(x)
+        x = self.act(x)
+        # x = self.act(self.conv1(x, input[("gen", "self loops", "gen")].edge_index, edge_type=torch.zeros((input[("gen", "self loops", "gen")].edge_index.shape[1],), dtype=torch.int64, device=input["gen"].x.device)))
+        # x = self.act(self.conv2(x, input[("gen", "self loops", "gen")].edge_index, edge_type=torch.zeros((input[("gen", "self loops", "gen")].edge_index.shape[1],), dtype=torch.int64, device=input["gen"].x.device)))
+        x = self.final_layer(x)
+        return x
 
 
 class ActorCritic(TorchModelV2, nn.Module):
@@ -27,26 +79,14 @@ class ActorCritic(TorchModelV2, nn.Module):
         )
         nn.Module.__init__(self)
         self.n_dim = action_space["redispatch"].shape[0]  # type: ignore
-        self.embed_dim = 64
+        self.embed_dim = 60
 
         # Create a list of actor models, one for each agent
         self.original_space = obs_space
-        self.actor = nn.Sequential(
-            # nn.Flatten(),
-            nn.Linear(
-                obs_space["node_features"]["gen"].shape[0]
-                * obs_space["node_features"]["gen"].shape[1],
-                self.embed_dim,
-            ),
-            nn.ReLU(),
-            nn.Linear(self.embed_dim, self.embed_dim),
-            nn.ReLU(),
-            nn.Linear(self.embed_dim, 2 * self.n_dim),
-        )
+        self.actor = GraphNet(obs_space, action_space, self.embed_dim, 2 * self.n_dim)
         self.special_init(self.actor)
 
         self.critic = nn.Sequential(
-            # nn.Flatten(),
             nn.Linear(
                 obs_space["node_features"]["gen"].shape[0]
                 * obs_space["node_features"]["gen"].shape[1],
@@ -70,19 +110,21 @@ class ActorCritic(TorchModelV2, nn.Module):
                 else:
                     normc_initializer(1.0)(m.weight)
 
-    def forward(self, input, state, seq_lens):
-        # obs = input_dict["obs"]["node_features"]["gen"]  # type: ignore
-        # graph = self.original_space.dict_to_pyg(input_dict["obs"]) # type: ignore
-        # Apply distinct actor policy for each agent
-        obs = input["gen"].x.reshape((input.num_graphs, -1))
-        action = self.actor(obs)  # .reshape(-1, self.n_dim, 2)
-
+    def forward(self, input: HeteroData, state, seq_lens):
+        input[("gen", "self loops", "gen")].edge_index = torch.empty(
+            (2, 0), dtype=torch.int64, device=input["gen"].x.device
+        )
+        input[("gen", "self loops", "gen")].edge_index = add_self_loops(
+            input[("gen", "self loops", "gen")].edge_index,
+            num_nodes=input["gen"].x.shape[0],
+        )[0]
+        action = self.actor(input)  # .reshape(-1, self.n_dim, 2)
+        action = action.reshape(input.num_graphs, -1)
         mean, log_std = torch.chunk(action, 2, dim=1)
 
         std = F.softplus(log_std)
-        # action = torch.cat([mean, std], dim=1)
 
-        self.val = self.critic(obs).reshape(-1)
+        self.val = self.critic(input["gen"].x.view((input.num_graphs, -1))).reshape(-1)
 
         # flattened_action = action.flatten(start_dim=1)
         return mean, std, []

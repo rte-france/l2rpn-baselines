@@ -254,10 +254,10 @@ class ObservationSpace(spaces.Dict):
             graphs.append(pyg_graph)
 
         # Convert edge index arrays back to tensors
-        # for edge_type, edge_indices in graph_dict['edge_list'].items():
-        #     edges = edge_indices.unbatch_all()
-        #     for i in range(batch_size):
-        #         graphs[i][edge_type].edge_index = edges[i]
+        for edge_type, edge_indices in graph_dict["edge_list"].items():
+            edges = edge_indices.unbatch_all()
+            for i in range(batch_size):
+                graphs[i][edge_type].edge_index = edges[i]
 
         batched_graph = Batch.from_data_list(graphs)  # type: ignore
         return batched_graph
