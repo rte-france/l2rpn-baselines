@@ -66,9 +66,7 @@ class PPO:
 
         self.buffer = RolloutBuffer()
 
-        self.policy = ActorCritic(observation_space, action_space, 0, {}, "Policy").to(
-            device
-        )
+        self.policy = ActorCritic(observation_space, action_space).to(device)
         self.optimizer = torch.optim.Adam(
             [
                 {"params": self.policy.actor.parameters(), "lr": lr_actor},
@@ -80,7 +78,8 @@ class PPO:
         )
 
         self.policy_old = ActorCritic(
-            observation_space, action_space, 0, {}, "Policy_old"
+            observation_space,
+            action_space,
         ).to(device)
         self.policy_old.load_state_dict(self.policy.state_dict())
 

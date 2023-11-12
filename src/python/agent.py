@@ -41,10 +41,6 @@ class GraphNet(nn.Module):
             num_relations=1,
             aggr="mean",
         )
-        # self.layer2 = nn.Linear(
-        #     self.embed_dim// 6,
-        #     self.embed_dim// 6,
-        # )
         self.conv2 = FastRGCNConv(
             in_channels=self.embed_dim,
             out_channels=self.embed_dim,
@@ -54,34 +50,41 @@ class GraphNet(nn.Module):
         self.act = nn.ReLU()
         self.final_layer = nn.Linear(self.embed_dim, out_dim)
 
-    def forward(self, input: HeteroData):
-        # obs = input_dict["obs"]["node_features"]["gen"]  # type: ignore
-        # graph = self.original_space.dict_to_pyg(input_dict["obs"]) # type: ignore
-        # Apply distinct actor policy for each agent
-        # Add self loops from "gen" to "gen"
+    def forward(self, input: HeteroData) -> torch.Tensor:
         obs = input["gen"].x
-        # obs = input["gen"].x.view((input.num_graphs,-1))
         x = self.embeder(obs)
-        # x = self.act(x)
-        # x = x.view((input.num_graphs, -1))
-        # x = self.layer2(x)
-        # x = self.act(x)
-        x = self.act(self.conv1(x, input[("gen", "self loops", "gen")].edge_index, edge_type=torch.zeros((input[("gen", "self loops", "gen")].edge_index.shape[1],), dtype=torch.int64, device=input["gen"].x.device)))
-        x = self.act(self.conv2(x, input[("gen", "self loops", "gen")].edge_index, edge_type=torch.zeros((input[("gen", "self loops", "gen")].edge_index.shape[1],), dtype=torch.int64, device=input["gen"].x.device)))
+        x = self.act(
+            self.conv1(
+                x,
+                input[("gen", "self loops", "gen")].edge_index,
+                edge_type=torch.zeros(
+                    (input[("gen", "self loops", "gen")].edge_index.shape[1],),
+                    dtype=torch.int64,
+                    device=input["gen"].x.device,
+                ),
+            )
+        )
+        x = self.act(
+            self.conv2(
+                x,
+                input[("gen", "self loops", "gen")].edge_index,
+                edge_type=torch.zeros(
+                    (input[("gen", "self loops", "gen")].edge_index.shape[1],),
+                    dtype=torch.int64,
+                    device=input["gen"].x.device,
+                ),
+            )
+        )
         x = self.final_layer(x)
         return x
 
 
-class ActorCritic(TorchModelV2, nn.Module):
-    def __init__(self, obs_space, action_space, num_outputs, model_config, name):
-        TorchModelV2.__init__(
-            self, obs_space, action_space, num_outputs, model_config, name
-        )
+class ActorCritic(nn.Module):
+    def __init__(self, obs_space, action_space):
         nn.Module.__init__(self)
         self.n_dim = action_space["redispatch"].shape[0]  # type: ignore
         self.embed_dim = 16
 
-        # Create a list of actor models, one for each agent
         self.original_space = obs_space
         self.actor = GraphNet(obs_space, action_space, self.embed_dim, 2)
         self.special_init(self.actor)
@@ -130,20 +133,16 @@ class ActorCritic(TorchModelV2, nn.Module):
 
         self.val = self.critic(input["gen"].x.view((input.num_graphs, -1))).reshape(-1)
 
-        # flattened_action = action.flatten(start_dim=1)
         return mean, std, []
 
     def value_function(self):
         return self.val.flatten()
 
     def act_eval(self, state):
-        # if len(state.shape) == 2:
-        #     state = state.unsqueeze(0)
         action_mean, action_std, _ = self.forward(state, None, None)
         return action_mean
 
     def act(self, state):
-        # state = state.unsqueeze(0)
         action_mean, action_std, _ = self.forward(state, None, None)
         # action_mean, action_std = torch.chunk(flattened_action, 2, dim=0)
         cov_mat = torch.diag_embed(action_std)
@@ -156,106 +155,12 @@ class ActorCritic(TorchModelV2, nn.Module):
         return action.detach(), action_logprob.detach(), state_val.detach()
 
     def evaluate(self, state, action):
-        # action_means = []
-        # action_stds = []
-        # state_vals = []
-        # for i in range(len(state)):
-        #     action_mean, action_var, _ = self.forward(state[i], None, None)
-        #     action_means.append(action_mean)
-        #     action_stds.append(action_var)
-        #     state_vals.append(self.value_function())
+        action_mean, action_var, _ = self.forward(state, None, None)
 
-        # action_mean = torch.cat(action_means)
-        # action_var = torch.cat(action_stds)
-        # state_values = torch.cat(state_vals)
+        cov_mat = torch.diag_embed(action_var)
+        dist = MultivariateNormal(action_mean, cov_mat)
 
-        # # action_var = self.action_var.expand_as(action_mean)
-        # cov_mat = torch.diag_embed(action_var)
-        # dist = MultivariateNormal(action_mean, cov_mat)
-
-        # # For Single Action Environments.
-        # # if self.action_dim == 1:
-        # #     action = action.reshape(-1, self.action_dim)
-        # action_logprobs = dist.log_prob(action)
-        # dist_entropy = dist.entropy()
-
-        # state_values = self.value_function()
-        # return action_logprobs, state_values, dist_entropy
-        action_mean2, action_var2, _ = self.forward(state, None, None)
-
-        # action_var = self.action_var.expand_as(action_mean)
-        cov_mat2 = torch.diag_embed(action_var2)
-        dist2 = MultivariateNormal(action_mean2, cov_mat2)
-
-        # For Single Action Environments.
-        # if self.action_dim == 1:
-        #     action = action.reshape(-1, self.action_dim)
-        action_logprobs2 = dist2.log_prob(action)
-        dist_entropy2 = dist2.entropy()
-        state_values2 = self.value_function()
-        # print(action_logprobs2.mean(), state_values2.mean(), dist_entropy2.mean())
-        return action_logprobs2, state_values2, dist_entropy2
-
-
-ModelCatalog.register_custom_model("my_torch_model", ActorCritic)
-
-if __name__ == "__main__":
-    import environment
-
-    context = ray.init()
-    print(context.dashboard_url)
-
-    env = environment.TestEnv(env_name="l2rpn_case14_sandbox")
-    ray.rllib.utils.check_env(env)
-    config: PPOConfig = PPOConfig()
-    config = config.framework("torch")  # type: ignore
-    config = config.environment(  # type: ignore
-        env="test_env",
-        env_config={"env_name": "l2rpn_case14_sandbox"},
-        # normalize_actions=True,
-    )
-    # config = config.rollouts( # type: ignore
-    #     observation_filter="MeanStdFilter",
-    # )
-    config.rl_module(_enable_rl_module_api=False)
-    config = config.training(
-        _enable_learner_api=False,
-        model={"custom_model": "my_torch_model"},
-        # model={"fcnet_hiddens": [64, 64]},
-        gamma=0.99,
-        vf_clip_param=100,
-        sgd_minibatch_size=1,
-    )
-
-    # config = config.exploration(
-    #     explore=True,
-    #     exploration_config={
-    #         "type": "StochasticSampling",
-    #     },
-    # )
-    config = config.evaluation(  # type: ignore
-        evaluation_interval=10,
-        evaluation_num_episodes=10,
-    )
-    config = config.resources(num_gpus=1).rollouts(num_rollout_workers=4)  # type: ignore
-
-    print("Starting test training")
-    # trainer = config.build()
-    # trainer.train()
-    print("Starting training")
-    tuner = tune.Tuner(
-        "PPO",
-        run_config=train.RunConfig(
-            stop={"training_iteration": 100},
-            checkpoint_config=train.CheckpointConfig(
-                checkpoint_frequency=10,
-                checkpoint_at_end=True,
-            ),
-            callbacks=[WandbLoggerCallback(project="grid2op")],
-            verbose=3,
-        ),
-        param_space=config,  # type: ignore
-    )
-
-    tuner.fit()
-    print("Done")
+        action_logprobs = dist.log_prob(action)
+        dist_entropy = dist.entropy()
+        state_values = self.value_function()
+        return action_logprobs, state_values, dist_entropy
