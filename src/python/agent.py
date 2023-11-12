@@ -4,8 +4,9 @@ from ray.rllib.models.torch.misc import normc_initializer
 from torch.distributions import MultivariateNormal
 from torch_geometric.data import HeteroData
 from torch_geometric.utils import add_self_loops
-from torch_geometric.nn import FastRGCNConv 
+from torch_geometric.nn import FastRGCNConv
 import torch.nn.functional as F
+
 
 class GraphNet(nn.Module):
     def __init__(self, obs_space, action_space, embed_dim, out_dim):
