@@ -33,7 +33,7 @@ class GraphNet(nn.Module):
 
         self.embeder = nn.Linear(
             obs_space["node_features"]["gen"].shape[1],
-            self.embed_dim // 6,
+            self.embed_dim,
         )
         self.conv1 = FastRGCNConv(
             in_channels=self.embed_dim,
@@ -41,10 +41,10 @@ class GraphNet(nn.Module):
             num_relations=1,
             aggr="mean",
         )
-        self.layer2 = nn.Linear(
-            self.embed_dim,
-            self.embed_dim,
-        )
+        # self.layer2 = nn.Linear(
+        #     self.embed_dim// 6,
+        #     self.embed_dim// 6,
+        # )
         self.conv2 = FastRGCNConv(
             in_channels=self.embed_dim,
             out_channels=self.embed_dim,
@@ -62,12 +62,12 @@ class GraphNet(nn.Module):
         obs = input["gen"].x
         # obs = input["gen"].x.view((input.num_graphs,-1))
         x = self.embeder(obs)
-        x = self.act(x)
-        x = x.view((input.num_graphs, -1))
-        x = self.layer2(x)
-        x = self.act(x)
-        # x = self.act(self.conv1(x, input[("gen", "self loops", "gen")].edge_index, edge_type=torch.zeros((input[("gen", "self loops", "gen")].edge_index.shape[1],), dtype=torch.int64, device=input["gen"].x.device)))
-        # x = self.act(self.conv2(x, input[("gen", "self loops", "gen")].edge_index, edge_type=torch.zeros((input[("gen", "self loops", "gen")].edge_index.shape[1],), dtype=torch.int64, device=input["gen"].x.device)))
+        # x = self.act(x)
+        # x = x.view((input.num_graphs, -1))
+        # x = self.layer2(x)
+        # x = self.act(x)
+        x = self.act(self.conv1(x, input[("gen", "self loops", "gen")].edge_index, edge_type=torch.zeros((input[("gen", "self loops", "gen")].edge_index.shape[1],), dtype=torch.int64, device=input["gen"].x.device)))
+        x = self.act(self.conv2(x, input[("gen", "self loops", "gen")].edge_index, edge_type=torch.zeros((input[("gen", "self loops", "gen")].edge_index.shape[1],), dtype=torch.int64, device=input["gen"].x.device)))
         x = self.final_layer(x)
         return x
 
@@ -79,11 +79,11 @@ class ActorCritic(TorchModelV2, nn.Module):
         )
         nn.Module.__init__(self)
         self.n_dim = action_space["redispatch"].shape[0]  # type: ignore
-        self.embed_dim = 60
+        self.embed_dim = 16
 
         # Create a list of actor models, one for each agent
         self.original_space = obs_space
-        self.actor = GraphNet(obs_space, action_space, self.embed_dim, 2 * self.n_dim)
+        self.actor = GraphNet(obs_space, action_space, self.embed_dim, 2)
         self.special_init(self.actor)
 
         self.critic = nn.Sequential(
@@ -119,8 +119,12 @@ class ActorCritic(TorchModelV2, nn.Module):
             num_nodes=input["gen"].x.shape[0],
         )[0]
         action = self.actor(input)  # .reshape(-1, self.n_dim, 2)
-        action = action.reshape(input.num_graphs, -1)
-        mean, log_std = torch.chunk(action, 2, dim=1)
+        mean = action[:, 0]
+        log_std = action[:, 1]
+        mean = mean.reshape(input.num_graphs, -1)
+        log_std = log_std.reshape(input.num_graphs, -1)
+        # action = action.reshape(input.num_graphs, -1)
+        # mean, log_std = torch.chunk(action.reshape(input.num_graphs, -1), 2, dim=1)
 
         std = F.softplus(log_std)
 
