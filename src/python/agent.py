@@ -15,10 +15,11 @@ class GraphNet(nn.Module):
         self.embed_dim = embed_dim
         self.obs_space = obs_space
 
-        self.embeder = nn.Linear(
-            obs_space["node_features"]["gen"].shape[1],
-            self.embed_dim,
-        )
+        self.node_embeder = nn.ModuleDict()
+        for node_type in obs_space["node_features"]:
+            self.node_embeder[node_type] = nn.Linear(
+                obs_space["node_features"][node_type].shape[1], embed_dim
+            )
         self.conv1 = FastRGCNConv(
             in_channels=self.embed_dim,
             out_channels=self.embed_dim,
@@ -35,7 +36,8 @@ class GraphNet(nn.Module):
         self.final_layer = nn.Linear(self.embed_dim, out_dim)
 
     def forward(self, input: HeteroData) -> torch.Tensor:
-        input["gen"].x = self.embeder(input["gen"].x)
+        for node_type in self.obs_space["node_features"]:
+            input[node_type].x = self.node_embeder[node_type](input[node_type].x.float())
         input["gen"].x = self.act(
             self.conv1(
                 input["gen"].x,

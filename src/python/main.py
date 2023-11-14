@@ -302,7 +302,7 @@ def train():
 
 def draw_agent(env, ppo_agent: PPO, checkpoint_path):
     print("Start drawing agent")
-    obs, _ = env.reset(seed=0)
+    obs, _ = env.reset(seed=42)
     frames = []
     rewards = []
     done = False

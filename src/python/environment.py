@@ -99,7 +99,7 @@ class TestEnv(Env):
 
     def set_target_state(self):
         self.target_state = self.load_states["gen"]
-        self.target_state[self.env.observation_space.gen_max_ramp_up == 0] = 0
+        # self.target_state[self.env.observation_space.gen_max_ramp_up == 0] = 0
 
     def reset(
         self, *, seed: int | None = None, options: dict[str, Any] | None = None
