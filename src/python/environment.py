@@ -19,10 +19,12 @@ from collections import OrderedDict
 from utils import (
     edge_data_fields,
     node_data_fields,
-    node_observation_space,
 )
 from grid2op.Environment import Environment
 from torch_geometric.transforms import ToUndirected, AddSelfLoops
+
+MIN_POWER_VALUE = 0
+MAX_POWER_VALUE = 100
 
 
 class TestEnv(Env):
@@ -45,6 +47,9 @@ class TestEnv(Env):
         # Observation space observation
         self.observation_space: ObservationSpace = ObservationSpace(self.env)
         self.elements_graph = self.env.reset().get_elements_graph()
+        self.elements_graph_pyg = self.observation_space.grid2op_to_pyg(
+            self.elements_graph
+        )
 
         # Action space
         self.action_space = spaces.Dict()
@@ -64,14 +69,16 @@ class TestEnv(Env):
         return action
 
     def set_observations(self, obs: HeteroData):
-        obs["gen"].x = torch.tensor(np.stack(
-            [
-                self.curr_state - self.target_state,
-                self.target_state,
-                self.curr_state,
-            ],
-            axis=1,
-        ))
+        obs["gen"].x = torch.tensor(
+            np.stack(
+                [
+                    self.curr_state - self.target_state,
+                    self.target_state,
+                    self.curr_state,
+                ],
+                axis=1,
+            )
+        )
         return obs
 
     def observe(self):
@@ -79,18 +86,26 @@ class TestEnv(Env):
         obs = self.set_observations(obs)
         return obs
 
+    def set_loads_sates(self):
+        self.load_states = {}
+        for node_type in self.elements_graph_pyg.node_types:
+            self.load_states[node_type] = torch.tensor(
+                np.random.uniform(
+                    low=MIN_POWER_VALUE,
+                    high=MAX_POWER_VALUE,
+                    size=(len(self.elements_graph_pyg[node_type].x),),
+                ).astype(np.float32)
+            )
+
     def set_target_state(self):
-        self.target_state = torch.tensor(np.random.uniform(  # type: ignore
-            low=self.env.observation_space.gen_pmin,  # type: ignore
-            high=self.env.observation_space.gen_pmax,  # type: ignore
-            size=(self.n_gen,),
-        ).astype(np.float32))
+        self.target_state = self.load_states["gen"]
         self.target_state[self.env.observation_space.gen_max_ramp_up == 0] = 0
 
     def reset(
         self, *, seed: int | None = None, options: dict[str, Any] | None = None
     ) -> tuple[Any, dict[str, Any]]:
         np.random.seed(seed)
+        self.set_loads_sates()
         self.set_target_state()
         self.curr_state = torch.zeros_like(self.target_state)
         self.n_steps = 0
@@ -137,6 +152,30 @@ class TestEnv(Env):
             img_arr = np.array(Image.open(buf))
             plt.close(fig)
             return img_arr
+
+
+node_observation_space = OrderedDict(
+    {
+        "substation": lambda n_lements: spaces.Box(
+            low=-np.inf, high=np.inf, shape=(n_lements, 1), dtype=np.float32
+        ),
+        "bus": lambda n_lements: spaces.Box(
+            low=-np.inf, high=np.inf, shape=(n_lements, 3), dtype=np.float32
+        ),
+        "load": lambda n_lements: spaces.Box(
+            low=-np.inf, high=np.inf, shape=(n_lements, 1), dtype=np.float32
+        ),
+        "gen": lambda n_lements: spaces.Box(
+            low=-1, high=1, shape=(n_lements, 3), dtype=np.float32
+        ),
+        "line": lambda n_lements: spaces.Box(
+            low=-np.inf, high=np.inf, shape=(n_lements, 2), dtype=np.float32
+        ),
+        "shunt": lambda n_lements: spaces.Box(
+            low=-np.inf, high=np.inf, shape=(n_lements, 1), dtype=np.float32
+        ),
+    }
+)
 
 
 class ObservationSpace(spaces.Dict):
