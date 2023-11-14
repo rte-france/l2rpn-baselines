@@ -68,11 +68,19 @@ class TestEnv(Env):
         # action["redispatch"] = action["redispatch"] * self.action_norm_factor
         return action
 
+    def get_neighbors(self, gen_id):
+        # This function returns the indices of all neighbors of the given generator node
+        neighbors = []
+        for edge in self.elements_graph_pyg["rev_gen_to_bus"].edge_index.T:
+            if edge[1] == gen_id:
+                neighbors.append(edge[0].item())
+        return neighbors
+
     def set_observations(self, obs: HeteroData):
         obs["gen"].x = torch.tensor(
             np.stack(
                 [
-                    # self.curr_state - self.target_state,
+                    self.curr_state - self.target_state,
                     self.target_state,
                     self.curr_state,
                 ],
@@ -80,6 +88,25 @@ class TestEnv(Env):
             )
         )
         return obs
+
+    # def set_target_state(self):
+    #     self.target_state = self.load_states["gen"]
+    #     # self.target_state[self.env.observation_space.gen_max_ramp_up == 0] = 0
+
+    def set_target_state(self):
+        self.target_state = torch.tensor(np.zeros(self.n_gen, dtype=np.float32))
+        # Compute the mean state of neighbors for each generator
+        for gen_id in range(self.n_gen):
+            neighbors = self.get_neighbors(gen_id)
+            if neighbors:
+                # Assuming all nodes have a unified indexing in self.load_states
+                neighbor_states = torch.tensor(
+                    [self.load_states["bus"][node_id] for node_id in neighbors]
+                )
+                self.target_state[gen_id] = torch.mean(neighbor_states)
+            else:
+                # If a generator has no neighbors, use 0 as the target state
+                self.target_state[gen_id] = 0
 
     def observe(self):
         obs = self.observation_space.grid2op_to_pyg(self.elements_graph)
@@ -97,14 +124,11 @@ class TestEnv(Env):
                 ).astype(np.float32)
             )
 
-    def set_target_state(self):
-        self.target_state = self.load_states["gen"]
-        # self.target_state[self.env.observation_space.gen_max_ramp_up == 0] = 0
-
     def reset(
         self, *, seed: int | None = None, options: dict[str, Any] | None = None
     ) -> tuple[Any, dict[str, Any]]:
-        np.random.seed(seed)
+        if seed is not None:
+            np.random.seed(seed)
         self.set_loads_sates()
         self.set_target_state()
         self.curr_state = torch.zeros_like(self.target_state)
@@ -166,7 +190,7 @@ node_observation_space = OrderedDict(
             low=-np.inf, high=np.inf, shape=(n_lements, 1), dtype=np.float32
         ),
         "gen": lambda n_lements: spaces.Box(
-            low=-1, high=1, shape=(n_lements, 2), dtype=np.float32
+            low=-1, high=1, shape=(n_lements, 3), dtype=np.float32
         ),
         "line": lambda n_lements: spaces.Box(
             low=-np.inf, high=np.inf, shape=(n_lements, 2), dtype=np.float32

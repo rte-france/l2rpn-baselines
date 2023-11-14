@@ -50,7 +50,7 @@ def train():
     lr_actor = 0.00003  # learning rate for actor network
     lr_critic = 0.0001  # learning rate for critic network
 
-    random_seed = 0  # set random seed if required (0 = no random seed)
+    random_seed = 42  # set random seed if required (0 = no random seed)
     #####################################################
 
     ################# logging variables #################
@@ -299,10 +299,15 @@ def train():
         "============================================================================================"
     )
 
+    ppo_agent.save(os.path.join(wandb.run.dir, agent_final_checkpoint))  # type: ignore
+    wandb.finish()
+
+    print("Training Done!")
+
 
 def draw_agent(env, ppo_agent: PPO, checkpoint_path):
     print("Start drawing agent")
-    obs, _ = env.reset(seed=42)
+    obs, _ = env.reset(seed=1)
     frames = []
     rewards = []
     done = False
