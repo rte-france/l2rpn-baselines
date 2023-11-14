@@ -35,32 +35,31 @@ class GraphNet(nn.Module):
         self.final_layer = nn.Linear(self.embed_dim, out_dim)
 
     def forward(self, input: HeteroData) -> torch.Tensor:
-        obs = input["gen"].x
-        x = self.embeder(obs)
-        x = self.act(
+        input["gen"].x = self.embeder(input["gen"].x)
+        input["gen"].x = self.act(
             self.conv1(
-                x,
-                input[("gen", "self loops", "gen")].edge_index,
+                input["gen"].x,
+                input[("gen", "self loops gen", "gen")].edge_index,
                 edge_type=torch.zeros(
-                    (input[("gen", "self loops", "gen")].edge_index.shape[1],),
+                    (input[("gen", "self loops gen", "gen")].edge_index.shape[1],),
                     dtype=torch.int64,
                     device=input["gen"].x.device,
                 ),
             )
         )
-        x = self.act(
+        input["gen"].x = self.act(
             self.conv2(
-                x,
-                input[("gen", "self loops", "gen")].edge_index,
+                input["gen"].x,
+                input[("gen", "self loops gen", "gen")].edge_index,
                 edge_type=torch.zeros(
-                    (input[("gen", "self loops", "gen")].edge_index.shape[1],),
+                    (input[("gen", "self loops gen", "gen")].edge_index.shape[1],),
                     dtype=torch.int64,
                     device=input["gen"].x.device,
                 ),
             )
         )
-        x = self.final_layer(x)
-        return x
+        input["gen"].x = self.final_layer(input["gen"].x)
+        return input["gen"].x
 
 
 class ActorCritic(nn.Module):
@@ -98,14 +97,8 @@ class ActorCritic(nn.Module):
                     normc_initializer(1.0)(m.weight)
 
     def forward(self, input: HeteroData, state, seq_lens):
-        input[("gen", "self loops", "gen")].edge_index = torch.empty(
-            (2, 0), dtype=torch.int64, device=input["gen"].x.device
-        )
-        input[("gen", "self loops", "gen")].edge_index = add_self_loops(
-            input[("gen", "self loops", "gen")].edge_index,
-            num_nodes=input["gen"].x.shape[0],
-        )[0]
-        action = self.actor(input)  # .reshape(-1, self.n_dim, 2)
+        self.val = self.critic(input["gen"].x.view((input.num_graphs, -1))).reshape(-1)
+        action = self.actor(input.clone())  # .reshape(-1, self.n_dim, 2)
         mean = action[:, 0]
         log_std = action[:, 1]
         mean = mean.reshape(input.num_graphs, -1)
@@ -114,8 +107,6 @@ class ActorCritic(nn.Module):
         # mean, log_std = torch.chunk(action.reshape(input.num_graphs, -1), 2, dim=1)
 
         std = F.softplus(log_std)
-
-        self.val = self.critic(input["gen"].x.view((input.num_graphs, -1))).reshape(-1)
 
         return mean, std, []
 

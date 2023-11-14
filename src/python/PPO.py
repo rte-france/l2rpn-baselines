@@ -108,7 +108,7 @@ class PPO:
                 state = state.to(device)
                 action, action_logprob, state_val = self.policy_old.act(state)
 
-            self.buffer.states.append(state)
+            self.buffer.states.append(state.clone())
             self.buffer.actions.append(action)
             self.buffer.logprobs.append(action_logprob)
             self.buffer.state_values.append(state_val)

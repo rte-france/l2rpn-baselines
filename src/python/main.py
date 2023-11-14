@@ -31,7 +31,7 @@ def train():
     print_freq = max_ep_len * 10  # print avg reward in the interval (in num timesteps)
     log_freq = max_ep_len * 2  # log avg reward in the interval (in num timesteps)
     save_model_freq = (
-        max_training_timesteps // 5
+        max_training_timesteps // 50
     )  # save model frequency (in num timesteps)
 
     #####################################################

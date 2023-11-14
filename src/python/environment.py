@@ -22,6 +22,7 @@ from utils import (
     node_observation_space,
 )
 from grid2op.Environment import Environment
+from torch_geometric.transforms import ToUndirected, AddSelfLoops
 
 
 class TestEnv(Env):
@@ -57,13 +58,6 @@ class TestEnv(Env):
             -self.env.observation_space.gen_max_ramp_down,  # type: ignore
         )
 
-    def normalize_obs(self, obs):
-        obs_diff_range = self.gen_pmax - self.gen_pmin  # type: ignore
-        obs[:, 0] = obs[:, 0] / obs_diff_range
-        obs[:, 1] = (obs[:, 1] - self.gen_pmin) / obs_diff_range
-        obs[:, 2] = (obs[:, 2] - self.gen_pmin) / obs_diff_range
-        return obs
-
     def denormalize_action(self, action):
         action = action * self.action_norm_factor
         # action["redispatch"] = action["redispatch"] * self.action_norm_factor
@@ -78,11 +72,8 @@ class TestEnv(Env):
             ],
             axis=1,
         )
-        obs = self.normalize_obs(obs)
         obs_original = self.observation_space.grid2op_to_pyg(self.elements_graph)
         obs_original["gen"].x = torch.tensor(obs)
-        # if not self.observation_space.contains(obs):
-        #     raise Exception("Invalid observation")
         return obs_original
 
     def set_target_state(self):
@@ -144,6 +135,8 @@ class TestEnv(Env):
 
 class ObservationSpace(spaces.Dict):
     def __init__(self, env: Environment):
+        self.add_self_loops = AddSelfLoops()
+        self.to_undirected = ToUndirected()
         graph = self.grid2op_to_pyg(env.reset().get_elements_graph())
 
         dic = OrderedDict()
@@ -218,5 +211,16 @@ class ObservationSpace(spaces.Dict):
             )
             if len(edge_data_fields[key[1]]) > 0:
                 graph[key].edge_attr = torch.stack(edge_features[key[1]])
+
+        graph = self.to_undirected(graph)
+
+        for node_type in graph.node_types:
+            graph[
+                (node_type, f"self loops {node_type}", node_type)
+            ].edge_index = torch.empty(
+                (2, 0), dtype=torch.int64, device=graph[node_type].x.device
+            )
+
+        graph = self.add_self_loops(graph)
 
         return graph
