@@ -38,9 +38,9 @@ class TestEnv(Env):
         self.n_gen = self.env.n_gen
 
         # Observation space normalization factors
-        self.gen_pmax = self.env.observation_space.gen_pmax
-        self.gen_pmin = self.env.observation_space.gen_pmin
-        assert np.all(self.gen_pmax >= self.gen_pmin) and np.all(self.gen_pmin >= 0)  # type: ignore
+        self.gen_pmax = torch.tensor(self.env.observation_space.gen_pmax)
+        self.gen_pmin = torch.tensor(self.env.observation_space.gen_pmin)
+        assert torch.all(self.gen_pmax >= self.gen_pmin) and torch.all(self.gen_pmin >= 0)  # type: ignore
 
         # Observation space observation
         self.observation_space: ObservationSpace = ObservationSpace(self.env)
@@ -63,25 +63,28 @@ class TestEnv(Env):
         # action["redispatch"] = action["redispatch"] * self.action_norm_factor
         return action
 
-    def observe(self):
-        obs = np.stack(
+    def set_observations(self, obs: HeteroData):
+        obs["gen"].x = torch.tensor(np.stack(
             [
                 self.curr_state - self.target_state,
                 self.target_state,
                 self.curr_state,
             ],
             axis=1,
-        )
-        obs_original = self.observation_space.grid2op_to_pyg(self.elements_graph)
-        obs_original["gen"].x = torch.tensor(obs)
-        return obs_original
+        ))
+        return obs
+
+    def observe(self):
+        obs = self.observation_space.grid2op_to_pyg(self.elements_graph)
+        obs = self.set_observations(obs)
+        return obs
 
     def set_target_state(self):
-        self.target_state = np.random.uniform(  # type: ignore
+        self.target_state = torch.tensor(np.random.uniform(  # type: ignore
             low=self.env.observation_space.gen_pmin,  # type: ignore
             high=self.env.observation_space.gen_pmax,  # type: ignore
             size=(self.n_gen,),
-        ).astype(np.float32)
+        ).astype(np.float32))
         self.target_state[self.env.observation_space.gen_max_ramp_up == 0] = 0
 
     def reset(
@@ -89,20 +92,23 @@ class TestEnv(Env):
     ) -> tuple[Any, dict[str, Any]]:
         np.random.seed(seed)
         self.set_target_state()
-        self.curr_state = np.zeros_like(self.target_state).astype(np.float32)
+        self.curr_state = torch.zeros_like(self.target_state)
         self.n_steps = 0
         return self.observe(), {}
 
+    def compute_distance(self):
+        return torch.abs(self.curr_state - self.target_state).sum()
+
     def step(self, action):
         action = self.denormalize_action(action)
-        initial_distance = np.linalg.norm(self.curr_state - self.target_state)
+        initial_distance = self.compute_distance()
         self.curr_state += action
-        self.curr_state = np.clip(
+        self.curr_state = torch.clip(
             self.curr_state,
-            self.env.observation_space.gen_pmin,
-            self.env.observation_space.gen_pmax,
+            self.gen_pmin,
+            self.gen_pmax,
         )
-        new_distance = np.linalg.norm(self.curr_state - self.target_state)
+        new_distance = self.compute_distance()
         reward = initial_distance - new_distance
         self.n_steps += 1
         done = self.n_steps >= 100

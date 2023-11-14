@@ -223,7 +223,7 @@ def train():
             if time_step % log_freq == 0:
                 # log average reward till last episode
                 log_avg_reward = log_running_reward / log_running_episodes
-                log_avg_reward = round(log_avg_reward, 4)
+                log_avg_reward = round(float(log_avg_reward), 4)
 
                 log_f.write("{},{},{}\n".format(i_episode, time_step, log_avg_reward))
                 log_f.flush()
@@ -235,7 +235,7 @@ def train():
             if time_step % print_freq == 0:
                 # print average reward till last episode
                 print_avg_reward = print_running_reward / print_running_episodes
-                print_avg_reward = round(print_avg_reward, 2)
+                print_avg_reward = round(float(print_avg_reward), 2)
 
                 print(
                     "Episode : {} \t\t Timestep : {} \t\t Average Reward : {} Entropy Loss weight: {}".format(
