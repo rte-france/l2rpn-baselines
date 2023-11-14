@@ -37,7 +37,9 @@ class GraphNet(nn.Module):
 
     def forward(self, input: HeteroData) -> torch.Tensor:
         for node_type in self.obs_space["node_features"]:
-            input[node_type].x = self.node_embeder[node_type](input[node_type].x.float())
+            input[node_type].x = self.node_embeder[node_type](
+                input[node_type].x.float()
+            )
         input["gen"].x = self.act(
             self.conv1(
                 input["gen"].x,

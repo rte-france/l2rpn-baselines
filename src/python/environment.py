@@ -72,7 +72,7 @@ class TestEnv(Env):
         obs["gen"].x = torch.tensor(
             np.stack(
                 [
-                    self.curr_state - self.target_state,
+                    # self.curr_state - self.target_state,
                     self.target_state,
                     self.curr_state,
                 ],
@@ -166,7 +166,7 @@ node_observation_space = OrderedDict(
             low=-np.inf, high=np.inf, shape=(n_lements, 1), dtype=np.float32
         ),
         "gen": lambda n_lements: spaces.Box(
-            low=-1, high=1, shape=(n_lements, 3), dtype=np.float32
+            low=-1, high=1, shape=(n_lements, 2), dtype=np.float32
         ),
         "line": lambda n_lements: spaces.Box(
             low=-np.inf, high=np.inf, shape=(n_lements, 2), dtype=np.float32
