@@ -4,7 +4,7 @@ from ray.rllib.models.torch.misc import normc_initializer
 from torch.distributions import MultivariateNormal
 from torch_geometric.data import HeteroData
 from torch_geometric.utils import add_self_loops
-from torch_geometric.nn import FastRGCNConv
+from torch_geometric.nn import FastRGCNConv, GCNConv
 import torch.nn.functional as F
 
 
@@ -20,16 +20,14 @@ class GraphNet(nn.Module):
             self.node_embeder[node_type] = nn.Linear(
                 obs_space["node_features"][node_type].shape[1], embed_dim
             )
-        self.conv1 = FastRGCNConv(
+        self.conv1 = GCNConv(
             in_channels=self.embed_dim,
             out_channels=self.embed_dim,
-            num_relations=1,
             aggr="mean",
         )
-        self.conv2 = FastRGCNConv(
+        self.conv2 = GCNConv(
             in_channels=self.embed_dim,
             out_channels=self.embed_dim,
-            num_relations=1,
             aggr="mean",
         )
         self.act = nn.ReLU()
@@ -40,30 +38,24 @@ class GraphNet(nn.Module):
             input[node_type].x = self.node_embeder[node_type](
                 input[node_type].x.float()
             )
-        input["gen"].x = self.act(
+        input_homogeneous = input.to_homogeneous()
+        input_homogeneous.x = self.act(
             self.conv1(
-                input["gen"].x,
-                input[("gen", "self loops gen", "gen")].edge_index,
-                edge_type=torch.zeros(
-                    (input[("gen", "self loops gen", "gen")].edge_index.shape[1],),
-                    dtype=torch.int64,
-                    device=input["gen"].x.device,
+                input_homogeneous.x,
+                input_homogeneous.edge_index,
                 ),
             )
-        )
-        input["gen"].x = self.act(
+        
+        input_homogeneous.x = self.act(
             self.conv2(
-                input["gen"].x,
-                input[("gen", "self loops gen", "gen")].edge_index,
-                edge_type=torch.zeros(
-                    (input[("gen", "self loops gen", "gen")].edge_index.shape[1],),
-                    dtype=torch.int64,
-                    device=input["gen"].x.device,
+                input_homogeneous.x,
+                input_homogeneous.edge_index,
+                
                 ),
             )
-        )
-        input["gen"].x = self.final_layer(input["gen"].x)
-        return input["gen"].x
+        result = input_homogeneous.x[input_homogeneous.node_type == 3]
+        result = self.final_layer(result)
+        return result
 
 
 class ActorCritic(nn.Module):
