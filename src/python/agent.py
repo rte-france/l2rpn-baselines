@@ -4,7 +4,8 @@ import torch
 from ray.rllib.models.torch.misc import normc_initializer
 from torch.distributions import MultivariateNormal
 from torch_geometric.data import HeteroData
-from torch_geometric.nn import EdgeConv
+from torch_geometric.utils import add_self_loops
+from torch_geometric.nn import FastRGCNConv, SAGEConv, GCNConv, EdgeConv
 import torch.nn.functional as F
 
 
@@ -30,29 +31,28 @@ class GraphNet(nn.Module):
         normc_initializer(0.001)(self.final_layer.weight)
         normc_initializer(0.001)(self.val_layer.weight)
 
-    def forward(
-        self, input: HeteroData
-    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    def forward(self, input: HeteroData) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         for node_type in self.obs_space["node_features"]:
             input[node_type].x = self.node_embeder[node_type](
                 input[node_type].x.float()
             )
         input_homogeneous = input.to_homogeneous()
         skip_connection = input_homogeneous.x[input_homogeneous.node_type == 3]
-        input_homogeneous.x = self.act(  # type: ignore
+        input_homogeneous.x = self.act(
             self.conv1(
                 input_homogeneous.x,
                 input_homogeneous.edge_index,
             ),
         )
-        embeddings = input_homogeneous.x[input_homogeneous.node_type == 3]
-        embeddings = torch.cat([embeddings, skip_connection], dim=1)
-        value_vector = self.val_layer(embeddings.reshape(input.num_graphs, -1))
-        action = self.final_layer(embeddings)
-        action_mean = action[:, 0]
-        action_std = action[:, 1]
-        action_std = F.softplus(action_std)
-        return action_mean, action_std, value_vector
+
+        gen_embeddings = input_homogeneous.x[input_homogeneous.node_type == 3]
+        gen_embeddings = torch.cat([gen_embeddings, skip_connection], dim=1)
+        value = gen_embeddings.reshape(input.num_graphs, -1)
+        value = self.val_layer(value)
+        action = self.final_layer(gen_embeddings)
+        action_mean = action[:,0].reshape(input.num_graphs, -1)
+        action_std = F.softplus(action[:,1]).reshape(input.num_graphs, -1)
+        return action_mean, action_std, value
 
 
 class ActorCritic(nn.Module):
@@ -63,20 +63,35 @@ class ActorCritic(nn.Module):
 
         self.original_space = obs_space
         self.actor = GraphNet(obs_space, action_space, self.embed_dim, 2)
+        # self.special_init(self.actor)
 
-    def forward(self, input: HeteroData, state, seq_lens):
-        action_mean, action_std, self.value_vector = self.actor(input.clone())
-        return action_mean, action_std
+        self.critic = nn.Sequential(
+            nn.Linear(
+                obs_space["node_features"]["gen"].shape[0]
+                * obs_space["node_features"]["gen"].shape[1],
+                self.embed_dim,
+            ),
+            nn.ReLU(),
+            nn.Linear(self.embed_dim, self.embed_dim),
+            nn.ReLU(),
+            nn.Linear(self.embed_dim, 1),
+        )
+        special_init(self.critic)
+
+    def forward(self, input: HeteroData):
+        mean, std, self.val = self.actor(input.clone())  # .reshape(-1, self.n_dim, 2)
+        return mean, std, []
 
     def value_function(self):
-        return self.value_vector.flatten()
+        return self.val.flatten()
 
     def act_eval(self, state):
-        action_mean, action_std = self.forward(state, None, None)
+        action_mean, action_std, _ = self.forward(state)
         return action_mean
 
     def act(self, state):
-        action_mean, action_std = self.forward(state, None, None)
+        action_mean, action_std, _ = self.forward(state)
+        # action_mean, action_std = torch.chunk(flattened_action, 2, dim=0)
         cov_mat = torch.diag_embed(action_std)
         dist = MultivariateNormal(action_mean, cov_mat)
 
@@ -87,7 +102,7 @@ class ActorCritic(nn.Module):
         return action.detach(), action_logprob.detach(), state_val.detach()
 
     def evaluate(self, state, action):
-        action_mean, action_var = self.forward(state, None, None)
+        action_mean, action_var, _ = self.forward(state)
 
         cov_mat = torch.diag_embed(action_var)
         dist = MultivariateNormal(action_mean, cov_mat)

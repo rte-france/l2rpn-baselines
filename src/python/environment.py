@@ -25,7 +25,7 @@ MIN_POWER_VALUE = 0
 MAX_POWER_VALUE = 100
 
 
-class Grid2OpGeneratorTargetTestEnv(Env):
+class TestEnv(Env):
     def __init__(self, env_name: str = "l2rpn_case14_sandbox") -> None:
         super().__init__()
         self.env_name = env_name
@@ -40,9 +40,7 @@ class Grid2OpGeneratorTargetTestEnv(Env):
         # Observation space normalization factors
         self.gen_pmax = torch.tensor(self.env.observation_space.gen_pmax)
         self.gen_pmin = torch.tensor(self.env.observation_space.gen_pmin)
-        assert torch.all(self.gen_pmax >= self.gen_pmin) and torch.all(
-            self.gen_pmin >= 0
-        )  # type: ignore
+        assert torch.all(self.gen_pmax >= self.gen_pmin) and torch.all(self.gen_pmin >= 0)  # type: ignore
 
         # Observation space observation
         self.observation_space: ObservationSpace = ObservationSpace(self.env)
@@ -83,6 +81,14 @@ class Grid2OpGeneratorTargetTestEnv(Env):
                     self.curr_state - self.target_state,
                     self.target_state,
                     self.curr_state,
+                ],
+                axis=1,
+            )
+        )
+        obs["bus"].x = torch.tensor(
+            np.stack(
+                [
+                    self.load_states["bus"],
                 ],
                 axis=1,
             )
@@ -184,7 +190,7 @@ node_observation_space = OrderedDict(
             low=-np.inf, high=np.inf, shape=(n_lements, 1), dtype=np.float32
         ),
         "bus": lambda n_lements: spaces.Box(
-            low=-np.inf, high=np.inf, shape=(n_lements, 3), dtype=np.float32
+            low=-np.inf, high=np.inf, shape=(n_lements, 1), dtype=np.float32
         ),
         "load": lambda n_lements: spaces.Box(
             low=-np.inf, high=np.inf, shape=(n_lements, 1), dtype=np.float32

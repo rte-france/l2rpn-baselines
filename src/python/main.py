@@ -72,9 +72,9 @@ def train():
     }
 
     print("training environment name : " + env_name)
-    from environment import Grid2OpGeneratorTargetTestEnv
+    from environment import TestEnv
 
-    env = Grid2OpGeneratorTargetTestEnv()
+    env = TestEnv()
 
     ###################### logging ######################
 
