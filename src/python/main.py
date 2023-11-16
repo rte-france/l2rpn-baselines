@@ -159,7 +159,6 @@ def train():
         "============================================================================================"
     )
 
-
     # printing and logging variables
     print_running_reward = 0
     print_running_episodes = 0
@@ -179,7 +178,6 @@ def train():
         while not progress.finished:
             state, _ = env.reset()
             current_ep_reward = 0
-
 
             while True:
                 # select action with policy
@@ -204,7 +202,6 @@ def train():
                         * time_step
                         / max_training_timesteps,
                     )
-
 
                 # break; if the episode is over
                 if done:
