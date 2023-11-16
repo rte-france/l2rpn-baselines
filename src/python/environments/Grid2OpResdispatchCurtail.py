@@ -5,10 +5,7 @@ from grid2op.Reward import LinesCapacityReward
 from lightsim2grid import LightSimBackend
 from ray.rllib.utils.spaces.repeated import Repeated
 from gymnasium import Env
-import matplotlib.pyplot as plt
-import io
 import numpy as np
-from PIL import Image
 from gymnasium import spaces
 from collections import defaultdict
 import torch

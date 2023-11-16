@@ -1,6 +1,5 @@
 import os
 from datetime import datetime
-from re import A
 import torch
 import numpy as np
 import imageio
@@ -45,7 +44,7 @@ def train():
     ## Note : print/log frequencies should be > than max_ep_len
 
     ################ PPO hyperparameters ################
-    update_timestep = max_ep_len * 4  # update policy every n timesteps
+    update_timestep = 1000  # update policy every n timesteps
     K_epochs = 80  # update policy for K epochs in one PPO update
 
     eps_clip = 0.2  # clip parameter for PPO
