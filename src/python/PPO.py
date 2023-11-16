@@ -1,9 +1,5 @@
-from pdb import run
-from sched import scheduler
 import torch
 import torch.nn as nn
-from torch.distributions import MultivariateNormal
-from torch.distributions import Categorical
 from agent import ActorCritic
 import wandb
 from torch_geometric.data import Batch
@@ -69,8 +65,12 @@ class PPO:
         self.policy = ActorCritic(observation_space, action_space).to(device)
         self.optimizer = torch.optim.Adam(
             [
-                {"params": self.policy.actor.parameters(), "lr": lr_actor},
-                {"params": self.policy.critic.parameters(), "lr": lr_critic},
+                {
+                    "params": self.policy.agent.get_backbone_params(),
+                    "lr": max(lr_actor, lr_critic),
+                },
+                {"params": self.policy.agent.get_actor_params(), "lr": lr_actor},
+                {"params": self.policy.agent.get_critic_params(), "lr": lr_critic},
             ]
         )
         self.scheduler = torch.optim.lr_scheduler.StepLR(

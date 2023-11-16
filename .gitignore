@@ -4,6 +4,7 @@ PPO_logs
 PPO_preTrained/
 .vscode
 wandb
+.ruff_cache
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

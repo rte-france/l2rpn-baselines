@@ -40,7 +40,9 @@ class TestEnv(Env):
         # Observation space normalization factors
         self.gen_pmax = torch.tensor(self.env.observation_space.gen_pmax)
         self.gen_pmin = torch.tensor(self.env.observation_space.gen_pmin)
-        assert torch.all(self.gen_pmax >= self.gen_pmin) and torch.all(self.gen_pmin >= 0)  # type: ignore
+        assert torch.all(self.gen_pmax >= self.gen_pmin) and torch.all(
+            self.gen_pmin >= 0
+        )  # type: ignore
 
         # Observation space observation
         self.observation_space: ObservationSpace = ObservationSpace(self.env)
@@ -94,10 +96,6 @@ class TestEnv(Env):
             )
         )
         return obs
-
-    # def set_target_state(self):
-    #     self.target_state = self.load_states["gen"]
-    #     # self.target_state[self.env.observation_space.gen_max_ramp_up == 0] = 0
 
     def set_target_state(self):
         self.target_state = torch.tensor(np.zeros(self.n_gen, dtype=np.float32))

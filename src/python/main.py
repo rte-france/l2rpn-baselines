@@ -19,7 +19,7 @@ def train():
     )
 
     ####### initialize environment hyperparameters ######
-    env_name = "Grid2OpGeneratorTargetGrid2OpGeneratorTargetTestEnv"
+    env_name = "Grid2OpGeneratorTargetTestEnv"
 
     has_continuous_action_space = True  # continuous action space; else discrete
 
@@ -31,7 +31,7 @@ def train():
     print_freq = max_ep_len * 10  # print avg reward in the interval (in num timesteps)
     log_freq = max_ep_len * 2  # log avg reward in the interval (in num timesteps)
     save_model_freq = (
-        max_training_timesteps // 50
+        max_training_timesteps // 5
     )  # save model frequency (in num timesteps)
 
     #####################################################
