@@ -1,4 +1,3 @@
-from typing import Dict
 from typing import Any
 from torch_geometric.data import HeteroData
 import grid2op
@@ -7,7 +6,6 @@ from lightsim2grid import LightSimBackend
 from ray.rllib.utils.spaces.repeated import Repeated
 from gymnasium import Env
 import matplotlib.pyplot as plt
-from gymnasium import spaces
 import io
 import numpy as np
 from PIL import Image
@@ -27,7 +25,7 @@ MIN_POWER_VALUE = 0
 MAX_POWER_VALUE = 100
 
 
-class TestEnv(Env):
+class Grid2OpGeneratorTargetTestEnv(Env):
     def __init__(self, env_name: str = "l2rpn_case14_sandbox") -> None:
         super().__init__()
         self.env_name = env_name
@@ -42,7 +40,9 @@ class TestEnv(Env):
         # Observation space normalization factors
         self.gen_pmax = torch.tensor(self.env.observation_space.gen_pmax)
         self.gen_pmin = torch.tensor(self.env.observation_space.gen_pmin)
-        assert torch.all(self.gen_pmax >= self.gen_pmin) and torch.all(self.gen_pmin >= 0)  # type: ignore
+        assert torch.all(self.gen_pmax >= self.gen_pmin) and torch.all(
+            self.gen_pmin >= 0
+        )  # type: ignore
 
         # Observation space observation
         self.observation_space: ObservationSpace = ObservationSpace(self.env)

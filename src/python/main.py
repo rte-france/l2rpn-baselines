@@ -13,13 +13,13 @@ def train():
         "============================================================================================"
     )
     current_time = datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
-    run = wandb.init(
+    wandb.init(
         project="grid2op",
         notes=current_time,
     )
 
     ####### initialize environment hyperparameters ######
-    env_name = "RoboschoolWalker2d-v1"
+    env_name = "Grid2OpGeneratorTargetGrid2OpGeneratorTargetTestEnv"
 
     has_continuous_action_space = True  # continuous action space; else discrete
 
@@ -72,9 +72,9 @@ def train():
     }
 
     print("training environment name : " + env_name)
-    from environment import TestEnv
+    from environment import Grid2OpGeneratorTargetTestEnv
 
-    env = TestEnv()
+    env = Grid2OpGeneratorTargetTestEnv()
 
     ###################### logging ######################
 
@@ -299,6 +299,7 @@ def train():
         "============================================================================================"
     )
 
+    agent_final_checkpoint = f"PPO_{env_name}_{random_seed}_{time_step}.pth"
     ppo_agent.save(os.path.join(wandb.run.dir, agent_final_checkpoint))  # type: ignore
     wandb.finish()
 

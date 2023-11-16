@@ -1,5 +1,4 @@
 import grid2op
-from l2rpn_baselines.DoNothing import evaluate
 from grid2op.Reward import LinesCapacityReward
 from grid2op.Chronics import MultifolderWithCache
 from lightsim2grid import LightSimBackend
