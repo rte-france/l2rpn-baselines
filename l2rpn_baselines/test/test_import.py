@@ -97,6 +97,10 @@ class TestCurriculumAgent(TestImport, unittest.TestCase):
     def load_module(self):
         return "CurriculumAgent"
 
+class TestLJNAgent(TestImport, unittest.TestCase):
+    def load_module(self):
+        return "LJNAgent"
+
 # because it deactivates the eager mode
 # class TestPandapowerGeirina(TestImport, unittest.TestCase):
 #     def load_module(self):
