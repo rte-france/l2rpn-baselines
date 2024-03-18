@@ -13,3 +13,6 @@
 [submodule "l2rpn_baselines/curriculumagent"]
 	path = l2rpn_baselines/curriculumagent
 	url = https://github.com/FraunhoferIEE/curriculumagent/
+[submodule "l2rpn_baselines/LJNAgent"]
+	path = l2rpn_baselines/LJNAgent
+	url = git@github.com:lajavaness/l2rpn-2023-ljn-agent.git
