@@ -28,6 +28,7 @@ all_baselines_li = [
     "Geirina",
     "AsynchronousActorCritic",
     "Kaist",
+    "LJNAgent"
     # utilitary scripts
     "utils"
 ]
