@@ -148,8 +148,8 @@ class ExpertAgent(BaseAgent):
 
                         # we take the best action from the result of the expert system
                         New_scoreBestAction = expert_system_results['Topology simulated score'].max()
-                        index_best_action = expert_system_results[
-                            expert_system_results['Topology simulated score'] == New_scoreBestAction]["Efficacity"].idxmax()  #
+                        index_best_action = pd.to_numeric(expert_system_results[
+                            expert_system_results['Topology simulated score'] == New_scoreBestAction]["Efficacity"]).idxmax()  #
 
                         logging.info("overloaded line id")
                         logging.info(ltc)
@@ -332,9 +332,9 @@ class ExpertAgent(BaseAgent):
             if (new_expert_system_results.shape[0] >= 1) and not (
                     new_expert_system_results["Efficacity"].isnull().values.all()):  # if not empty
                 index_new_best_action = \
-                    new_expert_system_results[new_expert_system_results['Topology simulated score'] ==
+                    pd.to_numeric(new_expert_system_results[new_expert_system_results['Topology simulated score'] ==
                                               new_expert_system_results['Topology simulated score'].max()][
-                        "Efficacity"].idxmax()
+                        "Efficacity"]).idxmax()
 
                 new_efficacy_best_action, New_scoreBestAction, new_subID_ToActOn = \
                     new_expert_system_results[['Efficacity', 'Topology simulated score', 'Substation ID']].iloc[
